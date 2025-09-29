@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8">
+    <title>{{ shop.name }} – Kundkonto</title>
+    {{ 'theme.css'      | asset_url | stylesheet_tag }}
+    {{ 'tokens.css'     | asset_url | stylesheet_tag }}   {# dne färg/typ-variabler #}
+    {{ 'customer-tailwind.css' | asset_url | stylesheet_tag }} {# kompileras strax #}
+  </head>
+  <body class="bg-base text-ink font-sans">
+    {{ content_for_header }}
+    <main class="min-h-screen flex flex-col items-center justify-center p-8">
+      {{ content_for_layout }}
+    </main>
+    {{ content_for_footer }}
+  </body>
+</html>

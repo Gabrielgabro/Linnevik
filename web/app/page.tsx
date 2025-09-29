@@ -1,16 +1,18 @@
-import { getFirstProduct } from '@/lib/shopify';
-import Button from '@/components/Button';
-
-export default async function Home() {
-  const data   = await getFirstProduct();
-  const edge   = data?.data?.products?.edges?.[0];
-  const title  = edge?.node?.title ?? 'Inga produkter hittades';
-
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-base">
-      <h1 className="mb-4 text-2xl font-bold text-ink">{title}</h1>
-      <Button>Skapa företagskonto</Button>
-    </main>
-  );
+import HeroCover from "@/sections/HeroCover";
+import FeaturedGrid from "@/sections/FeaturedGrid";
+import ClientLogosRotating from "@/sections/ClientLogosRotating";
+import CategoriesTeaser from "@/sections/CategoriesTeaser";
+import SampleCTA from '@/sections/SampleCTA';
+export default function Home() {
+    return (
+        <>
+            <HeroCover />
+            <div className="mt-12 w-full">
+                <ClientLogosRotating />
+            </div>
+            <CategoriesTeaser />
+            <FeaturedGrid />
+            <SampleCTA />
+        </>
+    );
 }
-

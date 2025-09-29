@@ -1,0 +1,8 @@
+:root {
+    --color-base:  #F9FAFB;
+    --color-tone:  #E7EDF1;
+    --color-accent:#4A6B82;
+    --color-ink:   #111111;
+    --font-sans:   'Inter', sans-serif;
+    --font-head:   'Manrope', sans-serif;
+}

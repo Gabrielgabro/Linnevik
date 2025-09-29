@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;
@@ -23,4 +25,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes logoIn {
+  from { opacity: 0; transform: scale(.96); filter: blur(1px); }
+  to   { opacity: 1; transform: scale(1);   filter: blur(0);   }
+}
+@keyframes logoOut {
+  from { opacity: 1; transform: scale(1);   filter: blur(0);   }
+  to   { opacity: 0; transform: scale(.96); filter: blur(1px); }
 }
