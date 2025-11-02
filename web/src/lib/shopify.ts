@@ -208,14 +208,6 @@ export async function getCollectionByHandle(handle: string, first = 12, after?: 
           pageInfo { hasNextPage endCursor }
         }
       }
-      // i getCollectionByHandle, inne i node { ... } för products
-    node {
-      id
-      handle
-      title
-      tags
-      images(first: 1) { edges { node { url altText } } }
-      priceRange { minVariantPrice { amount currencyCode } }
     }
     }`;
   type T = {
