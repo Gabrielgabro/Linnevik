@@ -1,45 +1,37 @@
-const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
-const SHOPIFY_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
-const DEFAULT_API_VERSION = '2024-07';
-const LEGACY_API_VERSION = '2024-04';
-
+// web/src/lib/shopify.ts
 type FetchArgs = {
     query: string;
-    variables?: Record<string, unknown>;
-    apiVersion?: string;
+    variables?: Record<string, any>;
 };
 
-async function storefrontFetch<T>({
-                                      query,
-                                      variables,
-                                      apiVersion = DEFAULT_API_VERSION,
-                                  }: FetchArgs): Promise<T> {
-    const endpoint = `https://${SHOPIFY_DOMAIN}/api/${apiVersion}/graphql.json`;
+const domain = process.env.SHOPIFY_STORE_DOMAIN!;
+const token = process.env.SHOPIFY_STOREFRONT_TOKEN!;
+const apiVersion = '2024-07';
 
-    const response = await fetch(endpoint, {
+const endpoint = `https://${domain}/api/${apiVersion}/graphql.json`;
+
+async function shopifyFetch<T>({ query, variables }: FetchArgs): Promise<T> {
+    const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN,
+            'X-Shopify-Storefront-Access-Token': token,
         },
         body: JSON.stringify({ query, variables }),
         cache: 'no-store',
         next: { revalidate: 0 },
     });
 
-    if (!response.ok) {
-        const message = await response.text();
-        throw new Error(`Storefront fetch failed: ${response.status} ${message}`);
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Storefront fetch failed: ${res.status} ${text}`);
     }
 
-    const json = await response.json();
+    const json = await res.json();
     if (json.errors) {
-        const message = json.errors
-            .map((error: { message: string }) => error.message)
-            .join('\n');
+        const message = json.errors.map((e: { message: string }) => e.message).join('\n');
         throw new Error(message);
     }
-
     return json.data as T;
 }
 
@@ -56,6 +48,7 @@ const PRODUCT_CARD_FIELDS = `
 `;
 
 export async function getFeaturedProducts(first = 6) {
+    // 1) prova hämta kollektion "featured"
     const FEATURED_QUERY = `
     query Featured($handle: String!, $first: Int!) {
       collection(handle: $handle) {
@@ -76,13 +69,14 @@ export async function getFeaturedProducts(first = 6) {
         } | null;
     };
 
-    const data = await storefrontFetch<FeaturedData>({
+    const data = await shopifyFetch<FeaturedData>({
         query: FEATURED_QUERY,
         variables: { handle: 'featured', first },
     });
 
-    let nodes = data.collection?.products.edges.map(edge => edge.node) ?? [];
+    let nodes = data.collection?.products.edges.map(e => e.node) ?? [];
 
+    // 2) fallback: ta första N produkter om kollektionen saknas/tom
     if (!nodes.length) {
         const FALLBACK_QUERY = `
       query All($first: Int!) {
@@ -91,15 +85,11 @@ export async function getFeaturedProducts(first = 6) {
         }
       }
     `;
-
-        const fallback = await storefrontFetch<{
-            products: { edges: { node: any }[] };
-        }>({
+        const fb = await shopifyFetch<{ products: { edges: { node: any }[] } }>({
             query: FALLBACK_QUERY,
             variables: { first },
         });
-
-        nodes = fallback.products.edges.map(edge => edge.node);
+        nodes = fb.products.edges.map(e => e.node);
     }
 
     return nodes as Array<{
@@ -112,7 +102,7 @@ export async function getFeaturedProducts(first = 6) {
 }
 
 export async function getProductByHandle(handle: string) {
-    const PRODUCT_QUERY = `
+    const q = `
     query Product($handle: String!) {
       product(handle: $handle) {
         id
@@ -137,43 +127,29 @@ export async function getProductByHandle(handle: string) {
         packSize: metafield(namespace: "b2b", key: "pack_size") { value }
         leadTime: metafield(namespace: "b2b", key: "lead_time") { value }
       }
-    }
-  `;
-
-    type ProductResult = {
+    }`;
+    type T = {
         product: {
-            id: string;
-            handle: string;
-            title: string;
-            descriptionHtml: string;
+            id: string; handle: string; title: string; descriptionHtml: string;
             images: { edges: { node: { url: string; altText: string | null } }[] };
             options: { name: string; values: string[] }[];
-            variants: {
-                edges: { node: {
-                        id: string;
-                        title: string;
-                        availableForSale: boolean;
+            variants: { edges: { node: {
+                        id: string; title: string; availableForSale: boolean;
                         price: { amount: string; currencyCode: string };
-                        selectedOptions: { name: string; value: string }[];
-                        sku: string | null;
-                    } }[];
-            };
+                        selectedOptions: { name: string; value: string }[]; sku: string | null;
+                    } }[] };
             moq?: { value: string } | null;
             packSize?: { value: string } | null;
             leadTime?: { value: string } | null;
-        } | null;
+        } | null
     };
-
-    const data = await storefrontFetch<ProductResult>({
-        query: PRODUCT_QUERY,
-        variables: { handle },
-    });
-
+    const data = await shopifyFetch<T>({ query: q, variables: { handle } });
     return data.product;
 }
 
+
 export async function getAllCollections(first = 30) {
-    const COLLECTIONS_QUERY = `
+    const q = `
     query AllCollections($first: Int!) {
       collections(first: $first, sortKey: TITLE) {
         edges {
@@ -186,37 +162,32 @@ export async function getAllCollections(first = 30) {
           }
         }
       }
-    }
-  `;
+    }`;
 
     try {
-        const data = await storefrontFetch<{
-            collections: { edges: { node: any }[] };
-        }>({
-            query: COLLECTIONS_QUERY,
-            variables: { first },
+        const data = await shopifyFetch<{ collections: { edges: { node: any }[] } }>({
+            query: q,
+            variables: { first }
         });
 
-        return data.collections.edges
-            .map(edge => {
-                const hasProducts = !!edge.node.products?.edges?.length;
-                return {
-                    id: edge.node.id,
-                    handle: edge.node.handle,
-                    title: edge.node.title,
-                    image: edge.node.image as { url: string; altText: string | null } | null,
-                    hasProducts,
-                };
-            })
-            .filter(collection => collection.hasProducts);
-    } catch (error) {
-        console.error('getAllCollections failed:', error);
-        return [];
+        return data.collections.edges.map(e => {
+            const hasProducts = !!e.node.products?.edges?.length;
+            return {
+                id: e.node.id,
+                handle: e.node.handle,
+                title: e.node.title,
+                image: e.node.image as { url: string; altText: string | null } | null,
+                hasProducts,
+            };
+        }).filter(c => c.hasProducts); // Bonus: Filtrera bort tomma kategorier
+    } catch (err) {
+        // Viktigt: krascha inte sidan om API-anropet misslyckas.
+        console.error('getAllCollections failed:', err);
+        return []; // Returnera en tom lista vid fel.
     }
 }
-
 export async function getCollectionByHandle(handle: string, first = 12, after?: string) {
-    const COLLECTION_QUERY = `
+    const q = `
     query Collection($handle: String!, $first: Int!, $after: String) {
       collection(handle: $handle) {
         id
@@ -238,13 +209,10 @@ export async function getCollectionByHandle(handle: string, first = 12, after?: 
         }
       }
     }
-  `;
-
-    type CollectionResult = {
+    }`;
+    type T = {
         collection: {
-            id: string;
-            title: string;
-            description: string | null;
+            id: string; title: string; description: string | null;
             image?: { url: string; altText: string | null } | null;
             products: {
                 edges: { cursor: string; node: any }[];
@@ -252,17 +220,40 @@ export async function getCollectionByHandle(handle: string, first = 12, after?: 
             };
         } | null;
     };
-
-    const data = await storefrontFetch<CollectionResult>({
-        query: COLLECTION_QUERY,
-        variables: { handle, first, after },
-    });
-
+    const data = await shopifyFetch<T>({ query: q, variables: { handle, first, after } });
     return data.collection;
 }
 
+
+// Sida för att ladda upp elementen till formuläret om att beställa prover
+
+// web/src/lib/shopify.ts
+const SF_VERSION = "2024-04";
+const DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
+const TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
+
+type StorefrontResult<T> = { data?: T; errors?: any };
+
+async function storefront<T>(query: string, variables?: Record<string, any>) {
+    const res = await fetch(`https://${DOMAIN}/api/${SF_VERSION}/graphql.json`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Storefront-Access-Token": TOKEN,
+        },
+        body: JSON.stringify({ query, variables }),
+        cache: "no-store",
+    });
+    const json = (await res.json()) as StorefrontResult<T>;
+    if (json.errors) {
+        console.error(json.errors);
+        throw new Error("Shopify Storefront query failed");
+    }
+    return json.data!;
+}
+
 export async function getProductsBasic(first = 60, queryStr?: string) {
-    const PRODUCTS_QUERY = /* GraphQL */ `
+    const query = /* GraphQL */ `
     query Products($first: Int!, $query: String) {
       products(first: $first, query: $query, sortKey: TITLE) {
         edges {
@@ -277,21 +268,15 @@ export async function getProductsBasic(first = 60, queryStr?: string) {
       }
     }
   `;
-
+    // Exempel: filtrera med text (titel, taggar m.m.) om ?q= finns
     const variables = {
         first,
         query: queryStr && queryStr.trim() ? queryStr.trim() : null,
     };
-
-    const data = await storefrontFetch<{
+    const data = await storefront<{
         products: { edges: { node: any }[] };
-    }>({
-        query: PRODUCTS_QUERY,
-        variables,
-        apiVersion: LEGACY_API_VERSION,
-    });
-
-    return data.products.edges.map(edge => edge.node) as Array<{
+    }>(query, variables);
+    return data.products.edges.map(e => e.node) as Array<{
         id: string;
         title: string;
         handle: string;
