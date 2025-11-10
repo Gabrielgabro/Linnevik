@@ -1,5 +1,7 @@
 
+
 'use client'
+
 
 const navigation = [
     { name: 'Product', href: '#' },
@@ -8,9 +10,11 @@ const navigation = [
     { name: 'Company', href: '#' },
 ]
 
+
 export default function Example() {
     return (
         <div className="bg-primary">
+
 
             <div className="relative isolate px-6 pt-14 lg:px-8">
                 <div
@@ -46,7 +50,7 @@ export default function Example() {
                         <div className="mt-10 flex items-center justify-center gap-x-6">
                             <a
                                 href="#"
-                                className="rounded-md bg-accent-primary px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-500"
+                                className="rounded-md bg-accent-primary px-3.5 py-2.5 text-sm font-semibold text-primary shadow-sm hover:bg-accent-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-500"
                             >
                                 Utbud
                             </a>

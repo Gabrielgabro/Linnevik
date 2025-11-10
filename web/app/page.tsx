@@ -3,6 +3,7 @@ import ClientLogosRotating from "@/sections/ClientLogosRotating";
 import CategoriesTeaser from "@/sections/CategoriesTeaser";
 import SampleCTA from '@/sections/SampleCTA';
 import Hero from "@/sections/Hero";
+
 export default function Home() {
     return (
         <>
@@ -13,6 +14,7 @@ export default function Home() {
             <CategoriesTeaser />
             <FeaturedGrid />
             <SampleCTA />
+
         </>
     );
 }
