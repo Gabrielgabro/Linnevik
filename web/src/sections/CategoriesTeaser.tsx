@@ -12,14 +12,14 @@ export default async function CategoriesTeaser() {
     if (!visible.length) return null;
 
     return (
-        <section className="bg-gray-100">
+        <section>
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-2xl py-16 sm:py-24 lg:max-w-none lg:py-32">
 
                     <div className="mt-6 space-y-12 lg:grid lg:grid-cols-3 lg:gap-x-6 lg:space-y-0">
                         {visible.map((c: any) => (
                             <Link key={c.id} href={`/collections/${c.handle}`} className="group relative block">
-                                <div className="relative w-full rounded-lg bg-white overflow-hidden max-sm:h-80 sm:aspect-[2/1] lg:aspect-square">
+                                <div className="relative w-full rounded-lg bg-overlay overflow-hidden max-sm:h-80 sm:aspect-[2/1] lg:aspect-square">
                                     {c.image?.url ? (
                                         <Image
                                             src={c.image.url}
@@ -31,13 +31,13 @@ export default async function CategoriesTeaser() {
                                         />
                                     ) : (
                                         // Fallback om kollektionen saknar bild
-                                        <div className="absolute inset-0 grid place-items-center text-gray-400 text-sm">
+                                        <div className="absolute inset-0 grid place-items-center text-secondary text-sm">
                                             Ingen bild
                                         </div>
                                     )}
                                 </div>
 
-                                <h3 className="mt-6 text-sm text-gray-500">
+                                <h3 className="mt-6 text-sm text-primary">
                                     <span className="absolute inset-0" aria-hidden="true" />
                                     {c.title}
                                 </h3>

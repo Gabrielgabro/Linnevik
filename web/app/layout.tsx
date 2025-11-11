@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/sections/Header";
 import Footer from "@/sections/Footer";
+import HomePageBubbles from "@/components/HomePageBubbles";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -27,6 +28,7 @@ export default function RootLayout({
     return (
         <html lang="sv">
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <HomePageBubbles />
         <Header />
         {children}
         <Footer />

@@ -4,20 +4,26 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Fixad footer">
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/php.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/src/sections/AlternativFooter.tsx" afterDir="false" />
+    <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
+      <change afterPath="$PROJECT_DIR$/qodana.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Linnevik/Linnevik/web/src/sections/Header.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/Linnevik/Linnevik/web/src/sections/Header.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/collections/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/collections/[handle]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/collections/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/collections/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/layout.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/components/Button.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/Button.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/products/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/products/[handle]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/public/client_logos/karlaplan_logga.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/components/Breadcrumbs.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/Breadcrumbs.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/lib/shopify.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/shopify.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/CategoriesTeaser.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/CategoriesTeaser.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/FeaturedGrid.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/FeaturedGrid.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/sections/Footer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Footer.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/Header.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Header.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/sections/Hero.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Hero.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/tokens.css" beforeDir="false" afterPath="$PROJECT_DIR$/web/tokens.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/SampleCTA.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/SampleCTA.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/tokens.css" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,17 +53,20 @@
     &quot;assignee&quot;: &quot;Gabrielgabro&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/Gabrielgabro/Linnevik.git",
-    "accountId": "a2448a18-10ac-4fab-9dc7-8626b2b42a26"
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Gabrielgabro/Linnevik.git&quot;,
+    &quot;accountId&quot;: &quot;a2448a18-10ac-4fab-9dc7-8626b2b42a26&quot;
   }
-}]]></component>
+}</component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
   <component name="PhpDebugGeneral" listening_started="true" />
   <component name="PhpWorkspaceProjectConfiguration" interpreter_name="/opt/homebrew/Cellar/php/8.4.13/bin/php" />
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="AISelfReview" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 6
 }</component>
@@ -81,7 +90,7 @@
     &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;snapshot-pre-optionB-2025-11-10&quot;,
     &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;/Users/gabrielgabro/Linnevik/web&quot;,
     &quot;list.type.of.created.stylesheet&quot;: &quot;CSS&quot;,
@@ -96,6 +105,23 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="QodanaHighlightedReportService">
+    <option name="localRunNotPublishedPersistedInfo">
+      <LocalReportPersistedInfo>
+        <option name="path" value="/private/var/folders/d1/g48mr68117z_6xrp5fmxvtvm0000gn/T/qodana_output/qodana.sarif.json" />
+        <option name="reportGuid" value="d6f2f988-4f71-45e3-9244-859315a3641b" />
+        <option name="reportName" value="Linnevik/qodana/2025-11-11" />
+      </LocalReportPersistedInfo>
+    </option>
+  </component>
+  <component name="QodanaIsSelectedPersistenceService">
+    <option name="selectedOrLoading" value="true" />
+  </component>
+  <component name="QodanaReportsService">
+    <option name="descriptions">
+      <ReportDescription localRun="true" path="/private/var/folders/d1/g48mr68117z_6xrp5fmxvtvm0000gn/T/qodana_output/qodana.sarif.json" reportGuid="d6f2f988-4f71-45e3-9244-859315a3641b" reportId="Linnevik/qodana/2025-11-11" />
+    </option>
+  </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/web" />
@@ -166,7 +192,10 @@
       <workItem from="1762440406331" duration="1115000" />
       <workItem from="1762523946137" duration="3177000" />
       <workItem from="1762766878189" duration="2948000" />
-      <workItem from="1762804402994" duration="6975000" />
+      <workItem from="1762804402994" duration="12698000" />
+      <workItem from="1762855097879" duration="5346000" />
+      <workItem from="1762885972891" duration="2068000" />
+      <workItem from="1762889343604" duration="3039000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />
@@ -217,7 +246,8 @@
     <MESSAGE value="Senaste upplagan David Skiöld" />
     <MESSAGE value="Hero and header fixed with themes as well" />
     <MESSAGE value="Fixad footer" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fixad footer" />
+    <MESSAGE value="Beta version" />
+    <option name="LAST_COMMIT_MESSAGE" value="Beta version" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

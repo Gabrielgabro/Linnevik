@@ -14,7 +14,7 @@ export default async function CollectionsPage() {
     // visa ett informativt meddelande istället för en tom sida.
     if (collections.length === 0) {
         return (
-            <main className="max-w-6xl mx-auto px-6 py-10 text-center">
+            <main className="max-w-6xl mx-auto px-6 pt-32 pb-10 text-center">
                 <h1 className="text-3xl font-semibold mb-4">Kategorier</h1>
                 <p className="text-black/60">
                     Vi kunde inte hitta några kategorier just nu. Försök igen senare.
@@ -24,7 +24,7 @@ export default async function CollectionsPage() {
     }
 
     return (
-        <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+        <main className="max-w-6xl mx-auto px-6 pt-32 pb-10 space-y-8">
             <h1 className="text-3xl font-semibold">Alla kategorier</h1>
 
             <section className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">

@@ -6,7 +6,7 @@ export default function Breadcrumbs({
     items: Array<{ href: string; label: string }>;
 }) {
     return (
-        <nav aria-label="Brödsmulor" className="text-sm text-black/60">
+        <nav aria-label="Brödsmulor" className="text-sm text-secondary">
             <ol className="flex flex-wrap gap-1">
                 <li><Link href="/" className="hover:underline">Hem</Link></li>
                 {items.map((it, i) => (
@@ -15,7 +15,7 @@ export default function Breadcrumbs({
                         {i < items.length - 1 ? (
                             <Link href={it.href} className="hover:underline">{it.label}</Link>
                         ) : (
-                            <span className="text-black/80">{it.label}</span>
+                            <span className="text-primary">{it.label}</span>
                         )}
                     </li>
                 ))}

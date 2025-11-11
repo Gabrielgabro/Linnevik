@@ -133,6 +133,15 @@ export async function getProductByHandle(handle: string) {
             }
           }
         }
+        collections(first: 5) {
+          edges {
+            node {
+              id
+              handle
+              title
+            }
+          }
+        }
         moq: metafield(namespace: "b2b", key: "moq") { value }
         packSize: metafield(namespace: "b2b", key: "pack_size") { value }
         leadTime: metafield(namespace: "b2b", key: "lead_time") { value }
@@ -156,6 +165,13 @@ export async function getProductByHandle(handle: string) {
                         price: { amount: string; currencyCode: string };
                         selectedOptions: { name: string; value: string }[];
                         sku: string | null;
+                    } }[];
+            };
+            collections: {
+                edges: { node: {
+                        id: string;
+                        handle: string;
+                        title: string;
                     } }[];
             };
             moq?: { value: string } | null;

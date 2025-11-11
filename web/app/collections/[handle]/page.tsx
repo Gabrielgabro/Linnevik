@@ -55,18 +55,18 @@ export default async function CollectionPage({ params, searchParams }: Props) {
     const pageInfo = col.products.pageInfo;
 
     return (
-        <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
+        <main className="max-w-6xl mx-auto px-6 pt-32 pb-10 space-y-6">
             <Breadcrumbs items={[{ href: "/collections", label: "Kategorier" }, { href: `/collections/${params.handle}`, label: col.title }]} />
 
-            <header className="flex items-end justify-between gap-4 border-b pb-6">
+            <header className="flex items-end justify-between gap-4 border-b border-light pb-6">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-semibold">{col.title}</h1>
+                    <h1 className="text-2xl md:text-3xl font-semibold text-primary">{col.title}</h1>
                     {col.description && (
-                        <p className="text-black/70 mt-2 max-w-2xl">{col.description}</p>
+                        <p className="text-secondary mt-2 max-w-2xl">{col.description}</p>
                     )}
                 </div>
                 {products.length > 0 && (
-                    <div className="text-sm text-black/60 flex-shrink-0">
+                    <div className="text-sm text-secondary flex-shrink-0">
                         Visar {products.length} produkter
                     </div>
                 )}
@@ -78,8 +78,8 @@ export default async function CollectionPage({ params, searchParams }: Props) {
                 </section>
             ) : (
                 <div className="text-center py-16">
-                    <h2 className="text-xl font-medium">Tomt här!</h2>
-                    <p className="text-black/60 mt-2">Det finns inga produkter i denna kategori än.</p>
+                    <h2 className="text-xl font-medium text-primary">Tomt här!</h2>
+                    <p className="text-secondary mt-2">Det finns inga produkter i denna kategori än.</p>
                 </div>
             )}
 
@@ -94,7 +94,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
                     </Link>
                 ) : (
                     products.length > 0 && (
-                        <span className="text-sm text-black/50">Du har sett alla produkter</span>
+                        <span className="text-sm text-muted">Du har sett alla produkter</span>
                     )
                 )}
             </footer>

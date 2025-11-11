@@ -9,7 +9,7 @@ const loginUrl = domain ? `https://${domain}/account/login` : '/account/login';
 
 export default function Header() {
     return (
-        <header className="fixed inset-x-0 top-0 z-50 border-b border-light bg-overlay backdrop-blur supports-[backdrop-filter]:bg-overlay-supports">
+        <header className="fixed inset-x-0 top-0 z-50 backdrop-blur">
             <nav className="h-20 w-full flex items-center" aria-label="Global">
                 {/* Left: logo flush to left edge */}
                 <div className="pl-5 flex items-center gap-2">
