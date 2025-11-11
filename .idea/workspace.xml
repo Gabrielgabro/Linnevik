@@ -5,25 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
-      <change afterPath="$PROJECT_DIR$/qodana.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Linnevik/Linnevik/web/src/sections/Header.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/Linnevik/Linnevik/web/src/sections/Header.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/collections/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/collections/[handle]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/collections/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/collections/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/globals.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/layout.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/app/products/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/products/[handle]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/public/client_logos/karlaplan_logga.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/components/Breadcrumbs.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/Breadcrumbs.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/components/ProductForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/ProductForm.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/components/ProductGallery.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/ProductGallery.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/lib/shopify.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/shopify.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/sections/CategoriesTeaser.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/CategoriesTeaser.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/sections/FeaturedGrid.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/FeaturedGrid.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/sections/Footer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Footer.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/sections/Header.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Header.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/ClientLogosRotatingClient.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/ClientLogosRotatingClient.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/sections/Hero.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Hero.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/sections/SampleCTA.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/SampleCTA.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/tokens.css" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -195,7 +187,7 @@
       <workItem from="1762804402994" duration="12698000" />
       <workItem from="1762855097879" duration="5346000" />
       <workItem from="1762885972891" duration="2068000" />
-      <workItem from="1762889343604" duration="3039000" />
+      <workItem from="1762889343604" duration="11382000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />

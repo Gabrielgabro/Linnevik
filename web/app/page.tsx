@@ -10,9 +10,7 @@ export default function Home() {
         <>
             <HomePageBubbles />
             <Hero />
-            <div className="mt-12 w-full">
-                <ClientLogosRotating />
-            </div>
+            <ClientLogosRotating />
             <CategoriesTeaser />
             <FeaturedGrid />
             <SampleCTA />

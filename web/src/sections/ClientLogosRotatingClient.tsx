@@ -1,179 +1,153 @@
 "use client";
 import Image from 'next/image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type Logo = { src: string; alt: string };
 
-type Transition = {
-    slot: number;
-    from: number;
-    to: number;
-    key: number;
-};
+// Timing constants
+const DISPLAY_DURATION = 3000; // 3 seconds showing logo
+const FADE_OUT_DURATION = 800; // Calm fade out
+const FADE_IN_DURATION = 800; // Calm fade in
+const PAUSE_BETWEEN = 1000; // 1 second pause after fade in complete
 
-const MAX_SLOTS = 8;
-const STEP_MS = 3800;
-const FADE_MS = 1200;
+// Animation states
+type AnimationState = 'stable' | 'fading-out' | 'fading-in';
 
-function randInt(max: number) {
-    return Math.floor(Math.random() * max);
-}
 
 export default function ClientLogosRotatingClient({ logos }: { logos: Logo[] }) {
-    const logoCount = logos.length;
+    const totalLogos = logos.length;
 
-    const slotsCount = useMemo(() => {
-        if (logoCount <= 1) return logoCount;
-        return Math.max(1, Math.min(MAX_SLOTS, logoCount - 1));
-    }, [logoCount]);
+    // Always show 4 logos horizontally
+    const visibleCount = Math.min(4, totalLogos);
 
-    const initialSlots = useMemo(() => {
-        const divisor = Math.max(logoCount, 1);
-        return Array.from({ length: slotsCount }, (_, index) => index % divisor);
-    }, [logoCount, slotsCount]);
+    // Initialize: first m logos visible, last 2 hidden
+    const [visibleIndices, setVisibleIndices] = useState<number[]>(() =>
+        Array.from({ length: visibleCount }, (_, i) => i)
+    );
+    const [hiddenIndices, setHiddenIndices] = useState<number[]>(() =>
+        Array.from({ length: totalLogos - visibleCount }, (_, i) => i + visibleCount)
+    );
 
-    const [slots, setSlots] = useState<number[]>(initialSlots);
-    const [transition, setTransition] = useState<Transition | null>(null);
-
-    useEffect(() => {
-        setSlots(initialSlots);
-        setTransition(null);
-    }, [initialSlots]);
-
-    const slotsRef = useRef(slots);
-    const transitionRef = useRef<Transition | null>(transition);
+    const [animatingSlot, setAnimatingSlot] = useState<number | null>(null);
+    const [animationState, setAnimationState] = useState<AnimationState>('stable');
+    const [nextLogoIndex, setNextLogoIndex] = useState<number | null>(null);
 
     useEffect(() => {
-        slotsRef.current = slots;
-    }, [slots]);
-
-    useEffect(() => {
-        transitionRef.current = transition;
-    }, [transition]);
-
-    useEffect(() => {
-        if (logoCount <= slotsCount) {
+        // Don't animate if we don't have enough logos to rotate
+        if (totalLogos <= visibleCount) {
             return;
         }
 
-        const intervalId = window.setInterval(() => {
-            const activeTransition = transitionRef.current;
-            if (activeTransition) {
-                return;
-            }
+        let timeoutId: NodeJS.Timeout;
 
-            const currentSlots = slotsRef.current;
-            if (!currentSlots.length) {
-                return;
-            }
+        const startRotationCycle = () => {
+            // 1. Pick a random visible slot to replace
+            const randomSlot = Math.floor(Math.random() * visibleCount);
+            const logoToReplace = visibleIndices[randomSlot];
 
-            const slotIndex = randInt(slotsCount);
-            const used = new Set(currentSlots);
-            const available: number[] = [];
-            for (let i = 0; i < logoCount; i += 1) {
-                if (!used.has(i)) {
-                    available.push(i);
-                }
-            }
+            // 2. Pick a random hidden logo to show
+            const randomHiddenIndex = Math.floor(Math.random() * hiddenIndices.length);
+            const logoToShow = hiddenIndices[randomHiddenIndex];
 
-            if (!available.length) {
-                return;
-            }
+            setAnimatingSlot(randomSlot);
+            setNextLogoIndex(logoToShow);
 
-            const nextLogoIndex = available[randInt(available.length)];
-            const fromIndex = currentSlots[slotIndex] ?? currentSlots[0] ?? 0;
+            // 3. Start fade out
+            setAnimationState('fading-out');
 
-            const nextTransition: Transition = {
-                slot: slotIndex,
-                from: fromIndex,
-                to: nextLogoIndex,
-                key: Math.random(),
-            };
-
-            transitionRef.current = nextTransition;
-            setTransition(nextTransition);
-
-            window.setTimeout(() => {
-                setSlots((prev) => {
-                    if (transitionRef.current?.key !== nextTransition.key) {
-                        return prev;
-                    }
-
-                    const updated = [...prev];
-                    updated[nextTransition.slot] = nextTransition.to;
-                    return updated;
+            // 4. After fade out completes, swap logos and start fade in
+            timeoutId = setTimeout(() => {
+                // Swap the logos in state
+                setVisibleIndices(prev => {
+                    const newVisible = [...prev];
+                    newVisible[randomSlot] = logoToShow;
+                    return newVisible;
                 });
 
-                if (transitionRef.current?.key === nextTransition.key) {
-                    transitionRef.current = null;
-                    setTransition(null);
-                }
-            }, FADE_MS);
-        }, STEP_MS);
+                setHiddenIndices(prev => {
+                    const newHidden = [...prev];
+                    newHidden[randomHiddenIndex] = logoToReplace;
+                    return newHidden;
+                });
+
+                // Start fade in
+                setAnimationState('fading-in');
+
+                // 5. After fade in completes, pause, then schedule next cycle
+                timeoutId = setTimeout(() => {
+                    setAnimationState('stable');
+                    setAnimatingSlot(null);
+                    setNextLogoIndex(null);
+
+                    // 6. Pause before next rotation
+                    timeoutId = setTimeout(() => {
+                        startRotationCycle();
+                    }, PAUSE_BETWEEN);
+
+                }, FADE_IN_DURATION);
+
+            }, FADE_OUT_DURATION);
+        };
+
+        // Start first cycle after initial display duration
+        timeoutId = setTimeout(() => {
+            startRotationCycle();
+        }, DISPLAY_DURATION);
 
         return () => {
-            window.clearInterval(intervalId);
-            transitionRef.current = null;
-            setTransition(null);
+            clearTimeout(timeoutId);
         };
-    }, [logoCount, slotsCount]);
+    }, [totalLogos, visibleCount, visibleIndices, hiddenIndices]);
 
-    if (logoCount === 0 || slotsCount === 0) {
+    if (totalLogos === 0) {
         return null;
     }
 
     return (
-        <section>
-            <div className="mx-auto max-w-6xl px-6 py-10">
-                <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
-                    {Array.from({ length: slotsCount }).map((_, slotIndex) => {
-                        const currentIndex = slots[slotIndex] ?? (slotIndex % logoCount);
-                        const isTransitioning = transition?.slot === slotIndex;
-                        const fromIndex = isTransitioning ? transition.from : currentIndex;
-                        const toIndex = isTransitioning ? transition.to : currentIndex;
+        <section className="py-16">
+            <div className="mx-auto max-w-6xl px-6">
+                <h2 className="text-center text-sm font-semibold text-secondary uppercase tracking-wider mb-12">
+                    Våra kunder
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
+                    {visibleIndices.map((logoIndex, slotIndex) => {
+                        const logo = logos[logoIndex];
+                        const isAnimating = animatingSlot === slotIndex;
 
-                        const fromLogo = logos[fromIndex];
-                        const toLogo = logos[toIndex];
+                        // Calculate opacity based on animation state
+                        let opacity = 1;
+                        if (isAnimating) {
+                            if (animationState === 'fading-out') {
+                                opacity = 0;
+                            } else if (animationState === 'fading-in') {
+                                opacity = 1;
+                            }
+                        }
 
                         return (
-                            <div key={`client-logo-${slotIndex}`} className="relative aspect-square">
-                                {fromLogo && (
-                                    <div
-                                        className={`absolute inset-0 grid place-items-center transition-opacity ${
-                                            isTransitioning ? 'opacity-0' : 'opacity-100'
-                                        }`}
-                                        style={{ transitionDuration: `${FADE_MS}ms` }}
-                                    >
-                                        <div className="relative h-[72%] w-[72%]">
-                                            <Image
-                                                src={fromLogo.src}
-                                                alt={fromLogo.alt}
-                                                fill
-                                                className="object-contain"
-                                                sizes="(max-width: 768px) 45vw, (max-width: 1024px) 30vw, 22vw"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {toLogo && (
-                                    <div
-                                        className={`absolute inset-0 grid place-items-center transition-opacity ${
-                                            isTransitioning ? 'opacity-100' : 'opacity-0'
-                                        }`}
-                                        style={{ transitionDuration: `${FADE_MS}ms` }}
-                                    >
-                                        <div className="relative h-[72%] w-[72%]">
-                                            <Image
-                                                src={toLogo.src}
-                                                alt={toLogo.alt}
-                                                fill
-                                                className="object-contain"
-                                                sizes="(max-width: 768px) 45vw, (max-width: 1024px) 30vw, 22vw"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
+                            <div
+                                key={`slot-${slotIndex}`}
+                                className="relative aspect-square flex items-center justify-center"
+                            >
+                                <div
+                                    className="relative w-full h-full transition-opacity ease-in-out"
+                                    style={{
+                                        opacity,
+                                        transitionDuration: animationState === 'fading-out'
+                                            ? `${FADE_OUT_DURATION}ms`
+                                            : animationState === 'fading-in'
+                                            ? `${FADE_IN_DURATION}ms`
+                                            : '0ms'
+                                    }}
+                                >
+                                    <Image
+                                        src={logo.src}
+                                        alt={logo.alt}
+                                        fill
+                                        className="object-contain"
+                                        sizes="(max-width: 640px) 50vw, 25vw"
+                                    />
+                                </div>
                             </div>
                         );
                     })}

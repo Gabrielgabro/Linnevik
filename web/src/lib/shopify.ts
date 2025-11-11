@@ -188,6 +188,40 @@ export async function getProductByHandle(handle: string) {
     return data.product;
 }
 
+export async function getAllProducts(first = 100) {
+    const PRODUCTS_QUERY = `
+    query AllProducts($first: Int!) {
+      products(first: $first, sortKey: TITLE) {
+        edges {
+          node {
+            ${PRODUCT_CARD_FIELDS}
+          }
+        }
+      }
+    }
+  `;
+
+    try {
+        const data = await storefrontFetch<{
+            products: { edges: { node: any }[] };
+        }>({
+            query: PRODUCTS_QUERY,
+            variables: { first },
+        });
+
+        return data.products.edges.map(edge => edge.node) as Array<{
+            id: string;
+            handle: string;
+            title: string;
+            images: { edges: { node: { url: string; altText: string | null } }[] };
+            priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
+        }>;
+    } catch (error) {
+        console.error('getAllProducts failed:', error);
+        return [];
+    }
+}
+
 export async function getAllCollections(first = 30) {
     const COLLECTIONS_QUERY = `
     query AllCollections($first: Int!) {

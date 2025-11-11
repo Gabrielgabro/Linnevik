@@ -56,10 +56,23 @@ export default function ProductForm({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
+            {/* Price display */}
+            {active?.price && (
+                <div className="pb-6 border-b border-[#E7EDF1] dark:border-[#374151]">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-semibold text-primary">
+                            {unitPrice.toLocaleString('sv-SE')} {active.price.currencyCode}
+                        </span>
+                        <span className="text-sm text-secondary">(exkl. moms)</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Options */}
             {options.map(opt => (
-                <div key={opt.name}>
-                    <div className="mb-2 font-medium">{opt.name}</div>
+                <div key={opt.name} className="space-y-3">
+                    <label className="block text-sm font-medium text-primary uppercase tracking-wide">{opt.name}</label>
                     <div className="flex flex-wrap gap-2">
                         {opt.values.map(v => {
                             const activeVal = selected[opt.name] === v;
@@ -68,7 +81,11 @@ export default function ProductForm({
                                     key={v}
                                     type="button"
                                     onClick={() => setSelected(s => ({ ...s, [opt.name]: v }))}
-                                    className={`px-3 py-2 rounded border text-sm ${activeVal ? 'bg-black text-white border-black' : 'border-gray-300'}`}
+                                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                                        activeVal
+                                            ? 'bg-[#0B3D2E] text-white border-2 border-[#0B3D2E] dark:bg-[#145C45] dark:border-[#145C45]'
+                                            : 'bg-transparent text-primary border-2 border-[#E7EDF1] dark:border-[#374151] hover:border-[#0B3D2E] dark:hover:border-[#145C45]'
+                                    }`}
                                 >
                                     {v}
                                 </button>
@@ -78,35 +95,33 @@ export default function ProductForm({
                 </div>
             ))}
 
-            <div className="space-y-1">
-                <label className="font-medium">Antal {packSize ? `(pack om ${packSize})` : ''}</label>
+            {/* Quantity */}
+            <div className="space-y-3">
+                <label className="block text-sm font-medium text-primary uppercase tracking-wide">
+                    Antal {packSize ? `(pack om ${packSize})` : ''}
+                </label>
                 <input
                     type="number"
                     min={moq || 1}
                     step={packSize || 1}
                     value={qty}
                     onChange={e => setQty(Math.max(moq || 1, Number(e.target.value)))}
-                    className="border px-3 py-2 rounded w-32"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#145C45] transition-colors"
                 />
-                {moq && <div className="text-sm text-gray-600">Minsta beställning: {moq} st</div>}
+                <div className="flex items-center gap-4 text-xs text-secondary">
+                    {moq && <span>Minsta beställning: {moq} st</span>}
+                    {packSize && qty !== totalUnits && (
+                        <span>Justerat till {totalUnits} st</span>
+                    )}
+                </div>
             </div>
 
-            <div className="text-sm text-gray-700">
-                {active?.price && (
-                    <>
-                        Pris: {unitPrice.toLocaleString('sv-SE')} {active.price.currencyCode} <span className="text-gray-500">(exkl. moms)</span>
-                        {packSize && qty !== totalUnits && (
-                            <div>Justerat till {totalUnits} st (pack om {packSize}).</div>
-                        )}
-                    </>
-                )}
-            </div>
-
+            {/* Add to enquiry button */}
             <button
                 type="button"
                 disabled={!active?.availableForSale}
                 onClick={addToEnquiry}
-                className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded disabled:opacity-50"
+                className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
             >
                 Lägg i offertlistan
             </button>

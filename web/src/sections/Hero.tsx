@@ -18,7 +18,7 @@ export default function Example() {
                         </div>
                     <div className="text-center">
                         <h1 className="text-5xl font-semibold tracking-tight text-balance text-primary sm:text-7xl">
-                            En ny identitet för ditt hotell.
+                            En ny identitet för ditt hotell
                         </h1>
                         <p className="mt-8 text-lg font-medium text-pretty text-secondary sm:text-xl/8">
                             Linnevik är en hotellgrossist som har samarbetat med många hotell i Sverige.
@@ -26,12 +26,12 @@ export default function Example() {
                         </p>
                         <div className="mt-10 flex items-center justify-center gap-x-6">
                             <a
-                                href="#"
+                                href="/collections"
                                 className="rounded-md bg-accent-primary px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-500"
                             >
-                                Utbud
+                                Produkter
                             </a>
-                            <a href="#" className="text-sm leading-6 font-semibold text-primary">
+                            <a href="about" className="text-sm leading-6 font-semibold text-primary">
                                 Mer om oss <span aria-hidden="true">→</span>
                             </a>
                         </div>

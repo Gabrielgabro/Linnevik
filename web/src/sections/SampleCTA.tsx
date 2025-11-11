@@ -24,7 +24,7 @@ export default function SampleCTA() {
               Du har möjlighet att beställa prover kostnadsfritt och artiklarna kommer levereras till ditt hotell. Upplev kvaliteten innan du bestämmer dig.
             </p>
             <a
-              href="#"
+              href="/samples"
               className="inline-flex items-center justify-center rounded-xl bg-[#4F6F8E] hover:bg-[#2E5A8F] px-6 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F6F8E]"
             >
               Beställ prover
