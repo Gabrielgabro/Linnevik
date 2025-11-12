@@ -30,6 +30,7 @@ export default function ClientLogosRotatingClient({ logos }: { logos: Logo[] }) 
 
     const [animatingSlot, setAnimatingSlot] = useState<number | null>(null);
     const [animationState, setAnimationState] = useState<AnimationState>('stable');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [nextLogoIndex, setNextLogoIndex] = useState<number | null>(null);
 
     useEffect(() => {
