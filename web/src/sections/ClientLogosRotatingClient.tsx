@@ -14,24 +14,63 @@ const PAUSE_BETWEEN = 1000; // 1 second pause after fade in complete
 type AnimationState = 'stable' | 'fading-out' | 'fading-in';
 
 
-export default function ClientLogosRotatingClient({ logos }: { logos: Logo[] }) {
+export default function ClientLogosRotatingClient({
+    lightLogos,
+    darkLogos
+}: {
+    lightLogos: Logo[];
+    darkLogos: Logo[];
+}) {
+    // Detect dark mode using prefers-color-scheme media query
+    const [isDarkMode, setIsDarkMode] = useState(false);
+
+    useEffect(() => {
+        // Check if prefers-color-scheme is supported
+        if (typeof window === 'undefined' || !window.matchMedia) {
+            return;
+        }
+
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+        // Set initial state
+        setIsDarkMode(mediaQuery.matches);
+
+        // Listen for changes
+        const handleChange = (e: MediaQueryListEvent) => {
+            setIsDarkMode(e.matches);
+        };
+
+        mediaQuery.addEventListener('change', handleChange);
+
+        return () => {
+            mediaQuery.removeEventListener('change', handleChange);
+        };
+    }, []);
+
+    // Use dark logos if available and in dark mode, otherwise use light logos
+    const logos = (isDarkMode && darkLogos.length > 0) ? darkLogos : lightLogos;
     const totalLogos = logos.length;
 
     // Always show 4 logos horizontally
     const visibleCount = Math.min(4, totalLogos);
 
     // Initialize: first m logos visible, last 2 hidden
-    const [visibleIndices, setVisibleIndices] = useState<number[]>(() =>
-        Array.from({ length: visibleCount }, (_, i) => i)
-    );
-    const [hiddenIndices, setHiddenIndices] = useState<number[]>(() =>
-        Array.from({ length: totalLogos - visibleCount }, (_, i) => i + visibleCount)
-    );
+    const [visibleIndices, setVisibleIndices] = useState<number[]>([]);
+    const [hiddenIndices, setHiddenIndices] = useState<number[]>([]);
 
     const [animatingSlot, setAnimatingSlot] = useState<number | null>(null);
     const [animationState, setAnimationState] = useState<AnimationState>('stable');
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [nextLogoIndex, setNextLogoIndex] = useState<number | null>(null);
+
+    // Reset indices when logos change (e.g., dark mode toggle)
+    useEffect(() => {
+        setVisibleIndices(Array.from({ length: visibleCount }, (_, i) => i));
+        setHiddenIndices(Array.from({ length: totalLogos - visibleCount }, (_, i) => i + visibleCount));
+        setAnimatingSlot(null);
+        setAnimationState('stable');
+        setNextLogoIndex(null);
+    }, [logos, totalLogos, visibleCount]);
 
     useEffect(() => {
         // Don't animate if we don't have enough logos to rotate
@@ -108,11 +147,15 @@ export default function ClientLogosRotatingClient({ logos }: { logos: Logo[] }) 
         <section className="py-16">
             <div className="mx-auto max-w-6xl px-6">
                 <h2 className="text-center text-sm font-semibold text-secondary uppercase tracking-wider mb-12">
-                    Våra kunder
+                    Referenser
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
                     {visibleIndices.map((logoIndex, slotIndex) => {
                         const logo = logos[logoIndex];
+
+                        // Safety check: skip if logo doesn't exist
+                        if (!logo) return null;
+
                         const isAnimating = animatingSlot === slotIndex;
 
                         // Calculate opacity based on animation state

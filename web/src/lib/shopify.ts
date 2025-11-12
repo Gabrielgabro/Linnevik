@@ -349,3 +349,238 @@ export async function getProductsBasic(first = 60, queryStr?: string) {
         featuredImage?: { url: string; altText?: string | null } | null;
     }>;
 }
+
+// Cart functions
+export async function createCart() {
+    const CREATE_CART_MUTATION = `
+    mutation CreateCart($input: CartInput!) {
+      cartCreate(input: $input) {
+        cart {
+          id
+          checkoutUrl
+          totalQuantity
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 100) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount currencyCode }
+                    product {
+                      id
+                      title
+                      handle
+                      featuredImage { url altText }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+    const data = await storefrontFetch<any>({
+        query: CREATE_CART_MUTATION,
+        variables: { input: {} },
+    });
+
+    return data.cartCreate.cart;
+}
+
+export async function getCart(cartId: string) {
+    const GET_CART_QUERY = `
+    query GetCart($cartId: ID!) {
+      cart(id: $cartId) {
+        id
+        checkoutUrl
+        totalQuantity
+        cost {
+          totalAmount { amount currencyCode }
+          subtotalAmount { amount currencyCode }
+        }
+        lines(first: 100) {
+          edges {
+            node {
+              id
+              quantity
+              merchandise {
+                ... on ProductVariant {
+                  id
+                  title
+                  price { amount currencyCode }
+                  product {
+                    id
+                    title
+                    handle
+                    featuredImage { url altText }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+    const data = await storefrontFetch<any>({
+        query: GET_CART_QUERY,
+        variables: { cartId },
+    });
+
+    return data.cart;
+}
+
+export async function addToCart(cartId: string, variantId: string, quantity: number) {
+    const ADD_TO_CART_MUTATION = `
+    mutation AddToCart($cartId: ID!, $lines: [CartLineInput!]!) {
+      cartLinesAdd(cartId: $cartId, lines: $lines) {
+        cart {
+          id
+          checkoutUrl
+          totalQuantity
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 100) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount currencyCode }
+                    product {
+                      id
+                      title
+                      handle
+                      featuredImage { url altText }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+    const data = await storefrontFetch<any>({
+        query: ADD_TO_CART_MUTATION,
+        variables: {
+            cartId,
+            lines: [{ merchandiseId: variantId, quantity }],
+        },
+    });
+
+    return data.cartLinesAdd.cart;
+}
+
+export async function updateCartLine(cartId: string, lineId: string, quantity: number) {
+    const UPDATE_CART_MUTATION = `
+    mutation UpdateCart($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
+      cartLinesUpdate(cartId: $cartId, lines: $lines) {
+        cart {
+          id
+          checkoutUrl
+          totalQuantity
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 100) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount currencyCode }
+                    product {
+                      id
+                      title
+                      handle
+                      featuredImage { url altText }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+    const data = await storefrontFetch<any>({
+        query: UPDATE_CART_MUTATION,
+        variables: {
+            cartId,
+            lines: [{ id: lineId, quantity }],
+        },
+    });
+
+    return data.cartLinesUpdate.cart;
+}
+
+export async function removeFromCart(cartId: string, lineIds: string[]) {
+    const REMOVE_FROM_CART_MUTATION = `
+    mutation RemoveFromCart($cartId: ID!, $lineIds: [ID!]!) {
+      cartLinesRemove(cartId: $cartId, lineIds: $lineIds) {
+        cart {
+          id
+          checkoutUrl
+          totalQuantity
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 100) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount currencyCode }
+                    product {
+                      id
+                      title
+                      handle
+                      featuredImage { url altText }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+    const data = await storefrontFetch<any>({
+        query: REMOVE_FROM_CART_MUTATION,
+        variables: { cartId, lineIds },
+    });
+
+    return data.cartLinesRemove.cart;
+}

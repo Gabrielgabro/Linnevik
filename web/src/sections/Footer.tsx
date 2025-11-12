@@ -31,7 +31,7 @@ export default function Footer() {
                 <div className="text-center text-sm text-secondary mb-8 space-x-4">
                     <a href="mailto:info@linnevik.se" className="hover:underline">info@linnevik.se</a>
                     <span>•</span>
-                    <a href="tel:+46123456789" className="hover:underline">+46 123 456 789</a>
+                    <a href="tel:+46738970239" className="hover:underline">+46 73 897 02 39</a>
                 </div>
 
                 {/* Copyright and links in one line */}

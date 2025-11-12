@@ -9,14 +9,14 @@ function toTitle(file: string) {
     return name.replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
-async function readLogos(): Promise<Logo[]> {
-    const dir = path.join(process.cwd(), 'public', 'client_logos');
+async function readLogos(folder: string): Promise<Logo[]> {
+    const dir = path.join(process.cwd(), 'public', folder);
     try {
         const files = await fs.readdir(dir);
         return files
             .filter((file) => /\.(svg|png|jpe?g)$/i.test(file))
             .map((file) => ({
-                src: `/client_logos/${file}`,
+                src: `/${folder}/${file}`,
                 alt: toTitle(file),
             }));
     } catch {
@@ -25,10 +25,12 @@ async function readLogos(): Promise<Logo[]> {
 }
 
 export default async function ClientLogosRotating() {
-    const logos = await readLogos();
-    if (!logos.length) {
+    const lightLogos = await readLogos('client_logos');
+    const darkLogos = await readLogos('client_logo_darkmode');
+
+    if (!lightLogos.length && !darkLogos.length) {
         return null;
     }
 
-    return <ClientLogosRotatingClient logos={logos} />;
+    return <ClientLogosRotatingClient lightLogos={lightLogos} darkLogos={darkLogos} />;
 }
