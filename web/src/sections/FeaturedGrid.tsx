@@ -14,7 +14,7 @@ export default async function FeaturedGrid() {
                     <Link href="/products" className="text-accent underline">Visa alla →</Link>
                 </div>
 
-                <div className="grid gap-8 md:grid-cols-3">
+                <div className="grid grid-cols-2 gap-4 md:gap-8 md:grid-cols-3">
                     {products.map((p) => {
                         const img = p.images?.edges?.[0]?.node;
                         const price = p.priceRange?.minVariantPrice;
