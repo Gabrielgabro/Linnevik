@@ -3,8 +3,9 @@ import ProductForm from '@/components/ProductForm';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import { getProductByHandle } from '@/lib/shopify';
 
-export default async function ProductPage({ params }: { params: { handle: string } }) {
-    const product = await getProductByHandle(params.handle);
+export default async function ProductPage({ params }: { params: Promise<{ handle: string }> }) {
+    const { handle } = await params;
+    const product = await getProductByHandle(handle);
     if (!product) return <div className="p-8">Produkten hittades inte.</div>;
 
     const images = product.images.edges.map(e => e.node);
@@ -20,11 +21,11 @@ export default async function ProductPage({ params }: { params: { handle: string
         ? [
             { href: "/collections", label: "Kategorier" },
             { href: `/collections/${primaryCollection.handle}`, label: primaryCollection.title },
-            { href: `/products/${params.handle}`, label: product.title }
+            { href: `/products/${handle}`, label: product.title }
           ]
         : [
             { href: "/products", label: "Produkter" },
-            { href: `/products/${params.handle}`, label: product.title }
+            { href: `/products/${handle}`, label: product.title }
           ];
 
     return (

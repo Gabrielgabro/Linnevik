@@ -2,11 +2,6 @@
 
 import { useState } from 'react';
 
-export const metadata = {
-    title: "Cookieinställningar – Linnevik",
-    description: "Hantera dina cookieinställningar",
-};
-
 export default function CookieSettingsPage() {
     const [settings, setSettings] = useState({
         necessary: true, // Always enabled

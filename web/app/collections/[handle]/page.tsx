@@ -5,14 +5,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 type Props = {
-    params: { handle: string };
-    searchParams: { after?: string };
+    params: Promise<{ handle: string }>;
+    searchParams: Promise<{ after?: string }>;
 };
 
 // Generera metadata med felhantering
 export async function generateMetadata({ params }: Props) {
     try {
-        const col = await getCollectionByHandle(params.handle, 1);
+        const { handle } = await params;
+        const col = await getCollectionByHandle(handle, 1);
         if (!col) {
             return { title: "Kategori ej funnen – Linnevik" };
         }
@@ -21,7 +22,8 @@ export async function generateMetadata({ params }: Props) {
             description: col.description ?? undefined,
         };
     } catch (error) {
-        console.error(`Fel vid hämtning av metadata för kategori '${params.handle}':`, error);
+        const { handle } = await params;
+        console.error(`Fel vid hämtning av metadata för kategori '${handle}':`, error);
         return {
             title: "Fel – Linnevik",
             description: "Kunde inte hämta information för denna kategori.",
@@ -30,13 +32,15 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function CollectionPage({ params, searchParams }: Props) {
+    const { handle } = await params;
+    const { after } = await searchParams;
     const first = 12;
     let col;
 
     try {
-        col = await getCollectionByHandle(params.handle, first, searchParams.after);
+        col = await getCollectionByHandle(handle, first, after);
     } catch (error) {
-        console.error(`Fel vid hämtning av kategori '${params.handle}':`, error);
+        console.error(`Fel vid hämtning av kategori '${handle}':`, error);
         // Visa ett generellt felmeddelande istället för att krascha
         return (
             <main className="max-w-6xl mx-auto px-6 py-10 text-center">
@@ -56,7 +60,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
 
     return (
         <main className="max-w-6xl mx-auto px-6 pt-32 pb-10 space-y-6">
-            <Breadcrumbs items={[{ href: "/collections", label: "Kategorier" }, { href: `/collections/${params.handle}`, label: col.title }]} />
+            <Breadcrumbs items={[{ href: "/collections", label: "Kategorier" }, { href: `/collections/${handle}`, label: col.title }]} />
 
             <header className="flex items-end justify-between gap-4 border-b border-light pb-6">
                 <div>
@@ -85,8 +89,8 @@ export default async function CollectionPage({ params, searchParams }: Props) {
 
             <footer className="flex items-center justify-center pt-6">
                 {pageInfo.hasNextPage ? (
-                    <Link 
-                        href={`/collections/${params.handle}?after=${encodeURIComponent(pageInfo.endCursor ?? "")}`}
+                    <Link
+                        href={`/collections/${handle}?after=${encodeURIComponent(pageInfo.endCursor ?? "")}`}
                         className="px-4 py-2 rounded-md bg-neutral-800 text-white hover:bg-black"
                         scroll={false} // Förhindrar att sidan scrollar till toppen vid klick
                     >
