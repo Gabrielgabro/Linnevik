@@ -93,7 +93,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const addItem = async (variantId: string, quantity: number) => {
         setIsLoading(true);
         try {
-            let cartId = cart?.id || localStorage.getItem('shopify_cart_id');
+            let cartId: string | null = cart?.id || localStorage.getItem('shopify_cart_id');
 
             // Create cart if it doesn't exist
             if (!cartId) {
@@ -104,11 +104,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 });
                 const createData = await createResponse.json();
                 cartId = createData.cart.id;
-                localStorage.setItem('shopify_cart_id', cartId);
+                if (cartId) {
+                    localStorage.setItem('shopify_cart_id', cartId);
+                }
                 setCart(createData.cart);
             }
 
-            // Add item to cart
+            // Add item to cart (only if cartId exists)
+            if (!cartId) {
+                throw new Error('Failed to create cart');
+            }
+
             const response = await fetch('/api/cart', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
