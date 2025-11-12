@@ -13,6 +13,7 @@ export default function Header() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const { cart } = useCart();
     const cartItemCount = cart?.totalQuantity || 0;
+    const displayCount = cartItemCount > 99 ? '99+' : cartItemCount.toString();
 
     return (
         <>
@@ -81,7 +82,7 @@ export default function Header() {
                         </svg>
                         {cartItemCount > 0 && (
                             <span className="absolute -top-1 -right-1 bg-[#0B3D2E] dark:bg-[#145C45] text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-md">
-                                {cartItemCount}
+                                {displayCount}
                             </span>
                         )}
                     </Link>
@@ -176,7 +177,7 @@ export default function Header() {
                             </svg>
                             {cartItemCount > 0 && (
                                 <span className="absolute -top-2 -right-2 bg-[#0B3D2E] dark:bg-[#145C45] text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-md">
-                                    {cartItemCount}
+                                    {displayCount}
                                 </span>
                             )}
                         </div>

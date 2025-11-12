@@ -5,11 +5,11 @@ export default function Example() {
     return (
         <div className="px-6 pt-14 lg:px-8">
             <div className="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
-                <div className="mb-8 flex flex-col items-center justify-center space-y-3">
-                    <div className="relative rounded-full px-3 py-1 text-sm leading-6 text-muted ring-1 ring-custom ring-custom-hover">
+                <div className="mb-8 flex justify-center px-4">
+                    <div className="relative rounded-2xl md:rounded-full px-4 py-2.5 text-sm leading-relaxed text-center text-muted ring-1 ring-custom hover:ring-custom-hover transition-all max-w-lg">
                         Vår senaste nyhet - handtvål med specialbeställda förpacknignar och dofter.{' '}
-                        <a href="#" className="font-semibold text-accent">
-                            <span aria-hidden="true" className="absolute inset-0" />
+                        <a href="#" className="font-semibold text-accent whitespace-nowrap inline-block">
+                            <span aria-hidden="true" className="absolute inset-0 rounded-2xl md:rounded-full" />
                             Läs mer <span aria-hidden="true">&rarr;</span>
                         </a>
                     </div>
