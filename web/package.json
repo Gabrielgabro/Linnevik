@@ -32,7 +32,7 @@
     "typescript": "^5"
   },
   "overrides": {
-    "strip-ansi": "7.1.0"
+    "strip-ansi": "7.1.2"
   },
   "engines": {
      "node": ">=20 <23",
