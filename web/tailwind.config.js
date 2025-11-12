@@ -6,11 +6,12 @@ module.exports = {
             colors: {
                 base: 'var(--background)',
                 ink: 'var(--foreground)',
-                // accent: 'var(--color-accent)', // lägg till om du har en accent-variabel
             },
             fontFamily: {
-                sans: 'var(--font-geist-sans), system-ui, sans-serif',
-                mono: 'var(--font-geist-mono), ui-monospace, monospace',
+                heading: 'var(--font-heading), Georgia, serif',
+                body: 'var(--font-body), system-ui, sans-serif',
+                sans: 'var(--font-body), system-ui, sans-serif',
+                serif: 'var(--font-heading), Georgia, serif',
             },
         },
     },

@@ -1,19 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Libre_Baskerville, Inter } from "next/font/google";
 import "./globals.css";
 import Header from "@/sections/Header";
 import Footer from "@/sections/Footer";
 import HomePageBubbles from "@/components/HomePageBubbles";
 import { CartProvider } from "@/contexts/CartContext";
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
+// Serif font for headings - elegant and refined
+const libreBaskerville = Libre_Baskerville({
+    variable: "--font-heading",
     subsets: ["latin"],
+    weight: ["400", "700"],
+    display: "swap",
 });
 
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
+// Sans-serif font for body text - clean and readable
+const inter = Inter({
+    variable: "--font-body",
     subsets: ["latin"],
+    weight: ["400", "500", "600", "700"],
+    display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -28,7 +34,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="sv">
-        <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <body className={`${libreBaskerville.variable} ${inter.variable}`}>
         <CartProvider>
             <HomePageBubbles />
             <Header />
