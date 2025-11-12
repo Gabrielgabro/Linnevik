@@ -4,12 +4,15 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
+import { useCart } from '@/contexts/CartContext';
 
 const domain = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
 const loginUrl = domain ? `https://${domain}/account/login` : '/account/login';
 
 export default function Header() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const { cart } = useCart();
+    const cartItemCount = cart?.totalQuantity || 0;
 
     return (
         <>
@@ -69,13 +72,18 @@ export default function Header() {
                     <Link
                         href="/cart"
                         aria-label="Varukorg"
-                        className="p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
+                        className="relative p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
                     >
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="9" cy="20" r="1.5" />
                             <circle cx="17" cy="20" r="1.5" />
                             <path d="M5 4h2l1 7a2 2 0 0 0 2 1.8h6.5a2 2 0 0 0 2-1.6L20 8H8" />
                         </svg>
+                        {cartItemCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-[#0B3D2E] dark:bg-[#145C45] text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-md">
+                                {cartItemCount}
+                            </span>
+                        )}
                     </Link>
 
                     <Link
@@ -158,13 +166,20 @@ export default function Header() {
                     <Link
                         href="/cart"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 text-lg font-medium text-primary hover:underline py-2"
+                        className="flex items-center gap-3 text-lg font-medium text-primary hover:underline py-2 relative"
                     >
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="9" cy="20" r="1.5" />
-                            <circle cx="17" cy="20" r="1.5" />
-                            <path d="M5 4h2l1 7a2 2 0 0 0 2 1.8h6.5a2 2 0 0 0 2-1.6L20 8H8" />
-                        </svg>
+                        <div className="relative">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="9" cy="20" r="1.5" />
+                                <circle cx="17" cy="20" r="1.5" />
+                                <path d="M5 4h2l1 7a2 2 0 0 0 2 1.8h6.5a2 2 0 0 0 2-1.6L20 8H8" />
+                            </svg>
+                            {cartItemCount > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-[#0B3D2E] dark:bg-[#145C45] text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-md">
+                                    {cartItemCount}
+                                </span>
+                            )}
+                        </div>
                         Varukorg
                     </Link>
 

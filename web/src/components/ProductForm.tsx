@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useCart } from '@/contexts/CartContext';
 
 type Variant = {
     id: string;
@@ -21,6 +22,7 @@ export default function ProductForm({
     moq?: number | null;
     packSize?: number | null;
 }) {
+    const { addItem, isLoading } = useCart();
     const initial = useMemo(() => {
         const obj: Record<string, string> = {};
         options.forEach(o => { obj[o.name] = o.values[0]; });
@@ -28,6 +30,7 @@ export default function ProductForm({
     }, [options]);
     const [selected, setSelected] = useState<Record<string, string>>(initial);
     const [qty, setQty] = useState<number>(moq || 1);
+    const [addingToCart, setAddingToCart] = useState(false);
 
     const active = useMemo(() => {
         return variants.find(v =>
@@ -38,21 +41,20 @@ export default function ProductForm({
     const unitPrice = active?.price?.amount ? Number(active.price.amount) : 0;
     const totalUnits = packSize ? Math.ceil(qty / packSize) * packSize : qty;
 
-    const addToEnquiry = () => {
-        const key = 'linnevik:enquiry';
-        const payload = {
-            variantId: active?.id,
-            options: selected,
-            qty: totalUnits,
-            moq: moq || 1,
-            packSize: packSize || 1,
-            price: unitPrice,
-            currency: active?.price.currencyCode,
-            addedAt: Date.now(),
-        };
-        const curr = JSON.parse(localStorage.getItem(key) || '[]');
-        localStorage.setItem(key, JSON.stringify([...curr, payload]));
-        alert('Tillagd i offertlistan.');
+    const handleAddToCart = async () => {
+        if (!active?.id) return;
+
+        setAddingToCart(true);
+        try {
+            await addItem(active.id, totalUnits);
+            // Show success feedback
+            alert('Produkt tillagd i varukorgen!');
+        } catch (error) {
+            console.error('Failed to add to cart:', error);
+            alert('Kunde inte lägga till i varukorgen. Försök igen.');
+        } finally {
+            setAddingToCart(false);
+        }
     };
 
     return (
@@ -116,14 +118,14 @@ export default function ProductForm({
                 </div>
             </div>
 
-            {/* Add to enquiry button */}
+            {/* Add to cart button */}
             <button
                 type="button"
-                disabled={!active?.availableForSale}
-                onClick={addToEnquiry}
+                disabled={!active?.availableForSale || addingToCart || isLoading}
+                onClick={handleAddToCart}
                 className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
             >
-                Lägg i offertlistan
+                {addingToCart ? 'Lägger till...' : 'Lägg i varukorgen'}
             </button>
         </div>
     );

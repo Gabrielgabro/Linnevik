@@ -20,7 +20,7 @@ export default function LiveSearch() {
     const [suggestions, setSuggestions] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const debounceTimerRef = useRef<NodeJS.Timeout>();
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Stäng suggestions när man klickar utanför
