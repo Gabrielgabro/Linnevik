@@ -10,23 +10,29 @@ export default function HomePageBubbles() {
 
   return (
     <>
-      {/* Top canopy (covers header + hero) */}
+      {/* Subtle top-right beige accent */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[70vh] sm:h-[80vh] transform-gpu blur-3xl opacity-30
-                   bg-[radial-gradient(120rem_60rem_at_50%_-10%,var(--brand-misty-fjord-blue),transparent_70%),radial-gradient(110rem_60rem_at_90%_5%,var(--brand-beige-900),transparent_65%)]" />
+        className="pointer-events-none fixed right-0 top-0 -z-10 h-[50vh] w-[45vw] transform-gpu blur-[100px] opacity-40
+                   bg-[radial-gradient(circle_at_80%_20%,var(--brand-beige-900),transparent_60%)]" />
 
-      {/* Mid-right accent - beige */}
+      {/* Soft top-left blue glow */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -right-[25vw] top-[38vh] -z-10 h-[55vw] w-[55vw] transform-gpu blur-3xl opacity-25
-                   bg-[radial-gradient(60vw_40vw_at_100%_50%,var(--brand-beige-900),transparent_70%)]" />
+        className="pointer-events-none fixed left-0 top-[10vh] -z-10 h-[40vh] w-[40vw] transform-gpu blur-[90px] opacity-25
+                   bg-[radial-gradient(circle_at_20%_40%,var(--brand-misty-fjord-blue),transparent_65%)]" />
 
-      {/* Bottom-left glow */}
+      {/* Mid-page beige accent */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -left-[20vw] bottom-[-10vh] -z-10 h-[45vw] w-[65vw] transform-gpu blur-3xl opacity-25
-                   bg-[radial-gradient(70vw_40vw_at_0%_100%,var(--brand-misty-fjord-blue),transparent_70%)]" />
+        className="pointer-events-none fixed right-[5vw] top-[45vh] -z-10 h-[35vw] w-[35vw] transform-gpu blur-[80px] opacity-35
+                   bg-[radial-gradient(circle_at_center,var(--brand-beige-900),transparent_55%)]" />
+
+      {/* Bottom-left subtle blue */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed left-[10vw] bottom-[5vh] -z-10 h-[30vw] w-[30vw] transform-gpu blur-[80px] opacity-20
+                   bg-[radial-gradient(circle_at_center,var(--brand-misty-fjord-blue),transparent_60%)]" />
     </>
   );
 }

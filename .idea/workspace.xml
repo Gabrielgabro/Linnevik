@@ -5,9 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
+      <change afterPath="$PROJECT_DIR$/web/src/components/LanguageSelector.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/globals.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/sections/FeaturedGrid.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/FeaturedGrid.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/components/HomePageBubbles.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/HomePageBubbles.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/Footer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Footer.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/Header.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Header.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/sections/Hero.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Hero.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -38,12 +41,12 @@
     &quot;assignee&quot;: &quot;Gabrielgabro&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "git@github.com:Gabrielgabro/Linnevik.git",
-    "accountId": "a2448a18-10ac-4fab-9dc7-8626b2b42a26"
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;git@github.com:Gabrielgabro/Linnevik.git&quot;,
+    &quot;accountId&quot;: &quot;a2448a18-10ac-4fab-9dc7-8626b2b42a26&quot;
   }
-}]]></component>
+}</component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -63,33 +66,33 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Node.js.tailwind.customer.config.js.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "/Users/gabrielgabro/Linnevik/web",
-    "list.type.of.created.stylesheet": "CSS",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "ml.llm.LLMConfigurable",
-    "to.speed.mode.migration.done": "true",
-    "ts.external.directory.path": "/Users/gabrielgabro/Linnevik/web/node_modules/typescript/lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Node.js.tailwind.customer.config.js.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/gabrielgabro/Linnevik/web&quot;,
+    &quot;list.type.of.created.stylesheet&quot;: &quot;CSS&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;ml.llm.LLMConfigurable&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Users/gabrielgabro/Linnevik/web/node_modules/typescript/lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="QodanaReportsService">
     <option name="descriptions">
       <ReportDescription localRun="true" path="/private/var/folders/d1/g48mr68117z_6xrp5fmxvtvm0000gn/T/qodana_output/qodana.sarif.json" reportGuid="d6f2f988-4f71-45e3-9244-859315a3641b" reportId="Linnevik/qodana/2025-11-11" />
@@ -171,7 +174,8 @@
       <workItem from="1762889343604" duration="12860000" />
       <workItem from="1762939785746" duration="1673000" />
       <workItem from="1762941597319" duration="11097000" />
-      <workItem from="1762979493726" duration="12176000" />
+      <workItem from="1762979493726" duration="12840000" />
+      <workItem from="1763031532502" duration="3726000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />

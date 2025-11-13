@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
+import LanguageSelector from '@/components/LanguageSelector';
 
 const domain = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
 const loginUrl = domain ? `https://${domain}/account/login` : '/account/login';
@@ -86,6 +87,8 @@ export default function Header() {
                             </span>
                         )}
                     </Link>
+
+                    <LanguageSelector />
 
                     <Link
                         href="/contact"
@@ -183,6 +186,10 @@ export default function Header() {
                         </div>
                         Varukorg
                     </Link>
+
+                    <div className="py-2">
+                        <LanguageSelector />
+                    </div>
 
                     <Link
                         href="/contact"

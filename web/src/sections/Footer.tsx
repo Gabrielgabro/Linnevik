@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import LanguageSelector from "@/components/LanguageSelector";
 
 export default function Footer() {
     return (
@@ -32,6 +33,11 @@ export default function Footer() {
                     <a href="mailto:info@linnevik.se" className="hover:underline">info@linnevik.se</a>
                     <span>•</span>
                     <a href="tel:+46738970239" className="hover:underline">+46 73 897 02 39</a>
+                </div>
+
+                {/* Language selector */}
+                <div className="mb-6">
+                    <LanguageSelector variant="footer" />
                 </div>
 
                 {/* Copyright and links in one line */}
