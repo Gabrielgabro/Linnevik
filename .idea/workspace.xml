@@ -7,8 +7,8 @@
     <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/globals.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/tailwind.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/web/tailwind.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/FeaturedGrid.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/FeaturedGrid.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/Hero.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Hero.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -171,7 +171,7 @@
       <workItem from="1762889343604" duration="12860000" />
       <workItem from="1762939785746" duration="1673000" />
       <workItem from="1762941597319" duration="11097000" />
-      <workItem from="1762979493726" duration="8737000" />
+      <workItem from="1762979493726" duration="12176000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />

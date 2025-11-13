@@ -20,8 +20,8 @@ export default async function FeaturedGrid() {
                         const price = p.priceRange?.minVariantPrice;
                         return (
                             <Link key={p.id} href={`/products/${p.handle}`} className="group block">
-                                <article>
-                                    <div className="relative aspect-square bg-overlay rounded overflow-hidden">
+                                <article className="flex flex-col h-full">
+                                    <div className="relative aspect-square bg-overlay rounded overflow-hidden mb-3">
                                         {img?.url ? (
                                             <Image
                                                 src={img.url}
@@ -33,12 +33,16 @@ export default async function FeaturedGrid() {
                                             <div className="w-full h-full grid place-items-center text-secondary">No image</div>
                                         )}
                                     </div>
-                                    <h3 className="mt-3 font-medium text-primary">{p.title}</h3>
-                                    {price?.amount && (
-                                        <p className="text-sm text-secondary">
-                                            från {Number(price.amount).toLocaleString('sv-SE')} {price.currencyCode}
-                                        </p>
-                                    )}
+                                    <div className="flex-1 flex flex-col gap-1.5">
+                                        <h3 className="font-medium text-primary text-sm md:text-base line-clamp-2 md:line-clamp-none leading-snug">
+                                            {p.title}
+                                        </h3>
+                                        {price?.amount && (
+                                            <p className="text-xs md:text-sm text-secondary">
+                                                från {Number(price.amount).toLocaleString('sv-SE')} {price.currencyCode}
+                                            </p>
+                                        )}
+                                    </div>
                                 </article>
                             </Link>
                         );

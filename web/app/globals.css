@@ -141,7 +141,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
-  color: var(--color-text-primary);
+  color: var(--color-text-primary) !important;
 }
 
 h1 {
@@ -273,15 +273,15 @@ code, pre {
 }
 
 .text-primary {
-  color: var(--color-text-primary);
+  color: var(--color-text-primary) !important;
 }
 
 .text-secondary {
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary) !important;
 }
 
 .text-muted {
-  color: var(--color-text-muted);
+  color: var(--color-text-muted) !important;
 }
 
 .border-light {

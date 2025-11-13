@@ -8,7 +8,7 @@ export default function Example() {
                 <div className="mb-8 flex justify-center px-4">
                     <div className="relative rounded-2xl md:rounded-full px-4 py-2.5 text-sm leading-relaxed text-center text-muted ring-1 ring-custom hover:ring-custom-hover transition-all max-w-lg">
                         Vår senaste nyhet - handtvål med specialbeställda förpacknignar och dofter.{' '}
-                        <a href="#" className="font-semibold text-accent whitespace-nowrap inline-block">
+                        <a href="/products/handtval" className="font-semibold text-accent whitespace-nowrap inline-block">
                             <span aria-hidden="true" className="absolute inset-0 rounded-2xl md:rounded-full" />
                             Läs mer <span aria-hidden="true">&rarr;</span>
                         </a>
