@@ -15,12 +15,15 @@ const FlagSE = () => (
 );
 
 const FlagGB = () => (
-  <svg width="20" height="15" viewBox="0 0 20 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="20" height="15" fill="#012169"/>
-    <path d="M0 0L20 15M20 0L0 15" stroke="white" strokeWidth="3"/>
-    <path d="M0 0L20 15M20 0L0 15" stroke="#C8102E" strokeWidth="2"/>
-    <path d="M10 0V15M0 7.5H20" stroke="white" strokeWidth="5"/>
-    <path d="M10 0V15M0 7.5H20" stroke="#C8102E" strokeWidth="3"/>
+  <svg width="20" height="15" viewBox="0 0 60 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="60" height="30" fill="#012169"/>
+    <path d="M0 0L60 30M60 0L0 30" stroke="white" strokeWidth="6"/>
+    <clipPath id="diagonal">
+      <path d="M0 0L60 30M60 0L0 30" strokeWidth="6"/>
+    </clipPath>
+    <path d="M0 0L60 30M60 0L0 30" stroke="#C8102E" strokeWidth="4"/>
+    <path d="M30 0V30M0 15H60" stroke="white" strokeWidth="10"/>
+    <path d="M30 0V30M0 15H60" stroke="#C8102E" strokeWidth="6"/>
   </svg>
 );
 
