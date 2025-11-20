@@ -1,56 +1,327 @@
 {
-  "header": {
-    "brand": {
-      "alt": "Linnevik",
-      "homeAria": "Linnevik – start"
+  "lang": "sv",
+  "common" : {
+      "header": {
+        "brand": {
+          "alt": "Linnevik",
+          "homeAria": "Linnevik – start"
+        },
+        "nav": {
+          "categories": "Kategorier",
+          "search": "Sök",
+          "login": "Logga in",
+          "cart": "Varukorg",
+          "contact": "Kontakta oss",
+          "toggleMenu": "Toggle menu"
+        }
+      },
+        "footer": {
+          "brand": {
+            "alt": "Linnevik",
+            "homeAria": "Linnevik – start"},
+              "legal": {
+                "copyright": "Copyright © *året ska vara här* Södra Vanadistvätten AB",
+                "cookieSettings": "Cookieinställningar",
+                "cookiePolicy": "Cookiepolicy",
+                "terms": "Köpvillkor"
+              }
+        }
+
+  },
+
+   "home" :
+   {
+        "hero": {
+          "announcement": {
+            "text": "Vår senaste nyhet - handtvål med specialbeställda förpacknignar och dofter.",
+            "ctaLabel": "Läs mer"
+          },
+          "title": "En ny identitet för ditt hotell",
+          "body": "Linnevik är en hotellgrossist som har samarbetat med många hotell i Sverige. Sedan 1986 har Linnevik utvecklat och stött sina kunder inom design, utveckling och produktion av skräddarsydda hotellprodukter och dekorativa textilier.",
+          "primaryCta": "Produkter",
+          "secondaryCta": "Mer om oss"
+        },
+
+        "sampleCta": {
+          "imageAlt": "Beställ prover - sample products",
+          "eyebrow": "Gratis är gott...",
+          "title": "Osäker? Beställ prover vetja!",
+          "body": "Du har möjlighet att beställa prover kostnadsfritt och artiklarna kommer levereras till ditt hotell. Upplev kvaliteten innan du bestämmer dig.",
+          "button": "Beställ prover"
+        },
+
+        "featuredGrid": {
+          "title": "Utvalda produkter",
+          "viewAll": "Visa alla",
+          "noImage": "No image",
+          "from": "från"}
+      },
+        "ClientLogosRotatingClient": {
+          "References": "Referenser"
+              },
+
+
+
+  "contact": {
+    "hero": {
+      "badge": "Kontakt",
+      "title": "Hör av dig",
+      "subtitle": "Har du några frågor? Kom förbi på en kaffe! Det går förstås bra att mejla eller ringa oss också."
     },
-    "nav": {
-      "categories": "Kategorier",
-      "search": "Sök",
-      "login": "Logga in",
-      "cart": "Varukorg",
-      "contact": "Kontakta oss",
-      "toggleMenu": "Toggle menu"
+    "sidebar": {
+      "visitAddressHeading": "Besöksadress",
+      "companyName": "Södra Vanadistvätten AB",
+      "street": "Himmelsbodavägen 15",
+      "postalCity": "147 39 Tumba",
+      "contactHeading": "Kontaktuppgifter",
+      "emailLabel": "info@linnevik.se",
+      "phoneLabel": "+46 8 123 456 78",
+      "openingHoursHeading": "Öppettider",
+      "weekdaysLabel": "Måndag - Fredag",
+      "weekdaysHours": "09:00 - 17:00",
+      "weekendsLabel": "Lördag - Söndag",
+      "closed": "Stängt"
+    },
+    "form": {
+      "title": "Fyll i dina uppgifter, så kontaktar vi dig inom kort.",
+      "subtitle": "Vi svarar vanligtvis inom 24 timmar.",
+      "fields": {
+        "name": {
+          "label": "Namn",
+          "placeholder": "Ditt namn"
+        },
+        "company": {
+          "label": "Företag",
+          "optional": "(valfritt)",
+          "placeholder": "Företagsnamn"
+        },
+        "email": {
+          "label": "E-post",
+          "placeholder": "din@email.se"
+        },
+        "phone": {
+          "label": "Telefon",
+          "optional": "(valfritt)",
+          "placeholder": "+46 70 123 45 67"
+        },
+        "message": {
+          "label": "Meddelande",
+          "placeholder": "Berätta hur vi kan hjälpa dig..."
+        }
+      },
+      "submit": "Skicka meddelande",
+      "successAlert": "Tack för ditt meddelande! Vi återkommer inom kort."},
+    "map": {
+      "placeholder": "[Karta - Google Maps integration]"}
+  },
+
+
+
+  "about":{
+    "metadata": {
+      "title": "Om Oss – Linnevik",
+      "description": "Sedan 1986 har Linnevik utvecklat och stött våra kunder inom design, utveckling och produktion av skräddarsydda hotellprodukter."
+    },
+    "hero": {
+      "heading": "Sedan 1986",
+      "subheading": "Vi skapar identiteter för hotell genom skräddarsydda produkter och textilier"
+    },
+    "story": {
+      "badge": "Vår Historia",
+      "title": "En passion för perfektion",
+      "paragraph1": "Linnevik grundades 1986 med en enkel vision: att hjälpa hotell skapa unika identiteter genom högkvalitativa, skräddarsydda produkter. Under nästan fyra decennier har vi växt från en liten verkstad till en av Sveriges ledande hotellgrossister.",
+      "paragraph2": "Vår resa började med textilier, men idag erbjuder vi allt från linne och handdukar till specialdesignade amenities och inredningsdetaljer. Vi har alltid trott på att varje detalj räknas när det gäller att skapa minnesvärd gästupplevelse.",
+      "highlight": "Varje produkt bär vår passion för kvalitet och vår dedikation till våra partners.",
+      "imagePlaceholder": "[Bild: Teamet på jobbet]"
+    },
+    "stats": {
+      "yearsLabel": "År i branschen",
+      "partnersLabel": "Hotellpartners",
+      "projectsLabel": "Skräddarsydda projekt"
+    },
+    "values": {
+      "badge": "Våra Värderingar",
+      "title": "Vad driver oss",
+      "items": {
+        "quality": {
+          "title": "Kvalitet",
+          "body": "Vi kompromissar aldrig med kvalitet. Varje produkt testas och granskas noggrant för att säkerställa att den lever upp till våra höga standarder."
+        },
+        "partnership": {
+          "title": "Partnerskap",
+          "body": "Vi ser våra kunder som partners. Tillsammans skapar vi lösningar som stärker deras varumärke och förbättrar deras gästers upplevelse."
+        },
+        "innovation": {
+          "title": "Innovation",
+          "body": "Vi utvecklas ständigt och söker nya lösningar. Från hållbara material till smarta designval – vi ligger alltid steget före."
+        }
+      }
+    },
+    "cta": {
+      "title": "Låt oss skapa något unikt tillsammans",
+      "body": "Kontakta oss idag för att diskutera hur vi kan hjälpa ditt hotell att sticka ut med skräddarsydda produkter och textilier.",
+      "primaryButton": "Kontakta oss",
+      "secondaryButton": "Se vårt utbud"
     }
   },
-  "hero": {
-    "announcement": {
-      "text": "Vår senaste nyhet - handtvål med specialbeställda förpacknignar och dofter.",
-      "ctaLabel": "Läs mer"
+
+  "samples": {
+    "hero": {
+      "badge": "Kostnadsfritt",
+      "title": "Beställ prover",
+      "subtitle": "Upplev kvaliteten innan du bestämmer dig. Välj de produkter du vill ha prover på."
     },
-    "title": "En ny identitet för ditt hotell",
-    "body": "Linnevik är en hotellgrossist som har samarbetat med många hotell i Sverige. Sedan 1986 har Linnevik utvecklat och stött sina kunder inom design, utveckling och produktion av skräddarsydda hotellprodukter och dekorativa textilier.",
-    "primaryCta": "Produkter",
-    "secondaryCta": "Mer om oss"
+    "loading": {
+      "label": "Laddar produkter..."
+    },
+    "messages": {
+      "selectAtLeastOne": "Välj minst en produkt att beställa prover för."
+    },
+    "selectionBar": {
+      "singleSelected": "produkt vald",
+      "multipleSelected": "produkter valda",
+      "continueButton": "Fortsätt till formulär →"
+    },
+    "grid": {
+      "empty": "Inga produkter hittades.",
+      "noImage": "Ingen bild",
+      "priceFrom": "Från"
+    },
+    "bottomCta": {
+      "buttonPrefix": "Fortsätt med",
+      "singleLabel": "produkt",
+      "multipleLabel": "produkter",
+      "buttonSuffix": "→"
+    }
   },
 
-  "sampleCta": {
-    "imageAlt": "Beställ prover - sample products",
-    "eyebrow": "Gratis är gott...",
-    "title": "Osäker? Beställ prover vetja!",
-    "body": "Du har möjlighet att beställa prover kostnadsfritt och artiklarna kommer levereras till ditt hotell. Upplev kvaliteten innan du bestämmer dig.",
-    "button": "Beställ prover"
-  },
-
-  "featuredGrid": {
-    "title": "Utvalda produkter",
-    "viewAll": "Visa alla",
-    "noImage": "No image",
-    "from": "från"},
-
-  "footer": {
-    "brand": {
-      "alt": "Linnevik",
-      "homeAria": "Linnevik – start"
+  "samplesCheckout": {
+    "loading": {
+      "label": "Laddar..."
     },
-    "legal": {
-      "copyright": "Copyright © 2025 Södra Vanadistvätten AB",
-      "cookieSettings": "Cookieinställningar",
-      "cookiePolicy": "Cookiepolicy",
-      "terms": "Köpvillkor"
+    "alert": {
+      "success": "Tack för din beställning! Vi skickar proverna till dig inom kort."
+    },
+    "header": {
+      "backButton": "Tillbaka",
+      "title": "Leveransinformation",
+      "subtitle": "Fyll i dina uppgifter så skickar vi proverna kostnadsfritt till dig."
+    },
+    "form": {
+      "contactSectionTitle": "Kontaktperson",
+      "organizationSectionTitle": "Organisation",
+      "addressSectionTitle": "Leveransadress",
+      "fields": {
+        "contactName": {
+          "label": "Namn *",
+          "placeholder": "För- och efternamn"
+        },
+        "phone": {
+          "label": "Telefon *",
+          "placeholder": "+46 70 123 45 67"
+        },
+        "email": {
+          "label": "E-post *",
+          "placeholder": "din@email.se"
+        },
+        "organizationName": {
+          "label": "Organisationsnamn *",
+          "placeholder": "Företagets namn"
+        },
+        "organizationNumber": {
+          "label": "Organisationsnummer *",
+          "placeholder": "XXXXXX-XXXX"
+        },
+        "address": {
+          "label": "Gatuadress *",
+          "placeholder": "Gata och nummer"
+        },
+        "postalCode": {
+          "label": "Postnummer *",
+          "placeholder": "123 45"
+        },
+        "city": {
+          "label": "Ort *",
+          "placeholder": "Stad"
+        },
+        "notes": {
+          "label": "Meddelande",
+          "optional": "(valfritt)",
+          "placeholder": "Övriga kommentarer eller önskemål..."
+        }
+      },
+      "submitButton": "Skicka beställning"
+    },
+    "summary": {
+      "title": "Valda prover",
+      "freeDelivery": "Kostnadsfri leverans"
     }
 
+  },
+  "collections": {
+    "metadata": {
+      "title": "Kategorier – Linnevik",
+      "description": "Bläddra bland alla våra produktkategorier."
+    },
+    "emptyState": {
+      "title": "Kategorier",
+      "body": "Vi kunde inte hitta några kategorier just nu. Försök igen senare."
+    },
+    "title": "Alla kategorier"
+
+  },
+  "cart": {
+    "loading": "Laddar varukorg...",
+    "empty": {
+      "title": "Din varukorg är tom",
+      "body": "Börja handla för att lägga till produkter",
+      "cta": "Till produkter"
+    },
+    "title": "Varukorg",
+    "item": {
+      "noImage": "Ingen bild",
+      "priceExVatSuffix": "ex. moms",
+      "decreaseQuantityAria": "Minska antal",
+      "increaseQuantityAria": "Öka antal",
+      "remove": "Ta bort"
+    },
+    "summary": {
+      "subtotalExVat": "Totalt ex. moms",
+      "vatLabel": "Moms (25%)",
+      "totalInclVat": "Totalt inkl. moms",
+      "checkout": "Gå till kassan",
+      "continueShopping": "Fortsätt handla"
+    }
+  },
+
+  "search": {
+    "input": {
+      "placeholder": "Sök efter produkter..."
+    },
+    "results": {
+      "withResults": "{count} resultat för \"{query}\"",
+      "noResults": "Inga resultat för \"{query}\""
+    },
+    "grid": {
+      "noImage": "Ingen bild"
+    },
+    "noResultsSection": {
+      "helpText": "Försök söka med andra sökord eller bläddra bland våra kategorier.",
+      "viewCategories": "Visa kategorier"
+    },
+    "landing": {
+      "title": "Sök bland våra produkter",
+      "subtitle": "Skriv in vad du letar efter ovan"
+    }
   }
 
+
 }
+
+
+
+
+
+
+
 

@@ -56,9 +56,9 @@ export default function ContactPage() {
                                     Besöksadress
                                 </h3>
                                 <p className="text-lg text-primary font-medium">
-                                    Linnevik AB<br />
-                                    Kungsgatan 12<br />
-                                    111 35 Stockholm
+                                    Södra Vanadistvätten AB<br />
+                                    Himmelsbodavägen 15 <br />
+                                    147 39 Tumba
                                 </p>
                             </div>
 
