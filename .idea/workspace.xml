@@ -6,6 +6,19 @@
   <component name="ChangeListManager">
     <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/api/cart/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/cart/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/api/products/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/products/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/api/search/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/search/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/samples/checkout/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/samples/checkout/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/components/LanguageSelector.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/LanguageSelector.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/contexts/LanguageContext.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/hooks/useTranslation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/hooks/useTranslation.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/lib/language.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/language.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/lib/shopify.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/shopify.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/CategoriesTeaser.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/CategoriesTeaser.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/ClientLogosRotatingClient.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/ClientLogosRotatingClient.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/translations/en.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/translations/en.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/translations/sv.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/translations/sv.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,6 +35,7 @@
         <option value="JavaScript File" />
         <option value="TypeScript File" />
         <option value="TypeScript JSX File" />
+        <option value="tsconfig.json" />
       </list>
     </option>
   </component>
@@ -47,7 +61,7 @@
   <component name="PhpDebugGeneral" listening_started="true" />
   <component name="PhpWorkspaceProjectConfiguration" interpreter_name="/opt/homebrew/Cellar/php/8.4.13/bin/php" />
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="AISelfReview" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 6
@@ -60,34 +74,34 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Node.js.tailwind.customer.config.js.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "didalgo.chatgpt.ToolWindow.ACTIVE": "GPT_4",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "/Users/gabrielgabro/Linnevik/web",
-    "list.type.of.created.stylesheet": "CSS",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "to.speed.mode.migration.done": "true",
-    "ts.external.directory.path": "/Users/gabrielgabro/Linnevik/web/node_modules/typescript/lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Node.js.tailwind.customer.config.js.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;didalgo.chatgpt.ToolWindow.ACTIVE&quot;: &quot;GPT_4&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/gabrielgabro/Linnevik/web&quot;,
+    &quot;list.type.of.created.stylesheet&quot;: &quot;CSS&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Users/gabrielgabro/Linnevik/web/node_modules/typescript/lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="QodanaReportsService">
     <option name="descriptions">
       <ReportDescription localRun="true" path="/private/var/folders/d1/g48mr68117z_6xrp5fmxvtvm0000gn/T/qodana_output/qodana.sarif.json" reportGuid="d6f2f988-4f71-45e3-9244-859315a3641b" reportId="Linnevik/qodana/2025-11-11" />
@@ -179,6 +193,7 @@
       <workItem from="1763584626746" duration="878000" />
       <workItem from="1763585871717" duration="631000" />
       <workItem from="1763586510291" duration="3572000" />
+      <workItem from="1763645002439" duration="24091000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />

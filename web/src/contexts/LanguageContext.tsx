@@ -1,9 +1,14 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-export type Language = 'sv' | 'en';
-export type ShopifyLanguage = 'SV' | 'EN';
+import { useRouter } from 'next/navigation';
+import {
+  DEFAULT_LANGUAGE,
+  isSupportedLanguage,
+  toShopifyLanguage,
+  type Language,
+  type ShopifyLanguage,
+} from '@/lib/languageConfig';
 
 interface LanguageContextType {
   language: Language;
@@ -18,28 +23,38 @@ interface LanguageProviderProps {
 }
 
 export function LanguageProvider({ children }: LanguageProviderProps) {
-  const [language, setLanguageState] = useState<Language>('sv');
+  const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
+  const router = useRouter();
 
-  // Ladda språk från localStorage vid mount
   useEffect(() => {
-    const savedLanguage = localStorage.getItem('linnevik:language') as Language | null;
-    if (savedLanguage && (savedLanguage === 'sv' || savedLanguage === 'en')) {
-      setLanguageState(savedLanguage);
-    }
+    const savedLanguage = localStorage.getItem('linnevik:language');
+    const cookieMatch = document.cookie.match(/(?:^|; )NEXT_LOCALE=([^;]+)/);
+    const cookieLanguage = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
+
+    const initialLanguage =
+      (savedLanguage && isSupportedLanguage(savedLanguage) && savedLanguage) ||
+      (cookieLanguage && isSupportedLanguage(cookieLanguage) && cookieLanguage) ||
+      DEFAULT_LANGUAGE;
+
+    setLanguageState(initialLanguage);
+    localStorage.setItem('linnevik:language', initialLanguage);
+    document.cookie = `NEXT_LOCALE=${initialLanguage}; path=/; max-age=31536000; SameSite=Lax`;
   }, []);
+
+  const persistLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem('linnevik:language', lang);
+    document.cookie = `NEXT_LOCALE=${lang}; path=/; max-age=31536000; SameSite=Lax`;
+  };
 
   // Spara språk till localStorage och cookie när det ändras
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem('linnevik:language', lang);
-    // Sätt cookie så server components kan läsa språket
-    document.cookie = `NEXT_LOCALE=${lang}; path=/; max-age=31536000; SameSite=Lax`;
-    // Reload sidan för att server components ska hämta data på rätt språk
-    window.location.reload();
+    if (lang === language) return;
+    persistLanguage(lang);
+    router.refresh();
   };
 
-  // Konvertera till Shopify format (SV/EN)
-  const shopifyLanguage: ShopifyLanguage = language.toUpperCase() as ShopifyLanguage;
+  const shopifyLanguage = toShopifyLanguage(language);
 
   return (
     <LanguageContext.Provider value={{ language, shopifyLanguage, setLanguage }}>
@@ -55,3 +70,5 @@ export function useLanguage() {
   }
   return context;
 }
+
+export type { Language, ShopifyLanguage };

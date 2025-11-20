@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getAllProducts } from '@/lib/shopify';
-import { cookies } from 'next/headers';
+import { getServerLanguage, toShopifyLanguage } from '@/lib/language';
 
 export async function GET() {
     try {
-        // Läs språk från cookie
-        const cookieStore = await cookies();
-        const locale = cookieStore.get('NEXT_LOCALE')?.value;
-        const language = (locale === 'en' || locale === 'sv') ? locale.toUpperCase() as 'SV' | 'EN' : 'SV';
-
-        const products = await getAllProducts(100, language);
+        const language = await getServerLanguage();
+        const shopifyLanguage = toShopifyLanguage(language);
+        const products = await getAllProducts(100, shopifyLanguage);
         return NextResponse.json(products);
     } catch (error) {
         console.error('API error:', error);

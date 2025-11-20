@@ -6,15 +6,18 @@ import {
     updateCartLine,
     removeFromCart,
 } from '@/lib/shopify';
+import { getServerLanguage, toShopifyLanguage } from '@/lib/language';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const { action, cartId, variantId, quantity, lineId, lineIds } = body;
+        const language = await getServerLanguage();
+        const shopifyLanguage = toShopifyLanguage(language);
 
         switch (action) {
             case 'create': {
-                const cart = await createCart();
+                const cart = await createCart(shopifyLanguage);
                 return NextResponse.json({ cart });
             }
 
@@ -22,7 +25,7 @@ export async function POST(request: NextRequest) {
                 if (!cartId) {
                     return NextResponse.json({ error: 'Cart ID required' }, { status: 400 });
                 }
-                const cart = await getCart(cartId);
+                const cart = await getCart(cartId, shopifyLanguage);
                 return NextResponse.json({ cart });
             }
 
@@ -33,7 +36,7 @@ export async function POST(request: NextRequest) {
                         { status: 400 }
                     );
                 }
-                const cart = await addToCart(cartId, variantId, quantity);
+                const cart = await addToCart(cartId, variantId, quantity, shopifyLanguage);
                 return NextResponse.json({ cart });
             }
 
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
                         { status: 400 }
                     );
                 }
-                const cart = await updateCartLine(cartId, lineId, quantity);
+                const cart = await updateCartLine(cartId, lineId, quantity, shopifyLanguage);
                 return NextResponse.json({ cart });
             }
 
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
                         { status: 400 }
                     );
                 }
-                const cart = await removeFromCart(cartId, lineIds);
+                const cart = await removeFromCart(cartId, lineIds, shopifyLanguage);
                 return NextResponse.json({ cart });
             }
 

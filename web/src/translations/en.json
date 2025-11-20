@@ -243,6 +243,10 @@
           "label": "City *",
           "placeholder": "City"
         },
+        "Country": {
+          "label": "Country *",
+          "placeholder": "Netherlands"
+        },
         "notes": {
           "label": "Message",
           "optional": "(optional)",

@@ -2,10 +2,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getAllCollections } from "@/lib/shopify";
+import { getServerLanguage, toShopifyLanguage } from "@/lib/language";
 
 export default async function CategoriesTeaser() {
+    const language = await getServerLanguage();
+    const shopifyLang = toShopifyLanguage(language);
     // Hämta många så att sektionen kan växa
-    const cols = await getAllCollections(24);
+    const cols = await getAllCollections(24, shopifyLang);
     // Visa bara kollektioner som faktiskt har produkter (enkel gardering)
     const visible = cols.filter((c: any) => c.hasProducts);
 

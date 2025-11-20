@@ -1,3 +1,5 @@
+import { DEFAULT_LANGUAGE, toShopifyLanguage, type ShopifyLanguage } from './languageConfig';
+
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN!;
 const DEFAULT_API_VERSION = '2024-07';
@@ -7,14 +9,14 @@ type FetchArgs = {
     query: string;
     variables?: Record<string, unknown>;
     apiVersion?: string;
-    language?: 'SV' | 'EN';
+    language?: ShopifyLanguage;
 };
 
 async function storefrontFetch<T>({
                                       query,
                                       variables,
                                       apiVersion = DEFAULT_API_VERSION,
-                                      language = 'SV',
+                                      language = toShopifyLanguage(DEFAULT_LANGUAGE),
                                   }: FetchArgs): Promise<T> {
     const endpoint = `https://${SHOPIFY_DOMAIN}/api/${apiVersion}/graphql.json`;
 
@@ -63,7 +65,7 @@ const PRODUCT_CARD_FIELDS = `
   }
 `;
 
-export async function getFeaturedProducts(first = 6, language: 'SV' | 'EN' = 'SV') {
+export async function getFeaturedProducts(first = 6, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const FEATURED_QUERY = `
     query Featured($handle: String!, $first: Int!, $language: LanguageCode!) @inContext(language: $language) {
       collection(handle: $handle) {
@@ -121,7 +123,7 @@ export async function getFeaturedProducts(first = 6, language: 'SV' | 'EN' = 'SV
     }>;
 }
 
-export async function getProductByHandle(handle: string, language: 'SV' | 'EN' = 'SV') {
+export async function getProductByHandle(handle: string, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const PRODUCT_QUERY = `
     query Product($handle: String!, $language: LanguageCode!) @inContext(language: $language) {
       product(handle: $handle) {
@@ -199,7 +201,7 @@ export async function getProductByHandle(handle: string, language: 'SV' | 'EN' =
     return data.product;
 }
 
-export async function getAllProducts(first = 100, language: 'SV' | 'EN' = 'SV') {
+export async function getAllProducts(first = 100, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const PRODUCTS_QUERY = `
     query AllProducts($first: Int!, $language: LanguageCode!) @inContext(language: $language) {
       products(first: $first, sortKey: TITLE) {
@@ -234,7 +236,7 @@ export async function getAllProducts(first = 100, language: 'SV' | 'EN' = 'SV') 
     }
 }
 
-export async function getAllCollections(first = 30, language: 'SV' | 'EN' = 'SV') {
+export async function getAllCollections(first = 30, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const COLLECTIONS_QUERY = `
     query AllCollections($first: Int!, $language: LanguageCode!) @inContext(language: $language) {
       collections(first: $first, sortKey: TITLE) {
@@ -278,7 +280,7 @@ export async function getAllCollections(first = 30, language: 'SV' | 'EN' = 'SV'
     }
 }
 
-export async function getCollectionByHandle(handle: string, first = 12, after?: string, language: 'SV' | 'EN' = 'SV') {
+export async function getCollectionByHandle(handle: string, first = 12, after?: string, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const COLLECTION_QUERY = `
     query Collection($handle: String!, $first: Int!, $after: String, $language: LanguageCode!) @inContext(language: $language) {
       collection(handle: $handle) {
@@ -325,7 +327,7 @@ export async function getCollectionByHandle(handle: string, first = 12, after?: 
     return data.collection;
 }
 
-export async function getProductsBasic(first = 60, queryStr?: string, language: 'SV' | 'EN' = 'SV') {
+export async function getProductsBasic(first = 60, queryStr?: string, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const PRODUCTS_QUERY = /* GraphQL */ `
     query Products($first: Int!, $query: String, $language: LanguageCode!) @inContext(language: $language) {
       products(first: $first, query: $query, sortKey: TITLE) {
@@ -366,9 +368,9 @@ export async function getProductsBasic(first = 60, queryStr?: string, language: 
 }
 
 // Cart functions
-export async function createCart() {
+export async function createCart(language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const CREATE_CART_MUTATION = `
-    mutation CreateCart($input: CartInput!) {
+    mutation CreateCart($input: CartInput!, $language: LanguageCode!) @inContext(language: $language) {
       cartCreate(input: $input) {
         cart {
           id
@@ -407,14 +409,15 @@ export async function createCart() {
     const data = await storefrontFetch<any>({
         query: CREATE_CART_MUTATION,
         variables: { input: {} },
+        language,
     });
 
     return data.cartCreate.cart;
 }
 
-export async function getCart(cartId: string) {
+export async function getCart(cartId: string, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const GET_CART_QUERY = `
-    query GetCart($cartId: ID!) {
+    query GetCart($cartId: ID!, $language: LanguageCode!) @inContext(language: $language) {
       cart(id: $cartId) {
         id
         checkoutUrl
@@ -451,14 +454,15 @@ export async function getCart(cartId: string) {
     const data = await storefrontFetch<any>({
         query: GET_CART_QUERY,
         variables: { cartId },
+        language,
     });
 
     return data.cart;
 }
 
-export async function addToCart(cartId: string, variantId: string, quantity: number) {
+export async function addToCart(cartId: string, variantId: string, quantity: number, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const ADD_TO_CART_MUTATION = `
-    mutation AddToCart($cartId: ID!, $lines: [CartLineInput!]!) {
+    mutation AddToCart($cartId: ID!, $lines: [CartLineInput!]!, $language: LanguageCode!) @inContext(language: $language) {
       cartLinesAdd(cartId: $cartId, lines: $lines) {
         cart {
           id
@@ -500,14 +504,15 @@ export async function addToCart(cartId: string, variantId: string, quantity: num
             cartId,
             lines: [{ merchandiseId: variantId, quantity }],
         },
+        language,
     });
 
     return data.cartLinesAdd.cart;
 }
 
-export async function updateCartLine(cartId: string, lineId: string, quantity: number) {
+export async function updateCartLine(cartId: string, lineId: string, quantity: number, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const UPDATE_CART_MUTATION = `
-    mutation UpdateCart($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
+    mutation UpdateCart($cartId: ID!, $lines: [CartLineUpdateInput!]!, $language: LanguageCode!) @inContext(language: $language) {
       cartLinesUpdate(cartId: $cartId, lines: $lines) {
         cart {
           id
@@ -549,14 +554,15 @@ export async function updateCartLine(cartId: string, lineId: string, quantity: n
             cartId,
             lines: [{ id: lineId, quantity }],
         },
+        language,
     });
 
     return data.cartLinesUpdate.cart;
 }
 
-export async function removeFromCart(cartId: string, lineIds: string[]) {
+export async function removeFromCart(cartId: string, lineIds: string[], language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
     const REMOVE_FROM_CART_MUTATION = `
-    mutation RemoveFromCart($cartId: ID!, $lineIds: [ID!]!) {
+    mutation RemoveFromCart($cartId: ID!, $lineIds: [ID!]!, $language: LanguageCode!) @inContext(language: $language) {
       cartLinesRemove(cartId: $cartId, lineIds: $lineIds) {
         cart {
           id
@@ -595,6 +601,7 @@ export async function removeFromCart(cartId: string, lineIds: string[]) {
     const data = await storefrontFetch<any>({
         query: REMOVE_FROM_CART_MUTATION,
         variables: { cartId, lineIds },
+        language,
     });
 
     return data.cartLinesRemove.cart;

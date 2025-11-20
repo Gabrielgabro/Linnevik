@@ -26,6 +26,7 @@ export default function SamplesCheckoutPage() {
         address: '',
         postalCode: '',
         city: '',
+        country: '',
         notes: '',
     });
 
@@ -268,6 +269,22 @@ export default function SamplesCheckoutPage() {
                                             placeholder={t.samplesCheckout.form.fields.city.placeholder}
                                         />
                                     </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="country" className="block text-sm font-medium text-primary">
+                                        {t.samplesCheckout.form.fields.Country.label}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="country"
+                                        name="country"
+                                        required
+                                        value={formData.country}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
+                                        placeholder={t.samplesCheckout.form.fields.Country.placeholder}
+                                    />
                                 </div>
 
                                 <div className="space-y-2">

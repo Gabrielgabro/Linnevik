@@ -1,6 +1,8 @@
 'use client';
 
+import type { ComponentType } from 'react';
 import { useLanguage, type Language } from '@/contexts/LanguageContext';
+import { SUPPORTED_LANGUAGES } from '@/lib/languageConfig';
 
 interface LanguageSelectorProps {
   variant?: 'header' | 'footer';
@@ -30,10 +32,16 @@ const FlagGB = () => (
 export default function LanguageSelector({ variant = 'header' }: LanguageSelectorProps) {
   const { language: currentLang, setLanguage } = useLanguage();
 
-  const languages = [
-    { code: 'sv' as Language, label: 'Svenska', flag: FlagSE },
-    { code: 'en' as Language, label: 'English', flag: FlagGB }
-  ];
+  const flagMap: Partial<Record<Language, ComponentType>> = {
+    sv: FlagSE,
+    en: FlagGB,
+  };
+
+  const languages = SUPPORTED_LANGUAGES.map((lang) => ({
+    code: lang.code as Language,
+    label: lang.label,
+    flag: flagMap[lang.code as Language],
+  }));
 
   const handleLanguageChange = (langCode: Language) => {
     setLanguage(langCode);
@@ -88,7 +96,7 @@ export default function LanguageSelector({ variant = 'header' }: LanguageSelecto
                   : 'text-secondary hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
-              <Flag />
+              {Flag ? <Flag /> : <span className="text-xs font-semibold">{lang.code.toUpperCase()}</span>}
               <span>{lang.label}</span>
             </button>
           );

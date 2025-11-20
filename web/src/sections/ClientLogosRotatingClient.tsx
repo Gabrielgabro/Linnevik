@@ -1,6 +1,7 @@
 "use client";
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type Logo = { src: string; alt: string };
 
@@ -9,7 +10,6 @@ const DISPLAY_DURATION = 3000; // 3 seconds showing logo
 const FADE_OUT_DURATION = 800; // Calm fade out
 const FADE_IN_DURATION = 800; // Calm fade in
 const PAUSE_BETWEEN = 1000; // 1 second pause after fade in complete
-
 // Animation states
 type AnimationState = 'stable' | 'fading-out' | 'fading-in';
 
@@ -21,6 +21,7 @@ export default function ClientLogosRotatingClient({
     lightLogos: Logo[];
     darkLogos: Logo[];
 }) {
+    const { t } = useTranslation();
     // Detect dark mode using prefers-color-scheme media query
     const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -143,11 +144,12 @@ export default function ClientLogosRotatingClient({
         return null;
     }
 
+
     return (
         <section className="py-16">
             <div className="mx-auto max-w-6xl px-6">
                 <h2 className="text-center text-sm font-semibold text-secondary uppercase tracking-wider mb-12">
-                    Referenser
+                    {t.ClientLogosRotatingClient.References}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
                     {visibleIndices.map((logoIndex, slotIndex) => {

@@ -242,6 +242,10 @@
           "label": "Ort *",
           "placeholder": "Stad"
         },
+        "Country": {
+          "label": "land *",
+          "placeholder": "Sverige"
+        },
         "notes": {
           "label": "Meddelande",
           "optional": "(valfritt)",
