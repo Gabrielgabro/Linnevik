@@ -7,6 +7,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Footer() {
     const { t } = useTranslation();
+    const currentYear = new Date().getFullYear().toString();
+    const copyright = t.common.footer.legal.copyright.replace('*year goes here*', currentYear);
 
     return (
         <footer className="relative">
@@ -45,7 +47,7 @@ export default function Footer() {
 
                 {/* Copyright and links in one line */}
                 <div className="text-center text-xs text-secondary">
-                    <span>{t.common.footer.legal.copyright}</span>
+                    <span>{copyright}</span>
                     <span className="mx-2">•</span>
                     <Link href="/cookies" className="hover:underline">{t.common.footer.legal.cookieSettings}</Link>
                     <span className="mx-2">•</span>

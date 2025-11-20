@@ -94,23 +94,7 @@ export default function ContactPage() {
                                     </a>
                                 </div>
                             </div>
-
                             {/* Opening Hours */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-semibold text-[#0B3D2E] dark:text-[#379E7D] uppercase tracking-wider">
-                                    {t.contact.sidebar.openingHoursHeading}
-                                </h3>
-                                <div className="space-y-2 text-secondary">
-                                    <div className="flex justify-between">
-                                        <span>{t.contact.sidebar.weekdaysLabel}</span>
-                                        <span className="font-medium text-primary">{t.contact.sidebar.weekdaysHours}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>{t.contact.sidebar.weekendsLabel}</span>
-                                        <span className="font-medium text-primary">{t.contact.sidebar.closed}</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         {/* Contact Form */}
@@ -229,10 +213,14 @@ export default function ContactPage() {
             <section className="pb-24 px-6">
                 <div className="max-w-6xl mx-auto">
                     <div className="aspect-[16/9] md:aspect-[21/9] rounded-3xl overflow-hidden bg-[#F9FAFB] dark:bg-[#1f2937] border border-[#E7EDF1] dark:border-[#374151]">
-                        {/* Placeholder for Google Maps or similar */}
-                        <div className="w-full h-full flex items-center justify-center text-secondary">
-                            {t.contact.map.placeholder}
-                        </div>
+                        <iframe
+                            title="Södra Vanadistvätten AB"
+                            src="https://www.google.com/maps?q=S%C3%B6dra%20Vanadistv%C3%A4tten%20AB%20Himmelsbodav%C3%A4gen%2015%2C%20147%2039%20Tumba&output=embed"
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                            className="w-full h-full border-0"
+                            allowFullScreen
+                        />
                     </div>
                 </div>
             </section>

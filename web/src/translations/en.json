@@ -7,7 +7,7 @@
         "homeAria": "Linnevik – home"
       },
       "nav": {
-        "categories": "Categories",
+        "categories": "Products",
         "search": "Search",
         "login": "Log in",
         "cart": "Cart",
@@ -245,7 +245,7 @@
         },
         "Country": {
           "label": "Country *",
-          "placeholder": "Netherlands"
+          "placeholder": "NL/DK..."
         },
         "notes": {
           "label": "Message",
@@ -270,7 +270,17 @@
       "title": "Categories",
       "body": "We couldn’t find any categories right now. Please try again later."
     },
-    "title": "All categories"
+    "title": "All categories",
+    "detail": {
+      "breadcrumbLabel": "Categories",
+      "errorTitle": "Something went wrong",
+      "errorBody": "We couldn’t load the products right now. Please try again later.",
+      "showing": "Showing {count} products",
+      "emptyTitle": "Nothing here!",
+      "emptyBody": "There are no products in this category yet.",
+      "loadMore": "Show more",
+      "allLoaded": "You’ve seen all products"
+    }
   },
 
   "cart": {

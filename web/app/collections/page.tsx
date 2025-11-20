@@ -2,14 +2,20 @@ import { getAllCollections } from "@/lib/shopify";
 import Link from "next/link";
 import Image from "next/image";
 import { getServerLanguage, toShopifyLanguage } from "@/lib/language";
+import { getTranslations } from "@/lib/getTranslations";
 
-export const metadata = {
-    title: "Kategorier – Linnevik",
-    description: "Bläddra bland alla våra produktkategorier.",
-};
+export async function generateMetadata() {
+    const language = await getServerLanguage();
+    const t = getTranslations(language);
+    return {
+        title: t.collections.metadata.title,
+        description: t.collections.metadata.description,
+    };
+}
 
 export default async function CollectionsPage() {
     const language = await getServerLanguage();
+    const t = getTranslations(language);
     const shopifyLang = toShopifyLanguage(language);
     const collections = await getAllCollections(30, shopifyLang);
 
@@ -18,9 +24,9 @@ export default async function CollectionsPage() {
     if (collections.length === 0) {
         return (
             <main className="max-w-6xl mx-auto px-6 pt-32 pb-10 text-center">
-                <h1 className="text-3xl font-semibold mb-4">Kategorier</h1>
+                <h1 className="text-3xl font-semibold mb-4">{t.collections.emptyState.title}</h1>
                 <p className="text-black/60">
-                    Vi kunde inte hitta några kategorier just nu. Försök igen senare.
+                    {t.collections.emptyState.body}
                 </p>
             </main>
         );
@@ -28,7 +34,7 @@ export default async function CollectionsPage() {
 
     return (
         <main className="max-w-6xl mx-auto px-6 pt-32 pb-10 space-y-8">
-            <h1 className="text-3xl font-semibold">Alla kategorier</h1>
+            <h1 className="text-3xl font-semibold">{t.collections.title}</h1>
 
             <section className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {collections.map((col) => (

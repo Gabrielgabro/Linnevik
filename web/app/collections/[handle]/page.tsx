@@ -4,6 +4,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerLanguage, toShopifyLanguage } from "@/lib/language";
+import { getTranslations } from "@/lib/getTranslations";
 
 type Props = {
     params: Promise<{ handle: string }>;
@@ -38,6 +39,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
     const { handle } = await params;
     const { after } = await searchParams;
     const language = await getServerLanguage();
+    const t = getTranslations(language);
     const shopifyLang = toShopifyLanguage(language);
     const first = 12;
     let col;
@@ -49,8 +51,8 @@ export default async function CollectionPage({ params, searchParams }: Props) {
         // Visa ett generellt felmeddelande istället för att krascha
         return (
             <main className="max-w-6xl mx-auto px-6 py-10 text-center">
-                <h1 className="text-2xl font-semibold mb-4">Något gick fel</h1>
-                <p>Vi kunde tyvärr inte hämta produkterna just nu. Försök igen senare.</p>
+                <h1 className="text-2xl font-semibold mb-4">{t.collections.detail.errorTitle}</h1>
+                <p>{t.collections.detail.errorBody}</p>
             </main>
         );
     }
@@ -65,7 +67,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
 
     return (
         <main className="max-w-6xl mx-auto px-6 pt-32 pb-10 space-y-6">
-            <Breadcrumbs items={[{ href: "/collections", label: "Kategorier" }, { href: `/collections/${handle}`, label: col.title }]} />
+            <Breadcrumbs items={[{ href: "/collections", label: t.collections.detail.breadcrumbLabel }, { href: `/collections/${handle}`, label: col.title }]} />
 
             <header className="flex items-end justify-between gap-4 border-b border-light pb-6">
                 <div>
@@ -76,7 +78,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
                 </div>
                 {products.length > 0 && (
                     <div className="text-sm text-secondary flex-shrink-0">
-                        Visar {products.length} produkter
+                        {t.collections.detail.showing.replace('{count}', products.length.toString())}
                     </div>
                 )}
             </header>
@@ -87,8 +89,8 @@ export default async function CollectionPage({ params, searchParams }: Props) {
                 </section>
             ) : (
                 <div className="text-center py-16">
-                    <h2 className="text-xl font-medium text-primary">Tomt här!</h2>
-                    <p className="text-secondary mt-2">Det finns inga produkter i denna kategori än.</p>
+                    <h2 className="text-xl font-medium text-primary">{t.collections.detail.emptyTitle}</h2>
+                    <p className="text-secondary mt-2">{t.collections.detail.emptyBody}</p>
                 </div>
             )}
 
@@ -99,11 +101,11 @@ export default async function CollectionPage({ params, searchParams }: Props) {
                         className="px-4 py-2 rounded-md bg-neutral-800 text-white hover:bg-black"
                         scroll={false} // Förhindrar att sidan scrollar till toppen vid klick
                     >
-                        Visa fler
+                        {t.collections.detail.loadMore}
                     </Link>
                 ) : (
                     products.length > 0 && (
-                        <span className="text-sm text-muted">Du har sett alla produkter</span>
+                        <span className="text-sm text-muted">{t.collections.detail.allLoaded}</span>
                     )
                 )}
             </footer>

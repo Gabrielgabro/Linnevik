@@ -7,7 +7,7 @@
           "homeAria": "Linnevik – start"
         },
         "nav": {
-          "categories": "Kategorier",
+          "categories": "Produkter",
           "search": "Sök",
           "login": "Logga in",
           "cart": "Varukorg",
@@ -262,15 +262,24 @@
   },
   "collections": {
     "metadata": {
-      "title": "Kategorier – Linnevik",
+      "title": "Produkter – Linnevik",
       "description": "Bläddra bland alla våra produktkategorier."
     },
     "emptyState": {
-      "title": "Kategorier",
-      "body": "Vi kunde inte hitta några kategorier just nu. Försök igen senare."
+      "title": "Produkter",
+      "body": "Vi kunde inte hitta några Produkter just nu. Försök igen senare."
     },
-    "title": "Alla kategorier"
-
+    "title": "Alla Produkter",
+    "detail": {
+      "breadcrumbLabel": "Kategorier",
+      "errorTitle": "Något gick fel",
+      "errorBody": "Vi kunde tyvärr inte hämta produkterna just nu. Försök igen senare.",
+      "showing": "Visar {count} produkter",
+      "emptyTitle": "Tomt här!",
+      "emptyBody": "Det finns inga produkter i denna kategori än.",
+      "loadMore": "Visa fler",
+      "allLoaded": "Du har sett alla produkter"
+    }
   },
   "cart": {
     "loading": "Laddar varukorg...",
@@ -319,7 +328,6 @@
 
 
 }
-
 
 
 

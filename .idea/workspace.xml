@@ -6,17 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/api/cart/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/cart/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/api/products/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/products/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/api/search/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/search/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/samples/checkout/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/samples/checkout/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/components/LanguageSelector.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/LanguageSelector.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/contexts/LanguageContext.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/collections/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/collections/[handle]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/collections/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/collections/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/contact/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/contact/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/hooks/useTranslation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/hooks/useTranslation.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/lib/language.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/language.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/lib/shopify.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/shopify.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/sections/CategoriesTeaser.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/CategoriesTeaser.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/sections/ClientLogosRotatingClient.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/ClientLogosRotatingClient.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/Footer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Footer.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/translations/en.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/translations/en.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/translations/sv.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/translations/sv.json" afterDir="false" />
     </list>
@@ -193,7 +187,7 @@
       <workItem from="1763584626746" duration="878000" />
       <workItem from="1763585871717" duration="631000" />
       <workItem from="1763586510291" duration="3572000" />
-      <workItem from="1763645002439" duration="24091000" />
+      <workItem from="1763645002439" duration="26944000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />

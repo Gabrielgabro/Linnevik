@@ -1,7 +1,7 @@
 'use client';
 
-import sv from '@/translations/sv.json';
-import en from '@/translations/en.json';
+import sv from '@/translations/sv.json' assert { type: 'json' };
+import en from '@/translations/en.json' assert { type: 'json' };
 import { useLanguage } from '@/contexts/LanguageContext';
 import { DEFAULT_LANGUAGE, type Language } from '@/lib/languageConfig';
 
