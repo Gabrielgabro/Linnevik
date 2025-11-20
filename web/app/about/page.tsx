@@ -1,9 +1,10 @@
-export const metadata = {
-    title: "Om Oss – Linnevik",
-    description: "Sedan 1986 har Linnevik utvecklat och stött våra kunder inom design, utveckling och produktion av skräddarsydda hotellprodukter.",
-};
+'use client';
+
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function AboutPage() {
+    const { t } = useTranslation();
+
     return (
         <main className="min-h-screen bg-white dark:bg-[#111827]">
             {/* Hero Section */}
@@ -13,10 +14,10 @@ export default function AboutPage() {
 
                 <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
                     <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 tracking-tight">
-                        Sedan 1986
+                        {t.about.hero.heading}
                     </h1>
                     <p className="text-xl md:text-2xl text-[#EBDCCB] max-w-3xl mx-auto leading-relaxed">
-                        Vi skapar identiteter för hotell genom skräddarsydda produkter och textilier
+                        {t.about.hero.subheading}
                     </p>
                 </div>
             </section>
@@ -28,25 +29,21 @@ export default function AboutPage() {
                         <div className="space-y-6">
                             <div className="inline-block">
                                 <span className="text-sm font-semibold text-[#0B3D2E] dark:text-[#379E7D] uppercase tracking-wider">
-                                    Vår Historia
+                                    {t.about.story.badge}
                                 </span>
                             </div>
                             <h2 className="text-4xl lg:text-5xl font-bold text-primary leading-tight">
-                                En passion för perfektion
+                                {t.about.story.title}
                             </h2>
                             <div className="space-y-4 text-lg text-secondary leading-relaxed">
                                 <p>
-                                    Linnevik grundades 1986 med en enkel vision: att hjälpa hotell skapa unika identiteter
-                                    genom högkvalitativa, skräddarsydda produkter. Under nästan fyra decennier har vi växt
-                                    från en liten verkstad till en av Sveriges ledande hotellgrossister.
+                                    {t.about.story.paragraph1}
                                 </p>
                                 <p>
-                                    Vår resa började med textilier, men idag erbjuder vi allt från linne och handdukar
-                                    till specialdesignade amenities och inredningsdetaljer. Vi har alltid trott på att
-                                    varje detalj räknas när det gäller att skapa minnesvärd gästupplevelse.
+                                    {t.about.story.paragraph2}
                                 </p>
                                 <p className="font-semibold text-primary">
-                                    Varje produkt bär vår passion för kvalitet och vår dedikation till våra partners.
+                                    {t.about.story.highlight}
                                 </p>
                             </div>
                         </div>
@@ -56,7 +53,7 @@ export default function AboutPage() {
                                 <div className="absolute inset-0 bg-gradient-to-br from-[#0B3D2E]/20 to-transparent" />
                                 {/* Placeholder for actual image */}
                                 <div className="absolute inset-0 flex items-center justify-center text-secondary">
-                                    [Bild: Teamet på jobbet]
+                                    {t.about.story.imagePlaceholder}
                                 </div>
                             </div>
                             {/* Decorative element */}
@@ -75,23 +72,23 @@ export default function AboutPage() {
                                 38+
                             </div>
                             <div className="text-sm font-semibold uppercase tracking-wider text-secondary">
-                                År i branschen
+                                {t.about.stats.yearsLabel}
                             </div>
                         </div>
                         <div className="text-center space-y-3">
                             <div className="text-5xl lg:text-6xl font-bold text-[#0B3D2E] dark:text-[#379E7D]">
-                                200+
+                                40+
                             </div>
                             <div className="text-sm font-semibold uppercase tracking-wider text-secondary">
-                                Hotellpartners
+                                {t.about.stats.partnersLabel}
                             </div>
                         </div>
                         <div className="text-center space-y-3">
                             <div className="text-5xl lg:text-6xl font-bold text-[#0B3D2E] dark:text-[#379E7D]">
-                                1000+
+                                120+
                             </div>
                             <div className="text-sm font-semibold uppercase tracking-wider text-secondary">
-                                Skräddarsydda projekt
+                                {t.about.stats.projectsLabel}
                             </div>
                         </div>
                     </div>
@@ -103,11 +100,8 @@ export default function AboutPage() {
                 <div className="max-w-6xl mx-auto px-6">
                     <div className="text-center mb-16">
                         <span className="text-sm font-semibold text-[#0B3D2E] dark:text-[#379E7D] uppercase tracking-wider">
-                            Våra Värderingar
+                            {t.about.values.badge}
                         </span>
-                        <h2 className="text-4xl lg:text-5xl font-bold text-primary mt-4">
-                            Vad driver oss
-                        </h2>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-8">
@@ -118,10 +112,9 @@ export default function AboutPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-primary mb-3">Kvalitet</h3>
+                            <h3 className="text-xl font-bold text-primary mb-3">{t.about.values.items.quality.title}</h3>
                             <p className="text-secondary leading-relaxed">
-                                Vi kompromissar aldrig med kvalitet. Varje produkt testas och granskas noggrant
-                                för att säkerställa att den lever upp till våra höga standarder.
+                                {t.about.values.items.quality.body}
                             </p>
                         </div>
 
@@ -132,10 +125,9 @@ export default function AboutPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-primary mb-3">Partnerskap</h3>
+                            <h3 className="text-xl font-bold text-primary mb-3">{t.about.values.items.partnership.title}</h3>
                             <p className="text-secondary leading-relaxed">
-                                Vi ser våra kunder som partners. Tillsammans skapar vi lösningar som stärker
-                                deras varumärke och förbättrar deras gästers upplevelse.
+                                {t.about.values.items.partnership.body}
                             </p>
                         </div>
 
@@ -146,10 +138,9 @@ export default function AboutPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-primary mb-3">Innovation</h3>
+                            <h3 className="text-xl font-bold text-primary mb-3">{t.about.values.items.innovation.title}</h3>
                             <p className="text-secondary leading-relaxed">
-                                Vi utvecklas ständigt och söker nya lösningar. Från hållbara material till
-                                smarta designval – vi ligger alltid steget före.
+                                {t.about.values.items.innovation.body}
                             </p>
                         </div>
                     </div>
@@ -160,24 +151,23 @@ export default function AboutPage() {
             <section className="py-24 bg-gradient-to-br from-[#0B3D2E] via-[#145C45] to-[#1E755C] dark:from-[#145C45] dark:via-[#1E755C] dark:to-[#379E7D]">
                 <div className="max-w-4xl mx-auto px-6 text-center">
                     <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
-                        Låt oss skapa något unikt tillsammans
+                        {t.about.cta.title}
                     </h2>
                     <p className="text-xl text-[#EBDCCB] mb-10 leading-relaxed">
-                        Kontakta oss idag för att diskutera hur vi kan hjälpa ditt hotell att sticka ut
-                        med skräddarsydda produkter och textilier.
+                        {t.about.cta.body}
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <a
                             href="/contact"
                             className="inline-flex items-center justify-center px-8 py-4 rounded-xl bg-white text-[#0B3D2E] font-semibold hover:bg-[#EBDCCB] transition-colors shadow-xl"
                         >
-                            Kontakta oss
+                            {t.about.cta.primaryButton}
                         </a>
                         <a
                             href="/collections"
                             className="inline-flex items-center justify-center px-8 py-4 rounded-xl bg-transparent text-white font-semibold border-2 border-white hover:bg-white/10 transition-colors"
                         >
-                            Se vårt utbud
+                            {t.about.cta.secondaryButton}
                         </a>
                     </div>
                 </div>

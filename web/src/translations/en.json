@@ -1,54 +1,316 @@
 {
-  "header": {
-    "brand": {
-      "alt": "Linnevik",
-      "homeAria": "Linnevik – home"
+  "lang": "en",
+  "common": {
+    "header": {
+      "brand": {
+        "alt": "Linnevik",
+        "homeAria": "Linnevik – home"
+      },
+      "nav": {
+        "categories": "Categories",
+        "search": "Search",
+        "login": "Log in",
+        "cart": "Cart",
+        "contact": "Contact us",
+        "toggleMenu": "Toggle menu"
+      }
     },
-    "nav": {
-      "categories": "Categories",
-      "search": "Search",
-      "login": "Log in",
-      "cart": "Cart",
-      "contact": "Contact us",
-      "toggleMenu": "Toggle menu"
+    "footer": {
+      "brand": {
+        "alt": "Linnevik",
+        "homeAria": "Linnevik – home"
+      },
+      "legal": {
+        "copyright": "Copyright © *year goes here* Södra Vanadistvätten AB",
+        "cookieSettings": "Cookie settings",
+        "cookiePolicy": "Cookie policy",
+        "terms": "Terms of purchase"
+      }
     }
   },
-  "hero": {
-    "announcement": {
-      "text": "Our latest product – hand soap with custom-designed packaging and fragrances.",
-      "ctaLabel": "Read more"
+
+  "home": {
+    "hero": {
+      "announcement": {
+        "text": "Our latest news – hand soap with custom-designed packaging and fragrances.",
+        "ctaLabel": "Read more"
+      },
+      "title": "A new identity for your hotel",
+      "body": "Linnevik supplies textiles to hotels. Behind the brand are people who, since 1986, have worked closely with Swedish and international hotels, with solutions used every day.",
+      "primaryCta": "Products",
+      "secondaryCta": "More about us"
     },
-    "title": "A new identity for your hotel",
-    "body": "Linnevik is a hotel wholesaler that has collaborated with many hotels in Sweden. Since 1986, Linnevik has developed and supported its customers in the design, development and production of bespoke hotel products and decorative textiles.",
-    "primaryCta": "Products",
-    "secondaryCta": "More about us"
-  },
 
-  "sampleCta": {
-    "imageAlt": "Order samples – sample products",
-    "eyebrow": "Free is always nice...",
-    "title": "Unsure? Order samples!",
-    "body": "You can order samples free of charge and the items will be delivered to your hotel. Experience the quality before you decide.",
-    "button": "Order samples"
-  },
-
-  "featuredGrid": {
-    "title": "Featured products",
-    "viewAll": "View all",
-    "noImage": "No image",
-    "from": "from"
-  },
-
-  "footer": {
-    "brand": {
-      "alt": "Linnevik",
-      "homeAria": "Linnevik – home"
+    "sampleCta": {
+      "imageAlt": "Order samples – sample products",
+      "eyebrow": "Free is always nice...",
+      "title": "Unsure? Order samples first.",
+      "body": "You can order samples free of charge and the items will be delivered to your hotel. Experience the quality before you decide.",
+      "button": "Order samples"
     },
-    "legal": {
-      "copyright": "Copyright © 2025 Södra Vanadistvätten AB",
-      "cookieSettings": "Cookie settings",
-      "cookiePolicy": "Cookie policy",
-      "terms": "Purchase terms"
+
+    "featuredGrid": {
+      "title": "Featured products",
+      "viewAll": "View all",
+      "noImage": "No image",
+      "from": "from"
+    }
+  },
+
+  "ClientLogosRotatingClient": {
+    "References": "References"
+  },
+
+  "contact": {
+    "hero": {
+      "badge": "Contact",
+      "title": "Get in touch",
+      "subtitle": "Have any questions? Drop by for a coffee. You’re of course welcome to email or call us as well."
+    },
+    "sidebar": {
+      "visitAddressHeading": "Visiting address",
+      "companyName": "Södra Vanadistvätten AB",
+      "street": "Himmelsbodavägen 15",
+      "postalCity": "147 39 Tumba",
+      "contactHeading": "Contact details",
+      "emailLabel": "info@linnevik.se",
+      "phoneLabel": "+46 8 123 456 78",
+      "openingHoursHeading": "Opening hours",
+      "weekdaysLabel": "Monday – Friday",
+      "weekdaysHours": "09:00 – 17:00",
+      "weekendsLabel": "Saturday – Sunday",
+      "closed": "Closed"
+    },
+    "form": {
+      "title": "Fill in your details and we’ll get back to you shortly.",
+      "subtitle": "We usually reply within 24 hours.",
+      "fields": {
+        "name": {
+          "label": "Name",
+          "placeholder": "Your name"
+        },
+        "company": {
+          "label": "Company",
+          "optional": "(optional)",
+          "placeholder": "Company name"
+        },
+        "email": {
+          "label": "Email",
+          "placeholder": "your@email.com"
+        },
+        "phone": {
+          "label": "Phone",
+          "optional": "(optional)",
+          "placeholder": "+46 70 123 45 67"
+        },
+        "message": {
+          "label": "Message",
+          "placeholder": "Tell us how we can help..."
+        }
+      },
+      "submit": "Send message",
+      "successAlert": "Thank you for your message. We’ll get back to you shortly."
+    },
+    "map": {
+      "placeholder": "[Map – Google Maps integration]"
+    }
+  },
+
+  "about": {
+    "metadata": {
+      "title": "About Us – Linnevik",
+      "description": "Since 1986, Linnevik has developed and supported our customers in the design, development and production of bespoke hotel products."
+    },
+    "hero": {
+      "heading": "Since 1986",
+      "subheading": "We create identities for hotels through bespoke products and textiles"
+    },
+    "story": {
+      "badge": "So what is Linnevik, really?",
+      "title": "Textile factories, warehouses, and many late-night meetings...",
+      "paragraph1": "Linnevik grew out of the same people who run Södra Vanadistvätten in Stockholm. For many years we have picked up, washed and returned linen to hotels that are busy with their everyday work.",
+      "paragraph2": "With Linnevik, we gather the things we ourselves have missed in the rooms: pillows, duvets and textiles that withstand both guests and frequent washing.",
+      "highlight": "Most collaborations start simply – a phone call and a meeting on site. We’re happy to stop by, see how you work and find a solution together.",
+      "imagePlaceholder": "[Image: The team at work]"
+    },
+    "stats": {
+      "yearsLabel": "Years in the industry",
+      "partnersLabel": "Hotel partners",
+      "projectsLabel": "Bespoke projects"
+    },
+    "values": {
+      "badge": "Our values",
+      "title": "What drives us",
+      "items": {
+        "quality": {
+          "title": "Quality",
+          "body": "We prefer fewer products that last a long time over many that wear out quickly."
+        },
+        "partnership": {
+          "title": "Partnership",
+          "body": "We work iteratively and closely with our customers, listen to their needs and find solutions that work in everyday operations."
+        },
+        "innovation": {
+          "title": "Continuous improvement",
+          "body": "We update our range and ways of working in step with new requirements – from environmental standards and sustainable materials to better laundry flows and longer product lifetimes."
+        }
+      }
+    },
+    "cta": {
+      "title": "Let’s create something unique together",
+      "body": "Contact us to discuss how we can help your hotel stand out with bespoke products and textiles.",
+      "primaryButton": "Contact us",
+      "secondaryButton": "View our range"
+    }
+  },
+
+  "samples": {
+    "hero": {
+      "badge": "Free of charge",
+      "title": "Order samples",
+      "subtitle": "Experience the quality before you decide. Choose the products you want samples of."
+    },
+    "loading": {
+      "label": "Loading products..."
+    },
+    "messages": {
+      "selectAtLeastOne": "Select at least one product to order samples for."
+    },
+    "selectionBar": {
+      "singleSelected": "item selected",
+      "multipleSelected": "items selected",
+      "continueButton": "Continue to form →"
+    },
+    "grid": {
+      "empty": "No products found.",
+      "noImage": "No image",
+      "priceFrom": "From"
+    },
+    "bottomCta": {
+      "buttonPrefix": "Continue with",
+      "singleLabel": "item",
+      "multipleLabel": "items",
+      "buttonSuffix": "→"
+    }
+  },
+
+  "samplesCheckout": {
+    "loading": {
+      "label": "Loading..."
+    },
+    "alert": {
+      "success": "Thank you for your request. We will send the samples to you shortly."
+    },
+    "header": {
+      "backButton": "Back",
+      "title": "Delivery information",
+      "subtitle": "Fill in your details and we will send the samples to you free of charge."
+    },
+    "form": {
+      "contactSectionTitle": "Contact person",
+      "organizationSectionTitle": "Organisation",
+      "addressSectionTitle": "Delivery address",
+      "fields": {
+        "contactName": {
+          "label": "Name *",
+          "placeholder": "First and last name"
+        },
+        "phone": {
+          "label": "Phone *",
+          "placeholder": "+46 70 123 45 67"
+        },
+        "email": {
+          "label": "Email *",
+          "placeholder": "your@email.com"
+        },
+        "organizationName": {
+          "label": "Organisation name *",
+          "placeholder": "Company name"
+        },
+        "organizationNumber": {
+          "label": "Organisation number *",
+          "placeholder": "XXXXXX-XXXX"
+        },
+        "address": {
+          "label": "Street address *",
+          "placeholder": "Street and number"
+        },
+        "postalCode": {
+          "label": "Postal code *",
+          "placeholder": "123 45"
+        },
+        "city": {
+          "label": "City *",
+          "placeholder": "City"
+        },
+        "notes": {
+          "label": "Message",
+          "optional": "(optional)",
+          "placeholder": "Additional comments or requests..."
+        }
+      },
+      "submitButton": "Submit request"
+    },
+    "summary": {
+      "title": "Selected samples",
+      "freeDelivery": "Free delivery"
+    }
+  },
+
+  "collections": {
+    "metadata": {
+      "title": "Categories – Linnevik",
+      "description": "Browse all our product categories."
+    },
+    "emptyState": {
+      "title": "Categories",
+      "body": "We couldn’t find any categories right now. Please try again later."
+    },
+    "title": "All categories"
+  },
+
+  "cart": {
+    "loading": "Loading cart...",
+    "empty": {
+      "title": "Your cart is empty",
+      "body": "Start shopping to add products",
+      "cta": "Go to products"
+    },
+    "title": "Cart",
+    "item": {
+      "noImage": "No image",
+      "priceExVatSuffix": "excl. VAT",
+      "decreaseQuantityAria": "Decrease quantity",
+      "increaseQuantityAria": "Increase quantity",
+      "remove": "Remove"
+    },
+    "summary": {
+      "subtotalExVat": "Subtotal excl. VAT",
+      "vatLabel": "VAT (25%)",
+      "totalInclVat": "Total incl. VAT",
+      "checkout": "Proceed to checkout",
+      "continueShopping": "Continue shopping"
+    }
+  },
+
+  "search": {
+    "input": {
+      "placeholder": "Search for products..."
+    },
+    "results": {
+      "withResults": "{count} results for \"{query}\"",
+      "noResults": "No results for \"{query}\""
+    },
+    "grid": {
+      "noImage": "No image"
+    },
+    "noResultsSection": {
+      "helpText": "Try searching with different terms or browse our categories.",
+      "viewCategories": "View categories"
+    },
+    "landing": {
+      "title": "Search our products",
+      "subtitle": "Type what you’re looking for above"
     }
   }
 }

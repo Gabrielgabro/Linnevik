@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type Product = {
     id: string;
@@ -12,6 +13,7 @@ type Product = {
 };
 
 export default function SamplesCheckoutPage() {
+    const { t } = useTranslation();
     const router = useRouter();
     const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
@@ -73,7 +75,7 @@ export default function SamplesCheckoutPage() {
         // Clear selection
         localStorage.removeItem('linnevik:sample-selection');
 
-        alert('Tack för din beställning! Vi skickar proverna till dig inom kort.');
+        alert(t.samplesCheckout.alert.success);
         router.push('/');
     };
 
@@ -82,7 +84,7 @@ export default function SamplesCheckoutPage() {
             <main className="min-h-screen bg-white dark:bg-[#111827] flex items-center justify-center">
                 <div className="text-center">
                     <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#0B3D2E] border-r-transparent dark:border-[#379E7D]" />
-                    <p className="mt-4 text-secondary">Laddar...</p>
+                    <p className="mt-4 text-secondary">{t.samplesCheckout.loading.label}</p>
                 </div>
             </main>
         );
@@ -100,13 +102,13 @@ export default function SamplesCheckoutPage() {
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
-                        Tillbaka
+                        {t.samplesCheckout.header.backButton}
                     </button>
                     <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">
-                        Leveransinformation
+                        {t.samplesCheckout.header.title}
                     </h1>
                     <p className="text-lg text-secondary">
-                        Fyll i dina uppgifter så skickar vi proverna kostnadsfritt till dig.
+                        {t.samplesCheckout.header.subtitle}
                     </p>
                 </div>
 
@@ -117,13 +119,13 @@ export default function SamplesCheckoutPage() {
                             {/* Contact Information */}
                             <div className="space-y-6">
                                 <h2 className="text-xl font-bold text-primary border-b border-[#E7EDF1] dark:border-[#374151] pb-3">
-                                    Kontaktperson
+                                    {t.samplesCheckout.form.contactSectionTitle}
                                 </h2>
 
                                 <div className="grid md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label htmlFor="contactName" className="block text-sm font-medium text-primary">
-                                            Namn *
+                                            {t.samplesCheckout.form.fields.contactName.label}
                                         </label>
                                         <input
                                             type="text"
@@ -133,13 +135,13 @@ export default function SamplesCheckoutPage() {
                                             value={formData.contactName}
                                             onChange={handleChange}
                                             className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
-                                            placeholder="För- och efternamn"
+                                            placeholder={t.samplesCheckout.form.fields.contactName.placeholder}
                                         />
                                     </div>
 
                                     <div className="space-y-2">
                                         <label htmlFor="phone" className="block text-sm font-medium text-primary">
-                                            Telefon *
+                                            {t.samplesCheckout.form.fields.phone.label}
                                         </label>
                                         <input
                                             type="tel"
@@ -149,14 +151,14 @@ export default function SamplesCheckoutPage() {
                                             value={formData.phone}
                                             onChange={handleChange}
                                             className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
-                                            placeholder="+46 70 123 45 67"
+                                            placeholder={t.samplesCheckout.form.fields.phone.placeholder}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <label htmlFor="email" className="block text-sm font-medium text-primary">
-                                        E-post *
+                                        {t.samplesCheckout.form.fields.email.label}
                                     </label>
                                     <input
                                         type="email"
@@ -166,7 +168,7 @@ export default function SamplesCheckoutPage() {
                                         value={formData.email}
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
-                                        placeholder="din@email.se"
+                                        placeholder={t.samplesCheckout.form.fields.email.placeholder}
                                     />
                                 </div>
                             </div>
@@ -174,13 +176,13 @@ export default function SamplesCheckoutPage() {
                             {/* Organization */}
                             <div className="space-y-6">
                                 <h2 className="text-xl font-bold text-primary border-b border-[#E7EDF1] dark:border-[#374151] pb-3">
-                                    Organisation
+                                    {t.samplesCheckout.form.organizationSectionTitle}
                                 </h2>
 
                                 <div className="grid md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label htmlFor="organizationName" className="block text-sm font-medium text-primary">
-                                            Organisationsnamn *
+                                            {t.samplesCheckout.form.fields.organizationName.label}
                                         </label>
                                         <input
                                             type="text"
@@ -190,13 +192,13 @@ export default function SamplesCheckoutPage() {
                                             value={formData.organizationName}
                                             onChange={handleChange}
                                             className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
-                                            placeholder="Företagets namn"
+                                            placeholder={t.samplesCheckout.form.fields.organizationName.placeholder}
                                         />
                                     </div>
 
                                     <div className="space-y-2">
                                         <label htmlFor="organizationNumber" className="block text-sm font-medium text-primary">
-                                            Organisationsnummer *
+                                            {t.samplesCheckout.form.fields.organizationNumber.label}
                                         </label>
                                         <input
                                             type="text"
@@ -206,7 +208,7 @@ export default function SamplesCheckoutPage() {
                                             value={formData.organizationNumber}
                                             onChange={handleChange}
                                             className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
-                                            placeholder="XXXXXX-XXXX"
+                                            placeholder={t.samplesCheckout.form.fields.organizationNumber.placeholder}
                                         />
                                     </div>
                                 </div>
@@ -215,12 +217,12 @@ export default function SamplesCheckoutPage() {
                             {/* Delivery Address */}
                             <div className="space-y-6">
                                 <h2 className="text-xl font-bold text-primary border-b border-[#E7EDF1] dark:border-[#374151] pb-3">
-                                    Leveransadress
+                                    {t.samplesCheckout.form.addressSectionTitle}
                                 </h2>
 
                                 <div className="space-y-2">
                                     <label htmlFor="address" className="block text-sm font-medium text-primary">
-                                        Gatuadress *
+                                        {t.samplesCheckout.form.fields.address.label}
                                     </label>
                                     <input
                                         type="text"
@@ -230,14 +232,14 @@ export default function SamplesCheckoutPage() {
                                         value={formData.address}
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
-                                        placeholder="Gata och nummer"
+                                        placeholder={t.samplesCheckout.form.fields.address.placeholder}
                                     />
                                 </div>
 
                                 <div className="grid md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label htmlFor="postalCode" className="block text-sm font-medium text-primary">
-                                            Postnummer *
+                                            {t.samplesCheckout.form.fields.postalCode.label}
                                         </label>
                                         <input
                                             type="text"
@@ -247,13 +249,13 @@ export default function SamplesCheckoutPage() {
                                             value={formData.postalCode}
                                             onChange={handleChange}
                                             className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
-                                            placeholder="123 45"
+                                            placeholder={t.samplesCheckout.form.fields.postalCode.placeholder}
                                         />
                                     </div>
 
                                     <div className="space-y-2">
                                         <label htmlFor="city" className="block text-sm font-medium text-primary">
-                                            Ort *
+                                            {t.samplesCheckout.form.fields.city.label}
                                         </label>
                                         <input
                                             type="text"
@@ -263,14 +265,14 @@ export default function SamplesCheckoutPage() {
                                             value={formData.city}
                                             onChange={handleChange}
                                             className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
-                                            placeholder="Stad"
+                                            placeholder={t.samplesCheckout.form.fields.city.placeholder}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <label htmlFor="notes" className="block text-sm font-medium text-primary">
-                                        Meddelande <span className="text-secondary">(valfritt)</span>
+                                        {t.samplesCheckout.form.fields.notes.label} <span className="text-secondary">{t.samplesCheckout.form.fields.notes.optional}</span>
                                     </label>
                                     <textarea
                                         id="notes"
@@ -279,7 +281,7 @@ export default function SamplesCheckoutPage() {
                                         value={formData.notes}
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors resize-none"
-                                        placeholder="Övriga kommentarer eller önskemål..."
+                                        placeholder={t.samplesCheckout.form.fields.notes.placeholder}
                                     />
                                 </div>
                             </div>
@@ -289,7 +291,7 @@ export default function SamplesCheckoutPage() {
                                 type="submit"
                                 className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
                             >
-                                Skicka beställning
+                                {t.samplesCheckout.form.submitButton}
                             </button>
                         </form>
                     </div>
@@ -298,7 +300,7 @@ export default function SamplesCheckoutPage() {
                     <div className="lg:col-span-1">
                         <div className="sticky top-32 bg-[#F9FAFB] dark:bg-[#1f2937] rounded-2xl p-6 border border-[#E7EDF1] dark:border-[#374151]">
                             <h2 className="text-xl font-bold text-primary mb-4">
-                                Valda prover ({selectedProducts.length})
+                                {t.samplesCheckout.summary.title} ({selectedProducts.length})
                             </h2>
                             <div className="space-y-3 max-h-96 overflow-y-auto">
                                 {selectedProducts.map((product) => {
@@ -329,7 +331,7 @@ export default function SamplesCheckoutPage() {
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                     </svg>
-                                    <span className="font-semibold">Kostnadsfri leverans</span>
+                                    <span className="font-semibold">{t.samplesCheckout.summary.freeDelivery}</span>
                                 </div>
                             </div>
                         </div>

@@ -1,6 +1,7 @@
 import { getAllCollections } from "@/lib/shopify";
 import Link from "next/link";
 import Image from "next/image";
+import { getServerLanguage, toShopifyLanguage } from "@/lib/language";
 
 export const metadata = {
     title: "Kategorier – Linnevik",
@@ -8,7 +9,9 @@ export const metadata = {
 };
 
 export default async function CollectionsPage() {
-    const collections = await getAllCollections();
+    const language = await getServerLanguage();
+    const shopifyLang = toShopifyLanguage(language);
+    const collections = await getAllCollections(30, shopifyLang);
 
     // Om listan är tom (antingen pga API-fel eller för att det inte finns några kategorier)
     // visa ett informativt meddelande istället för en tom sida.

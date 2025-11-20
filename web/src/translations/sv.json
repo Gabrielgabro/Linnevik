@@ -37,7 +37,7 @@
             "ctaLabel": "Läs mer"
           },
           "title": "En ny identitet för ditt hotell",
-          "body": "Linnevik är en hotellgrossist som har samarbetat med många hotell i Sverige. Sedan 1986 har Linnevik utvecklat och stött sina kunder inom design, utveckling och produktion av skräddarsydda hotellprodukter och dekorativa textilier.",
+          "body": "Linnevik levererar textilier till hotell. Bakom varumärket finns människor som sedan 1986 arbetat nära svenska och internationella hotell, med lösningar som används varje dag.",
           "primaryCta": "Produkter",
           "secondaryCta": "Mer om oss"
         },
@@ -115,8 +115,6 @@
       "placeholder": "[Karta - Google Maps integration]"}
   },
 
-
-
   "about":{
     "metadata": {
       "title": "Om Oss – Linnevik",
@@ -127,11 +125,11 @@
       "subheading": "Vi skapar identiteter för hotell genom skräddarsydda produkter och textilier"
     },
     "story": {
-      "badge": "Vår Historia",
-      "title": "En passion för perfektion",
-      "paragraph1": "Linnevik grundades 1986 med en enkel vision: att hjälpa hotell skapa unika identiteter genom högkvalitativa, skräddarsydda produkter. Under nästan fyra decennier har vi växt från en liten verkstad till en av Sveriges ledande hotellgrossister.",
-      "paragraph2": "Vår resa började med textilier, men idag erbjuder vi allt från linne och handdukar till specialdesignade amenities och inredningsdetaljer. Vi har alltid trott på att varje detalj räknas när det gäller att skapa minnesvärd gästupplevelse.",
-      "highlight": "Varje produkt bär vår passion för kvalitet och vår dedikation till våra partners.",
+      "badge": "Vad är Linevik, egentligen?",
+      "title": "Textilfabriker, lager och många möten inne i småtimmarna...",
+      "paragraph1": "Linnevik kommer ur samma människor som driver Södra Vanadistvätten i Stockholm. I många år har vi hämtat, tvättat och lämnat tillbaka linne till hotell som har fullt upp med sin vardag.",
+      "paragraph2": "Med Linnevik samlar vi sådant vi själva saknat i rummen: kuddar, täcken och textilier som tål både gäster och tvätt.",
+      "highlight": "De flesta samarbeten börjar enkelt – ett samtal och ett möte på plats. Vi kommer gärna förbi, ser hur ni har det och hittar en lösning tillsammans.",
       "imagePlaceholder": "[Bild: Teamet på jobbet]"
     },
     "stats": {
@@ -145,15 +143,15 @@
       "items": {
         "quality": {
           "title": "Kvalitet",
-          "body": "Vi kompromissar aldrig med kvalitet. Varje produkt testas och granskas noggrant för att säkerställa att den lever upp till våra höga standarder."
+          "body": "Vi väljer hellre färre produkter som håller länge än många som slits ut snabbt."
         },
         "partnership": {
           "title": "Partnerskap",
-          "body": "Vi ser våra kunder som partners. Tillsammans skapar vi lösningar som stärker deras varumärke och förbättrar deras gästers upplevelse."
+          "body": " Vi jobbar iterativt nära våra kunder, lyssnar in behoven och hittar lösningar som fungerar i vardagen."
         },
         "innovation": {
-          "title": "Innovation",
-          "body": "Vi utvecklas ständigt och söker nya lösningar. Från hållbara material till smarta designval – vi ligger alltid steget före."
+          "title": "Förbättring",
+          "body": "Vi uppdaterar sortiment och arbetssätt i takt med nya krav – från miljöstandarder och hållbara material till bättre tvättflöden och längre livslängd på produkterna."
         }
       }
     },

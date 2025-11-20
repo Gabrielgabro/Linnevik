@@ -3,6 +3,7 @@ import ProductCard from "@/components/ProductCard";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getServerLanguage, toShopifyLanguage } from "@/lib/language";
 
 type Props = {
     params: Promise<{ handle: string }>;
@@ -13,7 +14,9 @@ type Props = {
 export async function generateMetadata({ params }: Props) {
     try {
         const { handle } = await params;
-        const col = await getCollectionByHandle(handle, 1);
+        const language = await getServerLanguage();
+        const shopifyLang = toShopifyLanguage(language);
+        const col = await getCollectionByHandle(handle, 1, undefined, shopifyLang);
         if (!col) {
             return { title: "Kategori ej funnen – Linnevik" };
         }
@@ -34,11 +37,13 @@ export async function generateMetadata({ params }: Props) {
 export default async function CollectionPage({ params, searchParams }: Props) {
     const { handle } = await params;
     const { after } = await searchParams;
+    const language = await getServerLanguage();
+    const shopifyLang = toShopifyLanguage(language);
     const first = 12;
     let col;
 
     try {
-        col = await getCollectionByHandle(handle, first, after);
+        col = await getCollectionByHandle(handle, first, after, shopifyLang);
     } catch (error) {
         console.error(`Fel vid hämtning av kategori '${handle}':`, error);
         // Visa ett generellt felmeddelande istället för att krascha

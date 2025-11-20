@@ -3,15 +3,17 @@
 import { useCart } from '@/contexts/CartContext';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function CartPage() {
+    const { t } = useTranslation();
     const { cart, isLoading, updateItem, removeItem } = useCart();
 
     if (isLoading) {
         return (
             <div className="min-h-screen pt-32 pb-16">
                 <div className="max-w-4xl mx-auto px-6">
-                    <p className="text-center text-secondary">Laddar varukorg...</p>
+                    <p className="text-center text-secondary">{t.cart.loading}</p>
                 </div>
             </div>
         );
@@ -30,13 +32,13 @@ export default function CartPage() {
         return (
             <div className="min-h-screen pt-32 pb-16">
                 <div className="max-w-4xl mx-auto px-6 text-center">
-                    <h1 className="text-3xl font-semibold text-primary mb-4">Din varukorg är tom</h1>
-                    <p className="text-secondary mb-8">Börja handla för att lägga till produkter</p>
+                    <h1 className="text-3xl font-semibold text-primary mb-4">{t.cart.empty.title}</h1>
+                    <p className="text-secondary mb-8">{t.cart.empty.subtitle}</p>
                     <Link
                         href="/products"
                         className="inline-block px-6 py-3 rounded-full bg-accent text-white hover:bg-accent/90 transition-colors"
                     >
-                        Till produkter
+                        {t.cart.empty.toProductsButton}
                     </Link>
                 </div>
             </div>
@@ -46,7 +48,7 @@ export default function CartPage() {
     return (
         <div className="min-h-screen pt-32 pb-16">
             <div className="max-w-4xl mx-auto px-6">
-                <h1 className="text-3xl font-semibold text-primary mb-8">Varukorg</h1>
+                <h1 className="text-3xl font-semibold text-primary mb-8">{t.cart.title}</h1>
 
                 <div className="space-y-6">
                     {lines.map(({ node: line }) => {
@@ -74,7 +76,7 @@ export default function CartPage() {
                                         />
                                     ) : (
                                         <div className="w-full h-full grid place-items-center text-secondary text-xs">
-                                            Ingen bild
+                                            {t.cart.items.noImage}
                                         </div>
                                     )}
                                 </Link>
@@ -93,7 +95,7 @@ export default function CartPage() {
                                         </p>
                                     )}
                                     <p className="text-sm text-secondary mt-2">
-                                        {priceExVAT} {line.merchandise.price.currencyCode} ex. moms
+                                        {priceExVAT} {line.merchandise.price.currencyCode} {t.cart.items.exVat}
                                     </p>
                                 </div>
 
@@ -102,7 +104,7 @@ export default function CartPage() {
                                     <button
                                         onClick={() => updateItem(line.id, Math.max(1, line.quantity - 1))}
                                         className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center"
-                                        aria-label="Minska antal"
+                                        aria-label={t.cart.items.decreaseLabel}
                                     >
                                         −
                                     </button>
@@ -112,7 +114,7 @@ export default function CartPage() {
                                     <button
                                         onClick={() => updateItem(line.id, line.quantity + 1)}
                                         className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center"
-                                        aria-label="Öka antal"
+                                        aria-label={t.cart.items.increaseLabel}
                                     >
                                         +
                                     </button>
@@ -127,7 +129,7 @@ export default function CartPage() {
                                         onClick={() => removeItem(line.id)}
                                         className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                                     >
-                                        Ta bort
+                                        {t.cart.items.removeButton}
                                     </button>
                                 </div>
                             </div>
@@ -139,14 +141,14 @@ export default function CartPage() {
                 <div className="mt-8 p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                     <div className="space-y-2">
                         <div className="flex justify-between text-secondary">
-                            <span>Totalt ex. moms</span>
+                            <span>{t.cart.summary.totalExVat}</span>
                             <span>
                                 {calculateExVAT(cart?.cost?.subtotalAmount?.amount || '0')}{' '}
                                 {cart?.cost?.subtotalAmount?.currencyCode || 'SEK'}
                             </span>
                         </div>
                         <div className="flex justify-between text-secondary">
-                            <span>Moms (25%)</span>
+                            <span>{t.cart.summary.vat}</span>
                             <span>
                                 {(
                                     parseFloat(cart?.cost?.subtotalAmount?.amount || '0') -
@@ -157,7 +159,7 @@ export default function CartPage() {
                         </div>
                         <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                             <div className="flex justify-between text-lg font-semibold text-primary">
-                                <span>Totalt inkl. moms</span>
+                                <span>{t.cart.summary.totalIncVat}</span>
                                 <span>
                                     {parseFloat(cart?.cost?.subtotalAmount?.amount || '0').toFixed(2)}{' '}
                                     {cart?.cost?.subtotalAmount?.currencyCode || 'SEK'}
@@ -170,14 +172,14 @@ export default function CartPage() {
                         href={cart?.checkoutUrl || '#'}
                         className="mt-6 block w-full py-3 px-6 text-center rounded-full bg-accent text-white font-semibold hover:bg-accent/90 transition-colors"
                     >
-                        Gå till kassan
+                        {t.cart.summary.checkoutButton}
                     </a>
 
                     <Link
                         href="/products"
                         className="mt-3 block text-center text-sm text-accent hover:underline"
                     >
-                        Fortsätt handla
+                        {t.cart.summary.continueShoppingLink}
                     </Link>
                 </div>
             </div>

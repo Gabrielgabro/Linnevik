@@ -2,10 +2,13 @@ import ProductGallery from '@/components/ProductGallery';
 import ProductForm from '@/components/ProductForm';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import { getProductByHandle } from '@/lib/shopify';
+import { getServerLanguage, toShopifyLanguage } from '@/lib/language';
 
 export default async function ProductPage({ params }: { params: Promise<{ handle: string }> }) {
     const { handle } = await params;
-    const product = await getProductByHandle(handle);
+    const language = await getServerLanguage();
+    const shopifyLang = toShopifyLanguage(language);
+    const product = await getProductByHandle(handle, shopifyLang);
     if (!product) return <div className="p-8">Produkten hittades inte.</div>;
 
     const images = product.images.edges.map(e => e.node);

@@ -5,6 +5,7 @@ import Header from "@/sections/Header";
 import Footer from "@/sections/Footer";
 import HomePageBubbles from "@/components/HomePageBubbles";
 import { CartProvider } from "@/contexts/CartContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 // Serif font for headings - elegant and refined
 const libreBaskerville = Libre_Baskerville({
@@ -35,12 +36,14 @@ export default function RootLayout({
     return (
         <html lang="sv">
         <body className={`${libreBaskerville.variable} ${inter.variable}`}>
-        <CartProvider>
-            <HomePageBubbles />
-            <Header />
-            {children}
-            <Footer />
-        </CartProvider>
+        <LanguageProvider>
+            <CartProvider>
+                <HomePageBubbles />
+                <Header />
+                {children}
+                <Footer />
+            </CartProvider>
+        </LanguageProvider>
         </body>
         </html>
     );

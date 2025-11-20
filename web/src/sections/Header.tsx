@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSelector from '@/components/LanguageSelector';
 
 const domain = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
@@ -13,6 +14,7 @@ const loginUrl = domain ? `https://${domain}/account/login` : '/account/login';
 export default function Header() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const { cart } = useCart();
+    const { t } = useTranslation();
     const cartItemCount = cart?.totalQuantity || 0;
     const displayCount = cartItemCount > 99 ? '99+' : cartItemCount.toString();
 
@@ -21,10 +23,10 @@ export default function Header() {
         <header className="fixed inset-x-0 top-0 z-50 backdrop-blur">
             <nav className="h-20 w-full flex items-center justify-between px-5" aria-label="Global">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-2 z-50" aria-label="Linnevik – start">
+                <Link href="/" className="flex items-center gap-2 z-50" aria-label={t.common.header.brand.homeAria}>
                     <Image
                         src="/brand/logo_in_black.svg"
-                        alt="Linnevik"
+                        alt={t.common.header.brand.alt}
                         width={150}
                         height={60}
                         priority
@@ -32,7 +34,7 @@ export default function Header() {
                     />
                     <Image
                         src="/brand/logo_in_white.svg"
-                        alt="Linnevik"
+                        alt={t.common.header.brand.alt}
                         width={150}
                         height={60}
                         priority
@@ -46,12 +48,12 @@ export default function Header() {
                         href="/collections"
                         className="text-sm font-medium text-primary hover:underline"
                     >
-                        Kategorier
+                        {t.common.header.nav.categories}
                     </Link>
 
                     <Link
                         href="/search"
-                        aria-label="Sök"
+                        aria-label={t.common.header.nav.search}
                         className="p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
                     >
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -62,7 +64,7 @@ export default function Header() {
 
                     <a
                         href={loginUrl}
-                        aria-label="Logga in"
+                        aria-label={t.common.header.nav.login}
                         className="p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
                     >
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -73,7 +75,7 @@ export default function Header() {
 
                     <Link
                         href="/cart"
-                        aria-label="Varukorg"
+                        aria-label={t.common.header.nav.cart}
                         className="relative p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
                     >
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -94,7 +96,7 @@ export default function Header() {
                         href="/contact"
                         className="text-sm font-semibold px-3.5 py-2 rounded-2xl ring-1 ring-inset ring-surface text-primary hover-surface focus:outline-none"
                     >
-                        Kontakta oss
+                        {t.common.header.nav.contact}
                     </Link>
                 </div>
 
@@ -102,7 +104,7 @@ export default function Header() {
                 <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                     className="md:hidden p-2 rounded-lg text-primary hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none z-50"
-                    aria-label="Toggle menu"
+                    aria-label={t.common.header.nav.toggleMenu}
                 >
                     <svg
                         className="w-6 h-6"
@@ -140,7 +142,7 @@ export default function Header() {
                         onClick={() => setMobileMenuOpen(false)}
                         className="text-lg font-medium text-primary hover:underline py-2"
                     >
-                        Kategorier
+                        {t.common.header.nav.categories}
                     </Link>
 
                     <Link
@@ -152,7 +154,7 @@ export default function Header() {
                             <circle cx="11" cy="11" r="7" />
                             <line x1="21" y1="21" x2="16.65" y2="16.65" />
                         </svg>
-                        Sök
+                        {t.common.header.nav.search}
                     </Link>
 
                     <a
@@ -164,7 +166,7 @@ export default function Header() {
                             <path d="M20 21a8 8 0 0 0-16 0" />
                             <circle cx="12" cy="7" r="4" />
                         </svg>
-                        Logga in
+                        {t.common.header.nav.login}
                     </a>
 
                     <Link
@@ -184,7 +186,7 @@ export default function Header() {
                                 </span>
                             )}
                         </div>
-                        Varukorg
+                        {t.common.header.nav.cart}
                     </Link>
 
                     <div className="py-2">
@@ -196,7 +198,7 @@ export default function Header() {
                         onClick={() => setMobileMenuOpen(false)}
                         className="text-lg font-semibold px-4 py-3 rounded-2xl ring-1 ring-inset ring-surface text-primary hover-surface text-center"
                     >
-                        Kontakta oss
+                        {t.common.header.nav.contact}
                     </Link>
                 </div>
             </div>

@@ -7,14 +7,22 @@ type FetchArgs = {
     query: string;
     variables?: Record<string, unknown>;
     apiVersion?: string;
+    language?: 'SV' | 'EN';
 };
 
 async function storefrontFetch<T>({
                                       query,
                                       variables,
                                       apiVersion = DEFAULT_API_VERSION,
+                                      language = 'SV',
                                   }: FetchArgs): Promise<T> {
     const endpoint = `https://${SHOPIFY_DOMAIN}/api/${apiVersion}/graphql.json`;
+
+    // Add language to variables if not already present
+    const finalVariables = {
+        ...variables,
+        language,
+    };
 
     const response = await fetch(endpoint, {
         method: 'POST',
@@ -22,7 +30,7 @@ async function storefrontFetch<T>({
             'Content-Type': 'application/json',
             'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN,
         },
-        body: JSON.stringify({ query, variables }),
+        body: JSON.stringify({ query, variables: finalVariables }),
         cache: 'no-store',
         next: { revalidate: 0 },
     });
@@ -55,9 +63,9 @@ const PRODUCT_CARD_FIELDS = `
   }
 `;
 
-export async function getFeaturedProducts(first = 6) {
+export async function getFeaturedProducts(first = 6, language: 'SV' | 'EN' = 'SV') {
     const FEATURED_QUERY = `
-    query Featured($handle: String!, $first: Int!) {
+    query Featured($handle: String!, $first: Int!, $language: LanguageCode!) @inContext(language: $language) {
       collection(handle: $handle) {
         id
         title
@@ -79,13 +87,14 @@ export async function getFeaturedProducts(first = 6) {
     const data = await storefrontFetch<FeaturedData>({
         query: FEATURED_QUERY,
         variables: { handle: 'featured', first },
+        language,
     });
 
     let nodes = data.collection?.products.edges.map(edge => edge.node) ?? [];
 
     if (!nodes.length) {
         const FALLBACK_QUERY = `
-      query All($first: Int!) {
+      query All($first: Int!, $language: LanguageCode!) @inContext(language: $language) {
         products(first: $first, sortKey: UPDATED_AT, reverse: true) {
           edges { node { ${PRODUCT_CARD_FIELDS} } }
         }
@@ -97,6 +106,7 @@ export async function getFeaturedProducts(first = 6) {
         }>({
             query: FALLBACK_QUERY,
             variables: { first },
+            language,
         });
 
         nodes = fallback.products.edges.map(edge => edge.node);
@@ -111,9 +121,9 @@ export async function getFeaturedProducts(first = 6) {
     }>;
 }
 
-export async function getProductByHandle(handle: string) {
+export async function getProductByHandle(handle: string, language: 'SV' | 'EN' = 'SV') {
     const PRODUCT_QUERY = `
-    query Product($handle: String!) {
+    query Product($handle: String!, $language: LanguageCode!) @inContext(language: $language) {
       product(handle: $handle) {
         id
         handle
@@ -183,14 +193,15 @@ export async function getProductByHandle(handle: string) {
     const data = await storefrontFetch<ProductResult>({
         query: PRODUCT_QUERY,
         variables: { handle },
+        language,
     });
 
     return data.product;
 }
 
-export async function getAllProducts(first = 100) {
+export async function getAllProducts(first = 100, language: 'SV' | 'EN' = 'SV') {
     const PRODUCTS_QUERY = `
-    query AllProducts($first: Int!) {
+    query AllProducts($first: Int!, $language: LanguageCode!) @inContext(language: $language) {
       products(first: $first, sortKey: TITLE) {
         edges {
           node {
@@ -207,6 +218,7 @@ export async function getAllProducts(first = 100) {
         }>({
             query: PRODUCTS_QUERY,
             variables: { first },
+            language,
         });
 
         return data.products.edges.map(edge => edge.node) as Array<{
@@ -222,9 +234,9 @@ export async function getAllProducts(first = 100) {
     }
 }
 
-export async function getAllCollections(first = 30) {
+export async function getAllCollections(first = 30, language: 'SV' | 'EN' = 'SV') {
     const COLLECTIONS_QUERY = `
-    query AllCollections($first: Int!) {
+    query AllCollections($first: Int!, $language: LanguageCode!) @inContext(language: $language) {
       collections(first: $first, sortKey: TITLE) {
         edges {
           node {
@@ -245,6 +257,7 @@ export async function getAllCollections(first = 30) {
         }>({
             query: COLLECTIONS_QUERY,
             variables: { first },
+            language,
         });
 
         return data.collections.edges
@@ -265,9 +278,9 @@ export async function getAllCollections(first = 30) {
     }
 }
 
-export async function getCollectionByHandle(handle: string, first = 12, after?: string) {
+export async function getCollectionByHandle(handle: string, first = 12, after?: string, language: 'SV' | 'EN' = 'SV') {
     const COLLECTION_QUERY = `
-    query Collection($handle: String!, $first: Int!, $after: String) {
+    query Collection($handle: String!, $first: Int!, $after: String, $language: LanguageCode!) @inContext(language: $language) {
       collection(handle: $handle) {
         id
         title
@@ -306,14 +319,15 @@ export async function getCollectionByHandle(handle: string, first = 12, after?: 
     const data = await storefrontFetch<CollectionResult>({
         query: COLLECTION_QUERY,
         variables: { handle, first, after },
+        language,
     });
 
     return data.collection;
 }
 
-export async function getProductsBasic(first = 60, queryStr?: string) {
+export async function getProductsBasic(first = 60, queryStr?: string, language: 'SV' | 'EN' = 'SV') {
     const PRODUCTS_QUERY = /* GraphQL */ `
-    query Products($first: Int!, $query: String) {
+    query Products($first: Int!, $query: String, $language: LanguageCode!) @inContext(language: $language) {
       products(first: $first, query: $query, sortKey: TITLE) {
         edges {
           node {
@@ -339,6 +353,7 @@ export async function getProductsBasic(first = 60, queryStr?: string) {
         query: PRODUCTS_QUERY,
         variables,
         apiVersion: LEGACY_API_VERSION,
+        language,
     });
 
     return data.products.edges.map(edge => edge.node) as Array<{

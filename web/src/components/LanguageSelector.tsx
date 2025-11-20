@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useLanguage, type Language } from '@/contexts/LanguageContext';
 
 interface LanguageSelectorProps {
   variant?: 'header' | 'footer';
@@ -28,16 +28,15 @@ const FlagGB = () => (
 );
 
 export default function LanguageSelector({ variant = 'header' }: LanguageSelectorProps) {
-  const [currentLang, setCurrentLang] = useState('sv');
+  const { language: currentLang, setLanguage } = useLanguage();
 
   const languages = [
-    { code: 'sv', label: 'Svenska', flag: FlagSE },
-    { code: 'en', label: 'English', flag: FlagGB }
+    { code: 'sv' as Language, label: 'Svenska', flag: FlagSE },
+    { code: 'en' as Language, label: 'English', flag: FlagGB }
   ];
 
-  const handleLanguageChange = (langCode: string) => {
-    setCurrentLang(langCode);
-    // TODO: Implement actual language switching logic
+  const handleLanguageChange = (langCode: Language) => {
+    setLanguage(langCode);
   };
 
   const currentLanguage = languages.find(lang => lang.code === currentLang);

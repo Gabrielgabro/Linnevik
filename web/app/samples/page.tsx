@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type Product = {
     id: string;
@@ -13,6 +14,7 @@ type Product = {
 };
 
 export default function SamplesPage() {
+    const { t } = useTranslation();
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function SamplesPage() {
 
     const handleContinue = () => {
         if (selectedProducts.size === 0) {
-            alert('Välj minst en produkt att beställa prover för.');
+            alert(t.samples.messages.selectAtLeastOne);
             return;
         }
         router.push('/samples/checkout');
@@ -62,7 +64,7 @@ export default function SamplesPage() {
             <main className="min-h-screen bg-white dark:bg-[#111827] flex items-center justify-center">
                 <div className="text-center">
                     <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#0B3D2E] border-r-transparent dark:border-[#379E7D]" />
-                    <p className="mt-4 text-secondary">Laddar produkter...</p>
+                    <p className="mt-4 text-secondary">{t.samples.loading.label}</p>
                 </div>
             </main>
         );
@@ -75,14 +77,14 @@ export default function SamplesPage() {
                 <div className="max-w-6xl mx-auto text-center">
                     <div className="inline-block mb-4">
                         <span className="text-sm font-semibold text-[#0B3D2E] dark:text-[#379E7D] uppercase tracking-wider">
-                            Kostnadsfritt
+                            {t.samples.hero.badge}
                         </span>
                     </div>
                     <h1 className="text-5xl md:text-6xl font-bold text-primary mb-6">
-                        Beställ prover
+                        {t.samples.hero.title}
                     </h1>
                     <p className="text-xl text-secondary max-w-2xl mx-auto leading-relaxed">
-                        Upplev kvaliteten innan du bestämmer dig. Välj de produkter du vill ha prover på.
+                        {t.samples.hero.subtitle}
                     </p>
                 </div>
             </section>
@@ -96,14 +98,14 @@ export default function SamplesPage() {
                                 {selectedProducts.size}
                             </div>
                             <span className="font-medium">
-                                {selectedProducts.size === 1 ? 'produkt vald' : 'produkter valda'}
+                                {selectedProducts.size === 1 ? t.samples.selectionBar.singleSelected : t.samples.selectionBar.multipleSelected}
                             </span>
                         </div>
                         <button
                             onClick={handleContinue}
                             className="bg-white text-[#0B3D2E] px-6 py-2.5 rounded-xl font-semibold hover:bg-[#EBDCCB] transition-colors"
                         >
-                            Fortsätt till formulär →
+                            {t.samples.selectionBar.continueButton}
                         </button>
                     </div>
                 </div>
@@ -114,7 +116,7 @@ export default function SamplesPage() {
                 <div className="max-w-6xl mx-auto">
                     {products.length === 0 ? (
                         <div className="text-center py-16">
-                            <p className="text-secondary text-lg">Inga produkter hittades.</p>
+                            <p className="text-secondary text-lg">{t.samples.grid.empty}</p>
                         </div>
                     ) : (
                         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -155,20 +157,20 @@ export default function SamplesPage() {
                                                     alt={image.altText ?? product.title}
                                                     fill
                                                     className="object-cover"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-secondary">
-                                                    Ingen bild
-                                                </div>
-                                            )}
-                                        </div>
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-secondary">
+                                                {t.samples.grid.noImage}
+                                            </div>
+                                        )}
+                                    </div>
 
                                         {/* Product Info */}
                                         <h3 className="text-lg font-semibold text-primary mb-1 pr-8">
                                             {product.title}
                                         </h3>
                                         <p className="text-sm text-secondary">
-                                            Från {Number(product.priceRange.minVariantPrice.amount).toLocaleString('sv-SE')} {product.priceRange.minVariantPrice.currencyCode}
+                                            {t.samples.grid.priceFrom} {Number(product.priceRange.minVariantPrice.amount).toLocaleString('sv-SE')} {product.priceRange.minVariantPrice.currencyCode}
                                         </p>
                                     </button>
                                 );
@@ -186,7 +188,7 @@ export default function SamplesPage() {
                             onClick={handleContinue}
                             className="bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
                         >
-                            Fortsätt med {selectedProducts.size} {selectedProducts.size === 1 ? 'produkt' : 'produkter'} →
+                            {t.samples.bottomCta.buttonPrefix} {selectedProducts.size} {selectedProducts.size === 1 ? t.samples.bottomCta.singleLabel : t.samples.bottomCta.multipleLabel} {t.samples.bottomCta.buttonSuffix}
                         </button>
                     </div>
                 </section>

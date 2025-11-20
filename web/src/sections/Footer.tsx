@@ -3,24 +3,27 @@
 import Link from "next/link";
 import Image from "next/image";
 import LanguageSelector from "@/components/LanguageSelector";
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Footer() {
+    const { t } = useTranslation();
+
     return (
         <footer className="relative">
             <div className="relative mx-auto max-w-6xl px-6 pt-12 pb-8">
                 {/* Logo centered */}
                 <div className="flex justify-center mb-6">
-                    <Link href="/" className="flex items-center gap-2" aria-label="Linnevik – start">
+                    <Link href="/" className="flex items-center gap-2" aria-label={t.common.footer.brand.homeAria}>
                         <Image
                             src="/brand/logo_in_black.svg"
-                            alt="Linnevik"
+                            alt={t.common.footer.brand.alt}
                             width={160}
                             height={64}
                             className="block dark:hidden"
                         />
                         <Image
                             src="/brand/logo_in_white.svg"
-                            alt="Linnevik"
+                            alt={t.common.footer.brand.alt}
                             width={160}
                             height={64}
                             className="hidden dark:block"
@@ -42,13 +45,13 @@ export default function Footer() {
 
                 {/* Copyright and links in one line */}
                 <div className="text-center text-xs text-secondary">
-                    <span>Copyright © 2025 Södra Vanadistvätten AB</span>
+                    <span>{t.common.footer.legal.copyright}</span>
                     <span className="mx-2">•</span>
-                    <Link href="/cookies" className="hover:underline">Cookieinställningar</Link>
+                    <Link href="/cookies" className="hover:underline">{t.common.footer.legal.cookieSettings}</Link>
                     <span className="mx-2">•</span>
-                    <Link href="/cookie-policy" className="hover:underline">Cookiepolicy</Link>
+                    <Link href="/cookie-policy" className="hover:underline">{t.common.footer.legal.cookiePolicy}</Link>
                     <span className="mx-2">•</span>
-                    <Link href="/terms" className="hover:underline">Köpvillkor</Link>
+                    <Link href="/terms" className="hover:underline">{t.common.footer.legal.terms}</Link>
                 </div>
             </div>
         </footer>
