@@ -14,18 +14,18 @@ export default function SampleCTA() {
 
           {/* Content side - Right */}
           <div className="px-6 py-12 lg:py-16 lg:pr-12">
-            <p className="text-sm font-medium text-[#EBDCCB] uppercase tracking-wide mb-4">
+            <p className="text-sm font-medium text-white/90 uppercase tracking-wide mb-4">
               Gratis är gott...
             </p>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
+            <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
               Osäker? Beställ prover vetja!
-            </h2>
-            <p className="text-lg text-[#F3EDE4] dark:text-[#EBDCCB] mb-8 max-w-lg">
+            </h3>
+            <p className="text-lg text-white/90 mb-8 max-w-lg">
               Du har möjlighet att beställa prover kostnadsfritt och artiklarna kommer levereras till ditt hotell. Upplev kvaliteten innan du bestämmer dig.
             </p>
             <a
               href="/samples"
-              className="inline-flex items-center justify-center rounded-xl bg-[#4F6F8E] hover:bg-[#2E5A8F] px-6 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F6F8E]"
+              className="inline-flex items-center justify-center rounded-xl bg-[#2E5A8F] hover:bg-[#4F6F8E] px-6 py-3 text-base font-semibold text-white hover:text-white shadow-lg transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F6F8E]"
             >
               Beställ prover
             </a>

@@ -1,5 +1,3 @@
-import Image from 'next/image';
-
 export const metadata = {
     title: "Om Oss – Linnevik",
     description: "Sedan 1986 har Linnevik utvecklat och stött våra kunder inom design, utveckling och produktion av skräddarsydda hotellprodukter.",

@@ -1,0 +1,56 @@
+{
+  "header": {
+    "brand": {
+      "alt": "Linnevik",
+      "homeAria": "Linnevik – start"
+    },
+    "nav": {
+      "categories": "Kategorier",
+      "search": "Sök",
+      "login": "Logga in",
+      "cart": "Varukorg",
+      "contact": "Kontakta oss",
+      "toggleMenu": "Toggle menu"
+    }
+  },
+  "hero": {
+    "announcement": {
+      "text": "Vår senaste nyhet - handtvål med specialbeställda förpacknignar och dofter.",
+      "ctaLabel": "Läs mer"
+    },
+    "title": "En ny identitet för ditt hotell",
+    "body": "Linnevik är en hotellgrossist som har samarbetat med många hotell i Sverige. Sedan 1986 har Linnevik utvecklat och stött sina kunder inom design, utveckling och produktion av skräddarsydda hotellprodukter och dekorativa textilier.",
+    "primaryCta": "Produkter",
+    "secondaryCta": "Mer om oss"
+  },
+
+  "sampleCta": {
+    "imageAlt": "Beställ prover - sample products",
+    "eyebrow": "Gratis är gott...",
+    "title": "Osäker? Beställ prover vetja!",
+    "body": "Du har möjlighet att beställa prover kostnadsfritt och artiklarna kommer levereras till ditt hotell. Upplev kvaliteten innan du bestämmer dig.",
+    "button": "Beställ prover"
+  },
+
+  "featuredGrid": {
+    "title": "Utvalda produkter",
+    "viewAll": "Visa alla",
+    "noImage": "No image",
+    "from": "från"},
+
+  "footer": {
+    "brand": {
+      "alt": "Linnevik",
+      "homeAria": "Linnevik – start"
+    },
+    "legal": {
+      "copyright": "Copyright © 2025 Södra Vanadistvätten AB",
+      "cookieSettings": "Cookieinställningar",
+      "cookiePolicy": "Cookiepolicy",
+      "terms": "Köpvillkor"
+    }
+
+  }
+
+}
+

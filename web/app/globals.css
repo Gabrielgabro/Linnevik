@@ -140,7 +140,13 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
-  color: var(--color-text-primary) !important;
+  color: var(--color-text-primary)
+}
+h7{
+    font-family: var(--font-heading), Georgia, serif;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
 }
 
 h1 {

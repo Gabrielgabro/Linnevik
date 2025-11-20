@@ -1,0 +1,54 @@
+{
+  "header": {
+    "brand": {
+      "alt": "Linnevik",
+      "homeAria": "Linnevik – home"
+    },
+    "nav": {
+      "categories": "Categories",
+      "search": "Search",
+      "login": "Log in",
+      "cart": "Cart",
+      "contact": "Contact us",
+      "toggleMenu": "Toggle menu"
+    }
+  },
+  "hero": {
+    "announcement": {
+      "text": "Our latest product – hand soap with custom-designed packaging and fragrances.",
+      "ctaLabel": "Read more"
+    },
+    "title": "A new identity for your hotel",
+    "body": "Linnevik is a hotel wholesaler that has collaborated with many hotels in Sweden. Since 1986, Linnevik has developed and supported its customers in the design, development and production of bespoke hotel products and decorative textiles.",
+    "primaryCta": "Products",
+    "secondaryCta": "More about us"
+  },
+
+  "sampleCta": {
+    "imageAlt": "Order samples – sample products",
+    "eyebrow": "Free is always nice...",
+    "title": "Unsure? Order samples!",
+    "body": "You can order samples free of charge and the items will be delivered to your hotel. Experience the quality before you decide.",
+    "button": "Order samples"
+  },
+
+  "featuredGrid": {
+    "title": "Featured products",
+    "viewAll": "View all",
+    "noImage": "No image",
+    "from": "from"
+  },
+
+  "footer": {
+    "brand": {
+      "alt": "Linnevik",
+      "homeAria": "Linnevik – home"
+    },
+    "legal": {
+      "copyright": "Copyright © 2025 Södra Vanadistvätten AB",
+      "cookieSettings": "Cookie settings",
+      "cookiePolicy": "Cookie policy",
+      "terms": "Purchase terms"
+    }
+  }
+}
