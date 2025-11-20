@@ -24,10 +24,10 @@ export default function SearchPageClient({ query, products }: Props) {
         return (
             <div className="text-center py-16">
                 <h1 className="text-2xl md:text-3xl font-semibold text-primary mb-4">
-                    {t.search.emptyState.title}
+                    {t.search.landing.title}
                 </h1>
                 <p className="text-secondary">
-                    {t.search.emptyState.subtitle}
+                    {t.search.landing.subtitle}
                 </p>
             </div>
         );
@@ -37,8 +37,8 @@ export default function SearchPageClient({ query, products }: Props) {
         <>
             <h1 className="text-2xl md:text-3xl font-semibold text-primary mb-8">
                 {products.length > 0
-                    ? `${products.length} ${t.search.results.resultsFor} "${query}"`
-                    : `${t.search.results.noResultsFor} "${query}"`
+                    ? t.search.results.withResults.replace('{count}', products.length.toString()).replace('{query}', query)
+                    : t.search.results.noResults.replace('{query}', query)
                 }
             </h1>
 
@@ -61,7 +61,7 @@ export default function SearchPageClient({ query, products }: Props) {
                                         />
                                     ) : (
                                         <div className="w-full h-full grid place-items-center text-secondary text-sm">
-                                            {t.search.noImage}
+                                            {t.search.grid.noImage}
                                         </div>
                                     )}
                                 </div>
@@ -80,13 +80,13 @@ export default function SearchPageClient({ query, products }: Props) {
             ) : (
                 <div className="text-center py-16">
                     <p className="text-secondary mb-4">
-                        {t.search.results.tryOtherKeywords}
+                        {t.search.noResultsSection.helpText}
                     </p>
                     <Link
                         href="/collections"
                         className="inline-block px-6 py-3 rounded-full bg-accent text-white hover:bg-accent/90 transition-colors"
                     >
-                        {t.search.results.showCategories}
+                        {t.search.noResultsSection.viewCategories}
                     </Link>
                 </div>
             )}

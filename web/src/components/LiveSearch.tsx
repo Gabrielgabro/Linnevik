@@ -88,14 +88,14 @@ export default function LiveSearch() {
                     onFocus={() => {
                         if (suggestions.length > 0) setShowSuggestions(true);
                     }}
-                    placeholder={t.search.searchPlaceholder}
+                    placeholder={t.search.input.placeholder}
                     className="w-full px-6 py-4 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-primary focus:outline-none focus:ring-2 focus:ring-accent"
                     autoFocus
                 />
                 <button
                     type="submit"
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-accent text-white hover:bg-accent/90 transition-colors"
-                    aria-label={t.search.searchLabel}
+                    aria-label="Sök"
                 >
                     {isLoading ? (
                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -131,7 +131,7 @@ export default function LiveSearch() {
                                     />
                                 ) : (
                                     <div className="w-full h-full grid place-items-center text-secondary text-xs">
-                                        {t.search.noImage}
+                                        {t.search.grid.noImage}
                                     </div>
                                 )}
                             </div>
@@ -153,7 +153,7 @@ export default function LiveSearch() {
             {/* No results message */}
             {showSuggestions && query.trim().length >= 2 && suggestions.length === 0 && !isLoading && (
                 <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl shadow-xl p-6 text-center">
-                    <p className="text-secondary">{t.search.noProductsFound} "{query}"</p>
+                    <p className="text-secondary">{t.search.results.noResults.replace('{query}', query)}</p>
                 </div>
             )}
         </div>
