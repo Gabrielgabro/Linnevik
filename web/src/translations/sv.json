@@ -20,7 +20,7 @@
             "alt": "Linnevik",
             "homeAria": "Linnevik – start"},
               "legal": {
-                "copyright": "Copyright © *året ska vara här* Södra Vanadistvätten AB",
+                "copyright": "Copyright © *year goes here* Södra Vanadistvätten AB",
                 "cookieSettings": "Cookieinställningar",
                 "cookiePolicy": "Cookiepolicy",
                 "terms": "Köpvillkor"
@@ -54,13 +54,46 @@
           "title": "Utvalda produkter",
           "viewAll": "Visa alla",
           "noImage": "No image",
-          "from": "från"}
+          "from": "från"
+        }
       },
-        "ClientLogosRotatingClient": {
-          "References": "Referenser"
-              },
 
+  "login": {
+    "badge": "Kundinloggning",
+    "title": "Välkommen tillbaka till Linnevik",
+    "subtitle": "Logga in för att se dina avtalade sortiment, priser och leveranser.",
+    "formLabel": "Logga in",
+    "formTitle": "Öppna ditt konto",
+    "formSubtitle": "Använd dina Linnevik-uppgifter för att fortsätta.",
+    "fields": {
+      "email": "E-post",
+      "password": "Lösenord",
+      "remember": "Kom ihåg mig"
+    },
+    "actions": {
+      "signIn": "Logga in",
+      "forgot": "Glömt lösenordet?",
+      "create": "Skapa konto"
+    },
+    "highlights": {
+      "speedTitle": "Snabba ombeställningar",
+      "speedCopy": "Lägg dina godkända produkter på nytt på några sekunder.",
+      "serviceTitle": "Personlig service",
+      "serviceCopy": "Din kontakt på Linnevik finns alltid nära till hands."
+    }
+  },
 
+  "ClientLogosRotatingClient": {
+    "References": "Referenser"
+  },
+
+  "register": {
+    "title": "Skapa ditt Linnevik-konto.",
+    "companyLabel": "Företagsregistreringsnummer (EU)",
+    "companyPlaceholder": "SE123456789",
+    "companyHelper": "Börjar med landskod följt av 2-12 siffror/bokstäver (t.ex. SE123456789).",
+    "backToLogin": "Tillbaka till inloggning"
+  },
 
   "contact": {
     "hero": {
@@ -328,8 +361,6 @@
 
 
 }
-
-
 
 
 

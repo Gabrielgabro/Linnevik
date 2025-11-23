@@ -606,3 +606,144 @@ export async function removeFromCart(cartId: string, lineIds: string[], language
 
     return data.cartLinesRemove.cart;
 }
+
+export type CustomerAccessToken = {
+    accessToken: string;
+    expiresAt: string;
+};
+
+export async function createCustomerAccessToken(
+    email: string,
+    password: string,
+    language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+): Promise<CustomerAccessToken> {
+    const MUTATION = `
+    mutation CreateCustomerToken($input: CustomerAccessTokenCreateInput!, $language: LanguageCode!) @inContext(language: $language) {
+      customerAccessTokenCreate(input: $input) {
+        customerAccessToken {
+          accessToken
+          expiresAt
+        }
+        customerUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+    type MutationResult = {
+        customerAccessTokenCreate: {
+            customerAccessToken: CustomerAccessToken | null;
+            customerUserErrors: { code: string | null; field: string[] | null; message: string }[];
+        };
+    };
+
+    const data = await storefrontFetch<MutationResult>({
+        query: MUTATION,
+        variables: {
+            input: { email, password },
+        },
+        language,
+    });
+
+    const { customerAccessToken, customerUserErrors } = data.customerAccessTokenCreate;
+
+    if (customerUserErrors?.length) {
+        throw new Error(customerUserErrors.map(err => err.message).join(', '));
+    }
+
+    if (!customerAccessToken) {
+        throw new Error('Login failed. Please try again.');
+    }
+
+    return customerAccessToken;
+}
+
+export async function updateCustomerVatMetafield(
+    customerAccessToken: string,
+    vatNumber: string,
+    language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+) {
+    const MUTATION = `
+    mutation customerUpdate($customer: CustomerUpdateInput!, $customerAccessToken: String!, $language: LanguageCode!) @inContext(language: $language) {
+      customerUpdate(customer: $customer, customerAccessToken: $customerAccessToken) {
+        customer { id }
+        customerUserErrors { code field message }
+      }
+    }
+  `;
+
+    const data = await storefrontFetch<{
+        customerUpdate: {
+            customer: { id: string } | null;
+            customerUserErrors: { code: string | null; field: string[] | null; message: string }[];
+        };
+    }>({
+        query: MUTATION,
+        variables: {
+            customerAccessToken,
+            customer: {
+                metafields: [
+                    {
+                        namespace: 'custom',
+                        key: 'vat_number',
+                        type: 'single_line_text_field',
+                        value: vatNumber,
+                    },
+                ],
+            },
+            language,
+        },
+    });
+
+    const { customerUserErrors } = data.customerUpdate;
+    if (customerUserErrors?.length) {
+        throw new Error(customerUserErrors.map(err => err.message).join(', '));
+    }
+}
+
+export type CustomerCreateInput = {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    acceptsMarketing?: boolean;
+};
+
+export async function createCustomerAccount(
+    input: CustomerCreateInput,
+    language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+): Promise<string> {
+    const MUTATION = `
+    mutation customerCreate($input: CustomerCreateInput!, $language: LanguageCode!) @inContext(language: $language) {
+      customerCreate(input: $input) {
+        customer { id }
+        customerUserErrors { code field message }
+      }
+    }
+  `;
+
+    const data = await storefrontFetch<{
+        customerCreate: {
+            customer: { id: string } | null;
+            customerUserErrors: { code: string | null; field: string[] | null; message: string }[];
+        };
+    }>({
+        query: MUTATION,
+        variables: { input, language },
+    });
+
+    const { customer, customerUserErrors } = data.customerCreate;
+
+    if (customerUserErrors?.length) {
+        throw new Error(customerUserErrors.map(err => err.message).join(', '));
+    }
+
+    if (!customer) {
+        throw new Error('Account creation failed. Please try again.');
+    }
+
+    return customer.id;
+}

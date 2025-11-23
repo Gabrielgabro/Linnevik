@@ -57,8 +57,41 @@
     }
   },
 
+  "login": {
+    "badge": "Customer access",
+    "title": "Welcome back to Linnevik",
+    "subtitle": "Log in to view your tailored assortments, prices, and delivery history.",
+    "formLabel": "Sign in",
+    "formTitle": "Access your account",
+    "formSubtitle": "Use your Linnevik customer credentials to continue.",
+    "fields": {
+      "email": "Email",
+      "password": "Password",
+      "remember": "Remember me"
+    },
+    "actions": {
+      "signIn": "Log in",
+      "forgot": "Forgot password?",
+      "create": "Create an account"
+    },
+    "highlights": {
+      "speedTitle": "Fast reorders",
+      "speedCopy": "Repeat approved products in seconds.",
+      "serviceTitle": "Personal service",
+      "serviceCopy": "Your Linnevik contact is only a message away."
+    }
+  },
+
   "ClientLogosRotatingClient": {
     "References": "References"
+  },
+
+  "register": {
+    "title": "Create your Linnevik customer account.",
+    "companyLabel": "Company registration number (EU)",
+    "companyPlaceholder": "SE123456789",
+    "companyHelper": "Starts with country code followed by 2-12 letters/numbers (e.g., SE123456789).",
+    "backToLogin": "Back to login"
   },
 
   "contact": {

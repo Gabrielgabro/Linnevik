@@ -8,8 +8,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import LanguageSelector from '@/components/LanguageSelector';
 
-const domain = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
-const loginUrl = domain ? `https://${domain}/account/login` : '/account/login';
+const loginUrl = '/login';
 
 export default function Header() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -62,7 +61,7 @@ export default function Header() {
                         </svg>
                     </Link>
 
-                    <a
+                    <Link
                         href={loginUrl}
                         aria-label={t.common.header.nav.login}
                         className="p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
@@ -71,7 +70,7 @@ export default function Header() {
                             <path d="M20 21a8 8 0 0 0-16 0" />
                             <circle cx="12" cy="7" r="4" />
                         </svg>
-                    </a>
+                    </Link>
 
                     <Link
                         href="/cart"
@@ -157,7 +156,7 @@ export default function Header() {
                         {t.common.header.nav.search}
                     </Link>
 
-                    <a
+                    <Link
                         href={loginUrl}
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-3 text-lg font-medium text-primary hover:underline py-2"
@@ -167,7 +166,7 @@ export default function Header() {
                             <circle cx="12" cy="7" r="4" />
                         </svg>
                         {t.common.header.nav.login}
-                    </a>
+                    </Link>
 
                     <Link
                         href="/cart"
