@@ -29,7 +29,7 @@ export default function VerifyEmailClient() {
                     router.push('/login');
                 }, 2000);
             } else {
-                setError(result.message);
+                setError(result.message ?? t.verifyEmail.genericError);
             }
         } catch (err) {
             setError(t.verifyEmail.genericError);
