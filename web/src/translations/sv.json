@@ -80,6 +80,24 @@
       "speedCopy": "Lägg dina godkända produkter på nytt på några sekunder.",
       "serviceTitle": "Personlig service",
       "serviceCopy": "Din kontakt på Linnevik finns alltid nära till hands."
+    },
+    "placeholders": {
+      "email": "du@example.com",
+      "password": "••••••••"
+    },
+    "terms": "Genom att logga in godkänner du våra användarvillkor och integritetspolicy.",
+    "messages": {
+      "missingFields": "Ange både e-post och lösenord.",
+      "invalidEmail": "Ogiltig e-postadress.",
+      "invalidPassword": "Ogiltigt lösenord.",
+      "authFailed": "Autentiseringen misslyckades. Försök igen.",
+      "invalidCredentials": "Ogiltig e-post eller lösenord.",
+      "genericError": "Inloggningen misslyckades. Kontrollera dina uppgifter och försök igen.",
+      "success": "Inloggning lyckades."
+    },
+    "metadata": {
+      "title": "Logga in | Linnevik",
+      "description": "Logga in på ditt Linnevik-konto."
     }
   },
 
@@ -89,10 +107,92 @@
 
   "register": {
     "title": "Skapa ditt Linnevik-konto.",
+    "subtitle": "Registrera dig för att komma igång",
+    "firstNameLabel": "Förnamn",
+    "firstNamePlaceholder": "Alex",
+    "lastNameLabel": "Efternamn",
+    "lastNamePlaceholder": "Johansson",
+    "emailLabel": "E-postadress",
+    "emailPlaceholder": "du@example.com",
+    "emailHelper": "Du kommer att få ett e-postmeddelande för att välja lösenord och aktivera ditt konto.",
+    "submit": "Skapa konto",
     "companyLabel": "Företagsregistreringsnummer (EU)",
     "companyPlaceholder": "SE123456789",
     "companyHelper": "Börjar med landskod följt av 2-12 siffror/bokstäver (t.ex. SE123456789).",
-    "backToLogin": "Tillbaka till inloggning"
+    "backToLogin": "Tillbaka till inloggning",
+    "terms": "Genom att skapa ett konto godkänner du våra användarvillkor och integritetspolicy.",
+    "success": "Konto skapat! Kontrollera din e-post för att välja lösenord och aktivera kontot.",
+    "errors": {
+      "missingFields": "Ange e-post och organisationsnummer.",
+      "invalidEmailFormat": "Ange en giltig e-postadress.",
+      "emailTooLong": "E-postadressen är för lång.",
+      "firstNameInvalid": "Förnamn måste vara mellan 1 och 100 tecken.",
+      "lastNameInvalid": "Efternamn måste vara mellan 1 och 100 tecken.",
+      "invalidCompanyNumber": "Ange ett giltigt organisationsnummer som börjar med landskod (t.ex. SE123456789).",
+      "vatFailed": "Vi kunde inte slutföra din registrering just nu. Försök igen.",
+      "activationFailed": "Vi kunde inte skicka aktiveringsmejlet. Försök igen.",
+      "generic": "Kontoskapandet misslyckades. Försök igen.",
+      "emailTaken": "Ett konto med den här e-posten finns redan. Logga in istället.",
+      "passwordInvalid": "Lösenordet uppfyller inte kraven. Försök med ett annat."
+    },
+    "metadata": {
+      "title": "Skapa konto | Linnevik",
+      "description": "Skapa ett nytt Linnevik-konto för B2B-kunder."
+    }
+  },
+
+  "verifyEmail": {
+    "title": "Verifiera din e-post",
+    "subtitle": "Vi har skickat en 6-siffrig kod till din e-post",
+    "codeLabel": "Verifieringskod",
+    "codePlaceholder": "000000",
+    "codeHelper": "Ange 6-siffrig kod från din e-post",
+    "submit": "Verifiera e-post",
+    "submitting": "Verifierar...",
+    "backToRegister": "Tillbaka till registrering",
+    "codeInfo": "Koden gäller i 15 minuter",
+    "success": "E-post verifierad! Omdirigerar till inloggning...",
+    "genericError": "Ett fel uppstod. Försök igen.",
+    "footer": "Hittar du inte e-postmeddelandet? Kolla din skräppost.",
+    "metadata": {
+      "title": "Verifiera e-post | Linnevik",
+      "description": "Verifiera din e-postadress för att slutföra registreringen."
+    }
+  },
+
+  "account": {
+    "metadata": {
+      "title": "Mitt konto | Linnevik",
+      "description": "Hantera dina kontouppgifter och VAT-status."
+    },
+    "greeting": "Hej, {name}",
+    "welcome": "Välkommen till ditt konto",
+    "infoHeading": "Kontoinformation",
+    "logout": "Logga ut",
+    "labels": {
+      "name": "Namn",
+      "email": "E-postadress",
+      "vat": "Organisationsnummer (VAT)"
+    },
+    "noEmail": "-",
+    "noVat": "Ej angivet",
+    "vatNote": "Detta nummer användes vid registrering och kan inte ändras här.",
+    "ordersHeading": "Dina beställningar",
+    "ordersCount": "{count} senaste beställningar",
+    "ordersEmptyHeading": "Inga beställningar ännu",
+    "ordersEmptyBody": "När du gör din första beställning visas den här.",
+    "ordersCta": "Utforska produkter",
+    "orderNumber": "Order #{number}",
+    "totalLabel": "Totalt belopp",
+    "perUnit": "per st",
+    "quantityLabel": "Antal: {count}",
+    "statuses": {
+      "PAID": "Betald",
+      "PENDING": "Väntar",
+      "FULFILLED": "Levererad",
+      "UNFULFILLED": "Ej levererad"
+    },
+    "fallbackName": "Användare"
   },
 
   "contact": {
@@ -361,8 +461,5 @@
 
 
 }
-
-
-
 
 

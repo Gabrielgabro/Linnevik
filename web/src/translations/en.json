@@ -79,6 +79,24 @@
       "speedCopy": "Repeat approved products in seconds.",
       "serviceTitle": "Personal service",
       "serviceCopy": "Your Linnevik contact is only a message away."
+    },
+    "placeholders": {
+      "email": "you@example.com",
+      "password": "••••••••"
+    },
+    "terms": "By logging in you agree to our terms of use and privacy policy.",
+    "messages": {
+      "missingFields": "Please enter both email and password.",
+      "invalidEmail": "Invalid email address.",
+      "invalidPassword": "Invalid password.",
+      "authFailed": "Authentication failed. Please try again.",
+      "invalidCredentials": "Invalid email or password.",
+      "genericError": "Login failed. Please check your credentials and try again.",
+      "success": "Logged in successfully."
+    },
+    "metadata": {
+      "title": "Log in | Linnevik",
+      "description": "Sign in to your Linnevik account."
     }
   },
 
@@ -88,10 +106,92 @@
 
   "register": {
     "title": "Create your Linnevik customer account.",
+    "subtitle": "Register to get started",
+    "firstNameLabel": "First name",
+    "firstNamePlaceholder": "Alex",
+    "lastNameLabel": "Last name",
+    "lastNamePlaceholder": "Johansson",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "emailHelper": "You will receive an email to choose a password and activate your account.",
+    "submit": "Create account",
     "companyLabel": "Company registration number (EU)",
     "companyPlaceholder": "SE123456789",
     "companyHelper": "Starts with country code followed by 2-12 letters/numbers (e.g., SE123456789).",
-    "backToLogin": "Back to login"
+    "backToLogin": "Back to login",
+    "terms": "By creating an account you agree to our terms of use and privacy policy.",
+    "success": "Account created! Please check your email to set your password and activate your account.",
+    "errors": {
+      "missingFields": "Please enter email and company registration number.",
+      "invalidEmailFormat": "Please enter a valid email address.",
+      "emailTooLong": "Email address is too long.",
+      "firstNameInvalid": "First name must be between 1 and 100 characters.",
+      "lastNameInvalid": "Last name must be between 1 and 100 characters.",
+      "invalidCompanyNumber": "Enter a valid registration number starting with the country code (e.g., SE123456789).",
+      "vatFailed": "We could not complete your registration right now. Please try again.",
+      "activationFailed": "We could not send the activation email. Please try again.",
+      "generic": "Account creation failed. Please try again.",
+      "emailTaken": "An account with this email already exists. Please log in instead.",
+      "passwordInvalid": "Password does not meet requirements. Please try a different password."
+    },
+    "metadata": {
+      "title": "Create Account | Linnevik",
+      "description": "Create a new Linnevik account for B2B customers."
+    }
+  },
+
+  "verifyEmail": {
+    "title": "Verify your email",
+    "subtitle": "We have sent a 6-digit code to your email",
+    "codeLabel": "Verification code",
+    "codePlaceholder": "000000",
+    "codeHelper": "Enter the 6-digit code from your email",
+    "submit": "Verify email",
+    "submitting": "Verifying...",
+    "backToRegister": "Back to registration",
+    "codeInfo": "The code is valid for 15 minutes",
+    "success": "Email verified! Redirecting to login...",
+    "genericError": "Something went wrong. Please try again.",
+    "footer": "Can’t find the email? Check your spam folder.",
+    "metadata": {
+      "title": "Verify Email | Linnevik",
+      "description": "Verify your email address to complete registration."
+    }
+  },
+
+  "account": {
+    "metadata": {
+      "title": "My account | Linnevik",
+      "description": "Manage your account details and VAT status."
+    },
+    "greeting": "Hi, {name}",
+    "welcome": "Welcome to your account",
+    "infoHeading": "Account information",
+    "logout": "Log out",
+    "labels": {
+      "name": "Name",
+      "email": "Email address",
+      "vat": "Company registration number (VAT)"
+    },
+    "noEmail": "-",
+    "noVat": "Not provided",
+    "vatNote": "This number was provided at registration and cannot be changed here.",
+    "ordersHeading": "Your orders",
+    "ordersCount": "{count} most recent orders",
+    "ordersEmptyHeading": "No orders yet",
+    "ordersEmptyBody": "Your first order will show up here.",
+    "ordersCta": "Browse products",
+    "orderNumber": "Order #{number}",
+    "totalLabel": "Total amount",
+    "perUnit": "per item",
+    "quantityLabel": "Quantity: {count}",
+    "statuses": {
+      "PAID": "Paid",
+      "PENDING": "Pending",
+      "FULFILLED": "Fulfilled",
+      "UNFULFILLED": "Unfulfilled"
+    },
+    "fallbackName": "User"
   },
 
   "contact": {

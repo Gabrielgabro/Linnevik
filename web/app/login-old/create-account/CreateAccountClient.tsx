@@ -2,35 +2,35 @@
 
 import { useActionState } from 'react';
 import { handleRegister, type RegisterState } from '../actions';
-import Button from '@/components/Button';
 import { useTranslation } from '@/hooks/useTranslation';
+import Button from '@/components/Button';
 
 const initialState: RegisterState = { status: 'idle' };
 
 export default function CreateAccountClient() {
+    const { t } = useTranslation();
     const [state, formAction] = useActionState(handleRegister, initialState);
     const formKey = state.fields ? JSON.stringify(state.fields) : 'initial';
-    const { t } = useTranslation();
 
     return (
         <main className="min-h-screen bg-white dark:bg-[#111827] pt-28 pb-16">
             <div className="mx-auto max-w-md px-6">
                 <div className="mb-8 text-center">
                     <h1 className="mb-3 text-3xl font-bold text-primary md:text-4xl">
-                        {t.register.title}
+                        {t.login.actions.create}
                     </h1>
-                    <p className="text-secondary">{t.register.subtitle}</p>
+                    <p className="text-secondary">{t.register.title}</p>
                 </div>
 
                 <div className="rounded-2xl border border-light bg-white dark:bg-[#1f2937] p-8 shadow-sm">
-                    {state.status === 'success' && state.message && (
-                        <div className="mb-6 rounded-lg border border-green-200 dark:border-green-900/50 bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200">
+                    {state.status === 'error' && state.message && (
+                        <div className="mb-6 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
                             {state.message}
                         </div>
                     )}
 
-                    {state.status === 'error' && state.message && (
-                        <div className="mb-6 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+                    {state.status === 'success' && state.message && (
+                        <div className="mb-6 rounded-lg border border-green-200 dark:border-green-900/50 bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200">
                             {state.message}
                         </div>
                     )}
@@ -39,7 +39,7 @@ export default function CreateAccountClient() {
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div>
                                 <label htmlFor="firstName" className="block mb-2 text-sm font-medium text-primary">
-                                    {t.register.firstNameLabel}
+                                    First name
                                 </label>
                                 <input
                                     id="firstName"
@@ -48,14 +48,14 @@ export default function CreateAccountClient() {
                                     autoComplete="given-name"
                                     maxLength={100}
                                     className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
-                                    placeholder={t.register.firstNamePlaceholder}
+                                    placeholder="Alex"
                                     defaultValue={state.fields?.firstName ?? ''}
                                 />
                             </div>
 
                             <div>
                                 <label htmlFor="lastName" className="block mb-2 text-sm font-medium text-primary">
-                                    {t.register.lastNameLabel}
+                                    Last name
                                 </label>
                                 <input
                                     id="lastName"
@@ -64,7 +64,7 @@ export default function CreateAccountClient() {
                                     autoComplete="family-name"
                                     maxLength={100}
                                     className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
-                                    placeholder={t.register.lastNamePlaceholder}
+                                    placeholder="Johansson"
                                     defaultValue={state.fields?.lastName ?? ''}
                                 />
                             </div>
@@ -91,7 +91,7 @@ export default function CreateAccountClient() {
 
                         <div>
                             <label htmlFor="email" className="block mb-2 text-sm font-medium text-primary">
-                                {t.register.emailLabel}
+                                {t.login.fields.email}
                             </label>
                             <input
                                 id="email"
@@ -101,12 +101,27 @@ export default function CreateAccountClient() {
                                 required
                                 maxLength={254}
                                 className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
-                                placeholder={t.register.emailPlaceholder}
+                                placeholder="you@example.com"
                                 defaultValue={state.fields?.email ?? ''}
                             />
-                            <p className="mt-2 text-sm text-secondary">
-                                {t.register.emailHelper}
-                            </p>
+                        </div>
+
+                        <div>
+                            <label htmlFor="password" className="block mb-2 text-sm font-medium text-primary">
+                                {t.login.fields.password}
+                            </label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autoComplete="new-password"
+                                required
+                                minLength={8}
+                                maxLength={128}
+                                className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
+                                placeholder="••••••••"
+                            />
+                            <p className="mt-1 text-xs text-secondary">Minimum 8 characters</p>
                         </div>
 
                         <div className="space-y-3 pt-2">
@@ -114,8 +129,9 @@ export default function CreateAccountClient() {
                                 type="submit"
                                 variant="primary"
                                 className="w-full text-center"
+                                disabled={state.status === 'success'}
                             >
-                                {t.register.submit}
+                                {t.login.actions.create}
                             </Button>
                             <a
                                 href="/login"
@@ -126,10 +142,6 @@ export default function CreateAccountClient() {
                         </div>
                     </form>
                 </div>
-
-                <p className="mt-6 text-xs text-secondary text-center">
-                    {t.register.terms}
-                </p>
             </div>
         </main>
     );

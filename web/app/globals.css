@@ -100,9 +100,9 @@
     --color-border-ring-hover: rgba(255, 255, 255, 0.2); /* white/20 */
 
     /* Interactive colors */
-    --color-accent-primary: #145C45; /* indigo-500 */
-    --color-accent-primary-hover: #a5d683; /* indigo-400 */
-    --color-accent-text: #818cf8; /* indigo-400 */
+    --color-accent-primary: #145C45;
+    --color-accent-primary-hover: #4d3304; /* hover vid mörkt läge */
+    --color-accent-text: #818cf8;
 
     /* Surface colors */
     --color-surface-hover: #27272a; /* zinc-800 */

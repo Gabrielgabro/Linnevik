@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
-import CreateAccountClient from './CreateAccountClient';
+import VerifyEmailClient from './VerifyEmailClient';
 import { getTranslations } from '@/lib/getTranslations';
 import { DEFAULT_LANGUAGE } from '@/lib/languageConfig';
 
 const t = getTranslations(DEFAULT_LANGUAGE);
 
 export const metadata: Metadata = {
-    title: t.register.metadata.title,
-    description: t.register.metadata.description,
+    title: t.verifyEmail.metadata.title,
+    description: t.verifyEmail.metadata.description,
 };
 
-export default function CreateAccountPage() {
-    return <CreateAccountClient />;
+export default function VerifyEmailPage() {
+    return <VerifyEmailClient />;
 }

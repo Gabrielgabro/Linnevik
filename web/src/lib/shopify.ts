@@ -747,3 +747,88 @@ export async function createCustomerAccount(
 
     return customer.id;
 }
+
+export async function getCustomer(
+    customerAccessToken: string,
+    language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+) {
+    const QUERY = `
+    query GetCustomer($customerAccessToken: String!, $language: LanguageCode!) @inContext(language: $language) {
+      customer(customerAccessToken: $customerAccessToken) {
+        id
+        firstName
+        lastName
+        email
+        phone
+        vatNumber: metafield(namespace: "custom", key: "vat_number") {
+          value
+        }
+        orders(first: 10, sortKey: PROCESSED_AT, reverse: true) {
+          edges {
+            node {
+              id
+              orderNumber
+              processedAt
+              financialStatus
+              fulfillmentStatus
+              totalPrice { amount currencyCode }
+              lineItems(first: 5) {
+                edges {
+                  node {
+                    title
+                    quantity
+                    variant {
+                      image { url altText }
+                      price { amount currencyCode }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+    const data = await storefrontFetch<{
+        customer: {
+            id: string;
+            firstName: string | null;
+            lastName: string | null;
+            email: string;
+            phone: string | null;
+            vatNumber: { value: string } | null;
+            orders: {
+                edges: {
+                    node: {
+                        id: string;
+                        orderNumber: number;
+                        processedAt: string;
+                        financialStatus: string;
+                        fulfillmentStatus: string;
+                        totalPrice: { amount: string; currencyCode: string };
+                        lineItems: {
+                            edges: {
+                                node: {
+                                    title: string;
+                                    quantity: number;
+                                    variant: {
+                                        image: { url: string; altText: string | null } | null;
+                                        price: { amount: string; currencyCode: string };
+                                    } | null;
+                                };
+                            }[];
+                        };
+                    };
+                }[];
+            };
+        } | null;
+    }>({
+        query: QUERY,
+        variables: { customerAccessToken },
+        language,
+    });
+
+    return data.customer;
+}

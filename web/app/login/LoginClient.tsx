@@ -2,22 +2,18 @@
 
 import { useActionState } from 'react';
 import { handleLogin, type LoginState } from './actions';
-import { useTranslation } from '@/hooks/useTranslation';
 import Button from '@/components/Button';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const initialState: LoginState = { status: 'idle' };
 
 export default function LoginClient() {
-    const { t } = useTranslation();
     const [state, formAction] = useActionState(handleLogin, initialState);
-
-    const storeDomain = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
-    const recoverUrl = storeDomain ? `https://${storeDomain}/account/login#recover` : '#';
-    const createAccountUrl = '/login/create-account';
+    const { t } = useTranslation();
 
     return (
-        <main className="min-h-screen bg-white dark:bg-[#111827] pt-28 pb-16">
-            <div className="mx-auto max-w-md px-6">
+        <main className="min-h-screen bg-white dark:bg-[#111827] flex items-center justify-center px-6 py-16">
+            <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
                     <h1 className="mb-3 text-3xl font-bold text-primary md:text-4xl">
                         {t.login.title}
@@ -51,8 +47,9 @@ export default function LoginClient() {
                                 type="email"
                                 autoComplete="email"
                                 required
-                                className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
-                                placeholder="you@example.com"
+                                maxLength={254}
+                                className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-3 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
+                                placeholder={t.login.placeholders.email}
                             />
                         </div>
 
@@ -66,34 +63,17 @@ export default function LoginClient() {
                                 type="password"
                                 autoComplete="current-password"
                                 required
-                                className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
-                                placeholder="••••••••"
+                                className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-3 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
+                                placeholder={t.login.placeholders.password}
                             />
                         </div>
 
-                        <div className="flex items-center justify-between text-sm">
-                            <label className="flex items-center gap-2 text-secondary cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    name="remember"
-                                    className="h-4 w-4 rounded border-light text-[#0B3D2E] dark:text-[#145C45] focus:ring-[#0B3D2E] dark:focus:ring-[#145C45]"
-                                />
-                                <span>{t.login.fields.remember}</span>
-                            </label>
-                            <a
-                                href={recoverUrl}
-                                className="font-medium text-[#0B3D2E] dark:text-[#379E7D] hover:underline underline-offset-4"
-                            >
-                                {t.login.actions.forgot}
-                            </a>
-                        </div>
-
                         <div className="space-y-3 pt-2">
-                            <Button type="submit" variant="primary" className="w-full text-center">
+                            <Button type="submit" variant="primary" className="w-full">
                                 {t.login.actions.signIn}
                             </Button>
                             <a
-                                href={createAccountUrl}
+                                href="/login/create-account"
                                 className="inline-flex w-full items-center justify-center rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 font-medium text-primary transition hover:bg-[#f4f4f5] dark:hover:bg-[#27272a]"
                             >
                                 {t.login.actions.create}
@@ -101,6 +81,10 @@ export default function LoginClient() {
                         </div>
                     </form>
                 </div>
+
+                <p className="mt-6 text-xs text-secondary text-center">
+                    {t.login.terms}
+                </p>
             </div>
         </main>
     );

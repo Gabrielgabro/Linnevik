@@ -1,15 +1,8 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { createCustomerAccessToken } from '@/lib/shopify';
-import {
-    createCustomerAccount,
-    sendActivationEmail,
-    setCustomerVatMetafield,
-    deleteCustomer,
-} from '@/lib/shopifyAdmin';
-import { getTranslations, type Translations } from '@/lib/getTranslations';
-import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
+import { createCustomerAccessToken, createCustomerAccount } from '@/lib/shopify';
+import { setCustomerVatMetafield, deleteCustomer } from '@/lib/shopifyAdmin';
 
 type LoginStatus = 'idle' | 'success' | 'error';
 
@@ -20,29 +13,21 @@ export type LoginState = {
 
 const COOKIE_NAME = 'shopify_customer_token';
 
-async function getActionTranslations(): Promise<Translations> {
-    const cookieStore = await cookies();
-    const locale = cookieStore.get('NEXT_LOCALE')?.value;
-    const lang: Language = locale && isSupportedLanguage(locale) ? locale : DEFAULT_LANGUAGE;
-    return getTranslations(lang);
-}
-
 export async function handleLogin(_: LoginState, formData: FormData): Promise<LoginState> {
-    const t = await getActionTranslations();
     const email = formData.get('email')?.toString().trim() ?? '';
     const password = formData.get('password')?.toString() ?? '';
 
     if (!email || !password) {
-        return { status: 'error', message: t.login.messages.missingFields };
+        return { status: 'error', message: 'Please enter both email and password.' };
     }
 
     // Basic validation
     if (email.length > 254) {
-        return { status: 'error', message: t.login.messages.invalidEmail };
+        return { status: 'error', message: 'Invalid email address.' };
     }
 
     if (password.length > 128) {
-        return { status: 'error', message: t.login.messages.invalidPassword };
+        return { status: 'error', message: 'Invalid password.' };
     }
 
     try {
@@ -53,7 +38,7 @@ export async function handleLogin(_: LoginState, formData: FormData): Promise<Lo
         // Validate token expiry is in the future
         if (expiresDate.getTime() <= Date.now()) {
             console.error('[login] Token already expired');
-            return { status: 'error', message: t.login.messages.authFailed };
+            return { status: 'error', message: 'Authentication failed. Please try again.' };
         }
 
         const cookieStore = await cookies();
@@ -65,14 +50,14 @@ export async function handleLogin(_: LoginState, formData: FormData): Promise<Lo
             path: '/',
         });
 
-        return { status: 'success', message: t.login.messages.success };
+        return { status: 'success', message: 'Logged in successfully.' };
     } catch (error) {
-        let message = t.login.messages.genericError;
+        let message = 'Login failed. Please check your credentials and try again.';
 
         if (error instanceof Error) {
             const errorMsg = error.message.toLowerCase();
             if (errorMsg.includes('unidentified') || errorMsg.includes('not found') || errorMsg.includes('invalid')) {
-                message = t.login.messages.invalidCredentials;
+                message = 'Invalid email or password.';
             }
             console.error('[login] customerAccessTokenCreate failed:', error.message);
         }
@@ -95,8 +80,8 @@ export type RegisterState = {
 };
 
 export async function handleRegister(_: RegisterState, formData: FormData): Promise<RegisterState> {
-    const t = await getActionTranslations();
     const email = formData.get('email')?.toString().trim() ?? '';
+    const password = formData.get('password')?.toString() ?? '';
     const firstName = formData.get('firstName')?.toString().trim() || undefined;
     const lastName = formData.get('lastName')?.toString().trim() || undefined;
     const companyRegistrationRaw = formData.get('companyRegistrationNumber')?.toString() ?? '';
@@ -107,10 +92,10 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     const fields: RegisterFields = { email, firstName, lastName, companyRegistrationNumber };
 
     // Validation: required fields
-    if (!email || !companyRegistrationNumber) {
+    if (!email || !password || !companyRegistrationNumber) {
         return {
             status: 'error',
-            message: t.register.errors.missingFields,
+            message: 'Please enter email, password, and company registration number.',
             fields,
         };
     }
@@ -119,7 +104,7 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     if (!EMAIL_REGEX.test(email)) {
         return {
             status: 'error',
-            message: t.register.errors.invalidEmailFormat,
+            message: 'Please enter a valid email address.',
             fields,
         };
     }
@@ -128,7 +113,24 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     if (email.length > 254) {
         return {
             status: 'error',
-            message: t.register.errors.emailTooLong,
+            message: 'Email address is too long.',
+            fields,
+        };
+    }
+
+    // Validation: password strength
+    if (password.length < 8) {
+        return {
+            status: 'error',
+            message: 'Password must be at least 8 characters long.',
+            fields,
+        };
+    }
+
+    if (password.length > 128) {
+        return {
+            status: 'error',
+            message: 'Password is too long (max 128 characters).',
             fields,
         };
     }
@@ -137,7 +139,7 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     if (firstName && (firstName.length > 100 || firstName.length < 1)) {
         return {
             status: 'error',
-            message: t.register.errors.firstNameInvalid,
+            message: 'First name must be between 1 and 100 characters.',
             fields,
         };
     }
@@ -145,7 +147,7 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     if (lastName && (lastName.length > 100 || lastName.length < 1)) {
         return {
             status: 'error',
-            message: t.register.errors.lastNameInvalid,
+            message: 'Last name must be between 1 and 100 characters.',
             fields,
         };
     }
@@ -154,19 +156,16 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     if (!EU_COMPANY_REGEX.test(companyRegistrationNumber)) {
         return {
             status: 'error',
-            message: t.register.errors.invalidCompanyNumber,
+            message: 'Enter a valid registration number starting with the country code (e.g., SE123456789).',
             fields,
         };
     }
 
     try {
         console.log('[register] Creating customer account for:', email);
-
-        // Create customer with Admin API (will be in DISABLED state)
-        const { id: customerId } = await createCustomerAccount(email, firstName, lastName);
+        const customerId = await createCustomerAccount({ email, password, firstName, lastName });
         console.log('[register] Customer created successfully:', customerId);
 
-        // Store VAT metafield
         try {
             console.log('[register] Setting VAT metafield:', companyRegistrationNumber);
             await setCustomerVatMetafield(customerId, companyRegistrationNumber);
@@ -182,50 +181,59 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
 
             return {
                 status: 'error',
-                message: t.register.errors.vatFailed,
+                message: 'We could not complete your registration right now. Please try again.',
                 fields,
             };
         }
 
-        // Send activation email (customer will set password via email link)
+        let token: { accessToken: string; expiresAt: string } | null = null;
         try {
-            await sendActivationEmail(customerId);
-            console.log('[register] Activation email sent successfully');
-        } catch (emailError) {
-            console.error('[register] Failed to send activation email, rolling back customer', emailError);
-            try {
-                await deleteCustomer(customerId);
-                console.log('[register] Customer deleted successfully after email error');
-            } catch (cleanupError) {
-                console.error('[register] Failed to delete customer after email error', cleanupError);
-            }
-
-            return {
-                status: 'error',
-                message: t.register.errors.activationFailed,
-                fields,
-            };
+            token = await createCustomerAccessToken(email, password);
+        } catch (tokenError) {
+            console.error('[register] customerAccessTokenCreate failed', tokenError);
+            // Non-fatal: account was created successfully, user can log in manually
         }
 
-        console.log('[register] Registration complete. Activation email sent.');
+        if (token) {
+            try {
+                const expiresDate = new Date(token.expiresAt);
 
-        return {
-            status: 'success',
-            message: t.register.success,
-            fields,
-        };
+                // Validate token expiry is in the future
+                if (expiresDate.getTime() <= Date.now()) {
+                    console.error('[register] Token already expired');
+                    return { status: 'success', message: 'Account created. Please log in to continue.' };
+                }
+
+                const cookieStore = await cookies();
+                cookieStore.set(COOKIE_NAME, token.accessToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    expires: expiresDate,
+                    path: '/',
+                });
+
+                return { status: 'success', message: 'Account created and you are now signed in.' };
+            } catch (cookieError) {
+                console.error('[register] Failed to set authentication cookie', cookieError);
+                // Non-fatal: account exists, they can log in manually
+                return { status: 'success', message: 'Account created. Please log in to continue.' };
+            }
+        }
+
+        return { status: 'success', message: 'Account created. Please log in to continue.' };
     } catch (error) {
-        let message = t.register.errors.generic;
+        let message = 'Account creation failed. Please try again.';
 
         // Provide user-friendly messages for common errors
         if (error instanceof Error) {
             const errorMsg = error.message.toLowerCase();
             if (errorMsg.includes('taken') || errorMsg.includes('already exists')) {
-                message = t.register.errors.emailTaken;
+                message = 'An account with this email already exists. Please log in instead.';
             } else if (errorMsg.includes('invalid') && errorMsg.includes('email')) {
-                message = t.register.errors.invalidEmailFormat;
+                message = 'Please enter a valid email address.';
             } else if (errorMsg.includes('password')) {
-                message = t.register.errors.passwordInvalid;
+                message = 'Password does not meet requirements. Please try a different password.';
             }
             // Log original error but show user-friendly message
             console.error('[register] customerCreate failed:', error.message);
@@ -233,13 +241,4 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
 
         return { status: 'error', message, fields };
     }
-}
-
-/**
- * Logout - clear authentication cookies
- */
-export async function logout(): Promise<void> {
-    const cookieStore = await cookies();
-    cookieStore.delete(COOKIE_NAME);
-    cookieStore.delete('customer_access_token');
 }
