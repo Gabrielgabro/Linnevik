@@ -82,7 +82,7 @@ export default function ContactPage() {
                                         <span className="font-medium">{t.contact.sidebar.emailLabel}</span>
                                     </a>
                                     <a
-                                        href="tel:+46812345678"
+                                        href="tel:+46738970239"
                                         className="flex items-center gap-3 text-primary hover:text-[#0B3D2E] dark:hover:text-[#379E7D] transition-colors group"
                                     >
                                         <div className="w-10 h-10 rounded-xl bg-[#D9F0E8] dark:bg-[#0B3D2E] flex items-center justify-center group-hover:scale-110 transition-transform">

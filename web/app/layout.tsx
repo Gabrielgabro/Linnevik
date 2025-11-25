@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/sections/Header";
 import Footer from "@/sections/Footer";
 import HomePageBubbles from "@/components/HomePageBubbles";
+import { CookieBanner } from "@/components/CookieBanner";
 import { CartProvider } from "@/contexts/CartContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 
@@ -42,6 +43,7 @@ export default function RootLayout({
                 <Header />
                 {children}
                 <Footer />
+                <CookieBanner />
             </CartProvider>
         </LanguageProvider>
         </body>

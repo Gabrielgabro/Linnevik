@@ -15,6 +15,30 @@
         "toggleMenu": "Toggle menu"
       }
     },
+    "cookieBanner": {
+      "title": "We use cookies",
+      "body": "We use essential cookies to make the site work. You can choose whether to allow analytics and marketing cookies.",
+      "linkLabel": "Read more in our policy",
+      "customize": "Customize",
+      "necessaryOnly": "Essential only",
+      "acceptAll": "Accept all",
+      "save": "Save choices",
+      "cancel": "Cancel",
+      "categories": {
+        "necessary": {
+          "label": "Essential cookies",
+          "description": "Required for core functionality and cannot be turned off."
+        },
+        "analytics": {
+          "label": "Analytics cookies",
+          "description": "Help us understand how the site is used."
+        },
+        "marketing": {
+          "label": "Marketing cookies",
+          "description": "Used to show relevant offers."
+        }
+      }
+    },
     "footer": {
       "brand": {
         "alt": "Linnevik",
@@ -54,6 +78,114 @@
       "viewAll": "View all",
       "noImage": "No image",
       "from": "from"
+    }
+  },
+
+  "cookieSettingsPage": {
+    "title": "Cookie settings",
+    "subtitle": "Manage how we use cookies on the site. You can change your preferences at any time.",
+    "categories": {
+      "necessary": {
+        "title": "Essential cookies",
+        "body": "These cookies are necessary for the website to function and cannot be switched off. They are used for basic functions such as navigation and security.",
+        "alwaysOn": "Always on"
+      },
+      "functional": {
+        "title": "Functional cookies",
+        "body": "These cookies enable enhanced functionality and personalization, such as videos and live chat. They may be set by us or by third-party providers."
+      },
+      "analytics": {
+        "title": "Analytics cookies",
+        "body": "These cookies help us understand how visitors interact with the site by collecting and reporting information anonymously."
+      },
+      "marketing": {
+        "title": "Marketing cookies",
+        "body": "These cookies are used to track visitors across websites to display relevant and engaging ads."
+      }
+    },
+    "actions": {
+      "save": "Save settings",
+      "acceptAll": "Accept all"
+    },
+    "messages": {
+      "saved": "Your cookie settings have been saved.",
+      "allAccepted": "All cookies have been accepted."
+    }
+  },
+
+  "cookiePolicy": {
+    "title": "Cookie policy",
+    "lastUpdatedLabel": "Last updated",
+    "sections": {
+      "whatIs": {
+        "title": "What are cookies?",
+        "body": "Cookies are small text files stored on your device when you visit our site. They help improve your experience by remembering preferences and giving us insights into how the site is used."
+      },
+      "howUse": {
+        "title": "How we use cookies",
+        "intro": "We categorize cookies according to the consent manager:",
+        "items": {
+          "necessary": {
+            "label": "Essential:",
+            "body": "Required for core functions like language choice, cart, and security. These cannot be switched off."
+          },
+          "functional": {
+            "label": "Functional:",
+            "body": "Reserve category for enhanced experiences (e.g., remembering choices). We currently use no functional cookies beyond language (classified as essential)."
+          },
+          "analytics": {
+            "label": "Analytics:",
+            "body": "Helps us understand how the site is used. Only active with consent and only if Google Analytics is configured."
+          },
+          "marketing": {
+            "label": "Marketing:",
+            "body": "Used to show relevant offers and measure ads. Only active with consent and only if a marketing pixel (e.g., Meta) is enabled."
+          }
+        }
+      },
+      "thirdParty": {
+        "title": "Third-party cookies",
+        "body": "We use third-party scripts such as Google Analytics (analytics) and, if needed, Meta Pixel (marketing). They load only after you consent via the cookie banner and only if configured. Shopify Customer Privacy API is used to respect and store your choice."
+      },
+      "manage": {
+        "title": "Manage cookies",
+        "bodyBeforeLink": "You can change your cookie settings anytime via the \"Cookie settings\" button in the footer or by",
+        "linkLabel": "reopening the cookie banner",
+        "bodyAfterLink": ". You can also block cookies in your browser settings, but some site features may not work correctly."
+      },
+      "consentStorage": {
+        "title": "Consent storage",
+        "body": "Your choices are saved locally in the browser (localStorage) so the banner will not reappear until you change settings or clear storage. Essential cookies are always set for the site to function."
+      },
+      "cookiesList": {
+        "title": "Cookies we use",
+        "items": {
+          "shopify": {
+            "title": "Shopify",
+            "body": "Used to manage cart, sessions, and authentication.",
+            "meta": "Type: Essential | Duration: Session/365 days"
+          },
+          "language": {
+            "title": "Language setting",
+            "body": "Stores the selected language so the site displays correctly on your next visit.",
+            "meta": "Type: Essential | Duration: 12 months"
+          },
+          "analytics": {
+            "title": "Google Analytics",
+            "body": "Used to analyze how visitors use the site. Loads only if you consent to analytics cookies and GA is enabled.",
+            "meta": "Type: Analytics | Duration: 2 years"
+          },
+          "marketing": {
+            "title": "Meta Pixel",
+            "body": "Used for marketing measurement and relevant ads. Loads only if you consent to marketing cookies and the pixel is enabled.",
+            "meta": "Type: Marketing | Duration: Up to 2 years"
+          }
+        }
+      },
+      "contact": {
+        "title": "Contact us",
+        "body": "If you have questions about our cookie policy, contact us at"
+      }
     }
   },
 
@@ -459,5 +591,95 @@
       "title": "Search our products",
       "subtitle": "Type what you’re looking for above"
     }
+  },
+
+  "terms": {
+    "pageTitle": "Terms & Conditions",
+    "introTitle": "Terms & Conditions – Linnevik",
+    "introSubtitle": "Applies to customers of Galil Textile AB (reg. no. 559307-2951)",
+    "lastUpdated": "Last updated: 12/12/2025",
+
+    "companyName": "Galil Textile AB",
+    "companyEmail": "info@linnevik.se",
+
+    "section1Title": "1. General",
+    "section1Text1": "These terms and conditions apply to all purchases of products from Linnevik made by business customers (B2B) from Galil Textile AB (\"we\", \"us\").",
+    "section1Text2": "By placing an order, you accept these terms and conditions.",
+    "section1Text3": "These terms take precedence over any general purchasing terms of your own, unless otherwise agreed in writing.",
+
+    "section2Title": "2. Orders and contract",
+    "section2Text1": "A binding contract is formed when we confirm your order in writing (order confirmation).",
+    "section2Text2": "We reserve the right to refuse or adjust orders, for example in connection with credit assessment or obvious errors in price or product information.",
+    "section2Text3": "Custom-made products, such as special sizes, special fabrics or embroidery, are binding once the order has been confirmed.",
+
+    "section3Title": "3. Prices",
+    "section3Text1": "All prices are stated excluding value added tax (VAT), shipping and any customs duties or other charges.",
+    "section3Text2": "We reserve the right to adjust prices due to currency changes, changes in raw material costs and obvious typographical errors.",
+    "section3Text3": "The price at the time of order applies according to the order confirmation, unless otherwise agreed.",
+
+    "section4Title": "4. Payment terms",
+    "section4Text1": "Payment is made by invoice, unless otherwise agreed.",
+    "section4Text2": "The standard payment term is [30] days net from the invoice date, unless otherwise agreed in writing.",
+    "section4Text3": "In the event of late payment, statutory default interest will be charged in accordance with the Swedish Interest Act (reference rate + 8 percentage points), as well as any reminder and collection fees.",
+    "section4Text4": "We may require advance payment or security if creditworthiness is uncertain.",
+
+    "section5Title": "5. Delivery",
+    "section5Text1": "Unless otherwise agreed, delivery is made in accordance with Incoterms [e.g. FCA our warehouse, Sweden].",
+    "section5Text2": "Estimated delivery time is stated in the order confirmation. Delivery times are indicative; minor deviations do not entitle you to damages provided we have acted reasonably.",
+    "section5Text3": "Partial deliveries may occur if we deem it appropriate or if agreed.",
+
+    "section6Title": "6. Transfer of risk",
+    "section6Text1": "The risk of the goods passes to you when the goods are handed over to the carrier or, in the case of collection, when the goods are placed at your disposal.",
+    "section6Text2": "Any transport damage must be reported immediately to the carrier and thereafter to us.",
+
+    "section7Title": "7. Inspection duty and claims",
+    "section7Text1": "You must inspect the goods with reasonable care upon receipt.",
+    "section7Text2": "Visible defects or discrepancies must be reported without undue delay, but no later than [7] days from receipt.",
+    "section7Text3": "Hidden defects must be reported without undue delay after discovery, but no later than [12] months from delivery, unless otherwise agreed.",
+    "section7Text4": "A claim must include the order number, article number, quantity, description of the defect and photos where relevant.",
+
+    "section8Title": "8. Returns and cancellations",
+    "section8Text1": "Returns are accepted only after our prior written approval and in accordance with our instructions.",
+    "section8Text2": "As a general rule, custom-made products are not accepted for return.",
+    "section8Text3": "For approved returns, a return deduction or handling fee may be applied for administration, inspection and any repackaging.",
+    "section8Text4": "Cancellation of an order after confirmation requires our written approval and may entail costs for work already performed and for materials purchased.",
+
+    "section9Title": "9. Defects, remedies and liability",
+    "section9Text1": "In the event of an established defect for which we are responsible, we are entitled, at our discretion, to remedy the defect, deliver replacement goods free from defects, or credit a reasonable amount.",
+    "section9Text2": "Our liability is limited to the direct value of the defective goods.",
+    "section9Text3": "We are not liable for indirect or consequential loss, loss of profit or similar, unless caused by intent or gross negligence.",
+    "section9Text4": "If you or a third party alter or handle the goods contrary to our instructions, our liability for defects ceases.",
+
+    "section10Title": "10. Product variations and samples",
+    "section10Text1": "Minor variations in colour, texture, dimensions or finish may occur between different batches and compared with samples.",
+    "section10Text2": "Such variations are considered normal within textile production and do not constitute a defect if the deviation is reasonable.",
+    "section10Text3": "Samples and images are for guidance only and do not constitute an exact guarantee of the final product in all lighting and environmental conditions.",
+
+    "section11Title": "11. Force majeure",
+    "section11Text1": "We are not liable for delays or impediments caused by circumstances beyond our reasonable control, such as strikes, lockouts, fire, natural disasters, pandemics, war, governmental decisions, disruptions in transport or major operational disruptions at subcontractors.",
+    "section11Text2": "In the event of force majeure, delivery and performance times are extended by the duration of the impediment.",
+    "section11Text3": "If the impediment lasts longer than [3] months, both parties are entitled to terminate the affected part of the agreement without liability for damages.",
+
+    "section12Title": "12. Intellectual property rights",
+    "section12Text1": "All intellectual property rights related to our patterns, designs, texts, images and trademarks belong to Galil Textile AB or our licensors.",
+    "section12Text2": "No transfer or licence is granted other than what is expressly agreed in writing.",
+    "section12Text3": "If you provide your own material, such as a logo for embroidery, you are responsible for ensuring that the material does not infringe any third-party rights.",
+
+    "section13Title": "13. Personal data",
+    "section13Text1": "We process personal data of contact persons at our customers in order to handle orders, invoicing and customer relations.",
+    "section13Text2": "Processing is carried out in accordance with applicable data protection legislation, including the GDPR.",
+    "section13Text3": "For more information about how we process personal data, please contact us at info@linnevik.se.",
+
+    "section14Title": "14. Governing law and disputes",
+    "section14Text1": "The agreement and these terms and conditions are governed by the substantive laws of Sweden.",
+    "section14Text2": "Any disputes that cannot be resolved through negotiation shall be finally settled by the general courts of Sweden, with [e.g. Stockholm District Court] as the court of first instance.",
+
+    "section15Title": "15. Contact",
+    "section15Text1": "Galil Textile AB",
+    "section15Text2": "Ranhammarsvägen 20",
+    "section15Text3": "168 67 Bromma",
+    "section15Text4": "Sweden",
+    "section15Text5": "E-mail: info@linnevik.se"
   }
+
 }

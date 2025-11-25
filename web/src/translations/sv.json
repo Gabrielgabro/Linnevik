@@ -15,6 +15,30 @@
           "toggleMenu": "Toggle menu"
         }
       },
+        "cookieBanner": {
+          "title": "Vi använder cookies",
+          "body": "Vi använder nödvändiga cookies för att webbplatsen ska fungera. Du kan välja om du vill tillåta analys- och marknadsföringscookies.",
+          "linkLabel": "Läs mer i vår policy",
+          "customize": "Anpassa",
+          "necessaryOnly": "Endast nödvändiga",
+          "acceptAll": "Acceptera alla",
+          "save": "Spara val",
+          "cancel": "Avbryt",
+          "categories": {
+            "necessary": {
+              "label": "Nödvändiga cookies",
+              "description": "Behövs för grundläggande funktioner och kan inte stängas av."
+            },
+            "analytics": {
+              "label": "Analys-cookies",
+              "description": "Hjälper oss förstå hur webbplatsen används."
+            },
+            "marketing": {
+              "label": "Marknadsförings-cookies",
+              "description": "Används för att visa relevanta erbjudanden."
+            }
+          }
+        },
         "footer": {
           "brand": {
             "alt": "Linnevik",
@@ -52,11 +76,119 @@
 
         "featuredGrid": {
           "title": "Utvalda produkter",
-          "viewAll": "Visa alla",
-          "noImage": "No image",
-          "from": "från"
+      "viewAll": "Visa alla",
+      "noImage": "No image",
+      "from": "från"
+    }
+  },
+
+  "cookieSettingsPage": {
+    "title": "Cookieinställningar",
+    "subtitle": "Hantera hur vi använder cookies på webbplatsen. Du kan när som helst ändra dina inställningar.",
+    "categories": {
+      "necessary": {
+        "title": "Nödvändiga cookies",
+        "body": "Dessa cookies är nödvändiga för att webbplatsen ska fungera och kan inte stängas av. De används för grundläggande funktioner som navigation och säkerhet.",
+        "alwaysOn": "Alltid aktiv"
+      },
+      "functional": {
+        "title": "Funktionella cookies",
+        "body": "Dessa cookies möjliggör förbättrad funktionalitet och personalisering, såsom videor och live-chatt. De kan sättas av oss eller av tredjepartsleverantörer."
+      },
+      "analytics": {
+        "title": "Analys-cookies",
+        "body": "Dessa cookies hjälper oss att förstå hur besökare interagerar med webbplatsen genom att samla in och rapportera information anonymt."
+      },
+      "marketing": {
+        "title": "Marknadsförings-cookies",
+        "body": "Dessa cookies används för att spåra besökare över webbplatser för att visa relevanta och engagerande annonser."
+      }
+    },
+    "actions": {
+      "save": "Spara inställningar",
+      "acceptAll": "Acceptera alla"
+    },
+    "messages": {
+      "saved": "Dina cookieinställningar har sparats.",
+      "allAccepted": "Alla cookies har accepterats."
+    }
+  },
+
+  "cookiePolicy": {
+    "title": "Cookiepolicy",
+    "lastUpdatedLabel": "Senast uppdaterad",
+    "sections": {
+      "whatIs": {
+        "title": "Vad är cookies?",
+        "body": "Cookies är små textfiler som lagras på din enhet när du besöker vår webbplats. De hjälper oss att förbättra din upplevelse genom att komma ihåg dina preferenser och ge oss insikter om hur webbplatsen används."
+      },
+      "howUse": {
+        "title": "Hur vi använder cookies",
+        "intro": "Vi kategoriserar cookies enligt samtyckeshanteraren:",
+        "items": {
+          "necessary": {
+            "label": "Nödvändiga:",
+            "body": "Krävs för kärnfunktioner som språkval, varukorg och säkerhet. Dessa går inte att stänga av."
+          },
+          "functional": {
+            "label": "Funktionella:",
+            "body": "Reservkategori för förbättrade upplevelser (t.ex. att minnas val). För närvarande använder vi inga funktionella cookies utöver språkinställningen (klassad som nödvändig)."
+          },
+          "analytics": {
+            "label": "Analys:",
+            "body": "Hjälper oss förstå hur webbplatsen används. Aktiveras endast vid samtycke och endast om Google Analytics är konfigurerat."
+          },
+          "marketing": {
+            "label": "Marknadsföring:",
+            "body": "Används för att visa relevanta erbjudanden och mäta annonser. Aktiveras endast vid samtycke och endast om marknadsföringspixel (t.ex. Meta) är aktiverad."
+          }
         }
       },
+      "thirdParty": {
+        "title": "Tredjepartscookies",
+        "body": "Vi använder tredjepartsskript som Google Analytics (analys) och vid behov Meta Pixel (marknadsföring). De laddas först när du har gett samtycke via cookie-bannern och endast om de är konfigurerade. Shopify Customer Privacy API används för att respektera och spara ditt val."
+      },
+      "manage": {
+        "title": "Hantera cookies",
+        "bodyBeforeLink": "Du kan när som helst ändra dina cookieinställningar via knappen \"Cookieinställningar\" i sidfoten eller genom att",
+        "linkLabel": "öppna cookie-bannern igen",
+        "bodyAfterLink": ". Du kan också blockera cookies genom din webbläsares inställningar, men observera att vissa funktioner på webbplatsen kanske inte fungerar korrekt."
+      },
+      "consentStorage": {
+        "title": "Lagring av samtycke",
+        "body": "Dina val sparas lokalt i webbläsarens lagring (localStorage) så att bannern inte visas igen förrän du ändrar inställningarna eller rensar lagringen. Nödvändiga cookies sätts alltid för att webbplatsen ska fungera."
+      },
+      "cookiesList": {
+        "title": "Cookies vi använder",
+        "items": {
+          "shopify": {
+            "title": "Shopify",
+            "body": "Används för att hantera kundvagn, sessioner och autentisering.",
+            "meta": "Typ: Nödvändig | Varaktighet: Session/365 dagar"
+          },
+          "language": {
+            "title": "Språkinställning",
+            "body": "Sparar valt språk så att sidan visas korrekt vid nästa besök.",
+            "meta": "Typ: Nödvändig | Varaktighet: 12 månader"
+          },
+          "analytics": {
+            "title": "Google Analytics",
+            "body": "Används för att analysera hur besökare använder webbplatsen. Laddas endast om du godkänner analys-cookies och Google Analytics är aktiverat.",
+            "meta": "Typ: Analys | Varaktighet: 2 år"
+          },
+          "marketing": {
+            "title": "Meta Pixel",
+            "body": "Används för marknadsföringsmätning och relevanta annonser. Laddas endast om du godkänner marknadsförings-cookies och pixeln är aktiverad.",
+            "meta": "Typ: Marknadsföring | Varaktighet: Upp till 2 år"
+          }
+        }
+      },
+      "contact": {
+        "title": "Kontakta oss",
+        "body": "Om du har frågor om vår cookiepolicy, kontakta oss på"
+      }
+    }
+  },
 
   "login": {
     "badge": "Kundinloggning",
@@ -208,7 +340,7 @@
       "postalCity": "147 39 Tumba",
       "contactHeading": "Kontaktuppgifter",
       "emailLabel": "info@linnevik.se",
-      "phoneLabel": "+46 8 123 456 78",
+      "phoneLabel": "+46 73 897 02 39",
       "openingHoursHeading": "Öppettider",
       "weekdaysLabel": "Måndag - Fredag",
       "weekdaysHours": "09:00 - 17:00",
@@ -457,9 +589,96 @@
       "title": "Sök bland våra produkter",
       "subtitle": "Skriv in vad du letar efter ovan"
     }
+  },
+
+  "terms": {
+    "pageTitle": "Köpvillkor",
+    "introTitle": "Köpvillkor – Linnevik",
+    "introSubtitle": "Gäller för kunder till Galil Textile AB (org.nr 559307-2951)",
+    "lastUpdated": "Senast uppdaterad: 12/12/2025",
+
+    "companyName": "Galil Textile AB",
+    "companyEmail": "info@linnevik.se",
+
+    "section1Title": "1. Allmänt",
+    "section1Text1": "Dessa köpvillkor gäller för alla köp av produkter från Linnevik som görs av företagskunder (B2B) från Galil Textile AB (\"vi\", \"oss\").",
+    "section1Text2": "Genom att lägga en beställning godkänner du dessa villkor.",
+    "section1Text3": "Villkoren gäller före eventuella egna inköpsvillkor om inte annat skriftligen avtalats.",
+
+    "section2Title": "2. Beställning och avtal",
+    "section2Text1": "Avtal uppstår när vi skriftligen bekräftar din beställning (orderbekräftelse).",
+    "section2Text2": "Vi förbehåller oss rätten att neka eller ändra beställningar, exempelvis vid kreditbedömning eller uppenbara fel i pris- eller produktinformation.",
+    "section2Text3": "Kundanpassade produkter, såsom specialmått, specialtyger eller brodyr, är bindande efter bekräftad order.",
+
+    "section3Title": "3. Priser",
+    "section3Text1": "Alla priser anges exklusive mervärdesskatt (moms), frakt och eventuella tullar eller andra avgifter.",
+    "section3Text2": "Vi reserverar oss för prisjusteringar, valutaändringar, råvaruprisförändringar samt uppenbara skrivfel.",
+    "section3Text3": "Pris vid beställningstillfället gäller enligt orderbekräftelse, om inget annat avtalats.",
+
+    "section4Title": "4. Betalningsvillkor",
+    "section4Text1": "Betalning sker mot faktura om inget annat avtalats.",
+    "section4Text2": "Standardvillkor är [30] dagar netto från fakturadatum, om inget annat skriftligen avtalats.",
+    "section4Text3": "Vid försenad betalning utgår dröjsmålsränta enligt räntelagen (referensränta + 8 procentenheter) samt eventuella påminnelse- och inkassoavgifter.",
+    "section4Text4": "Vi kan kräva förskottsbetalning eller säkerhet vid tveksam kreditvärdighet.",
+
+    "section5Title": "5. Leverans",
+    "section5Text1": "Om inget annat avtalats sker leverans enligt Incoterms [t.ex. FCA vårt lager, Sverige].",
+    "section5Text2": "Beräknad leveranstid framgår av orderbekräftelsen. Leveranstider är indikativa; mindre avvikelser ger inte rätt till skadestånd om vi agerat skäligt.",
+    "section5Text3": "Del-leveranser kan förekomma om vi bedömer det lämpligt eller om vi avtalat det.",
+
+    "section6Title": "6. Riskens övergång",
+    "section6Text1": "Risken för varan övergår på dig när varan lämnas till transportör eller, vid avhämtning, när varan ställs till ditt förfogande.",
+    "section6Text2": "Eventuella transportskador ska anmälas omedelbart till transportören och därefter till oss.",
+
+    "section7Title": "7. Undersökningsplikt och reklamation",
+    "section7Text1": "Du ska undersöka varorna skäligt noggrant vid mottagande.",
+    "section7Text2": "Synliga fel eller avvikelser ska reklameras utan dröjsmål, dock senast inom [7] dagar från mottagandet.",
+    "section7Text3": "Dolda fel ska reklameras utan oskäligt dröjsmål efter att felet upptäckts, dock senast inom [12] månader från leverans om inget annat avtalats.",
+    "section7Text4": "Reklamation ska innehålla ordernummer, artikelnummer, kvantitet, felbeskrivning samt foton där det är relevant.",
+
+    "section8Title": "8. Returer och avbeställningar",
+    "section8Text1": "Returer accepteras endast efter vårt skriftliga godkännande och enligt våra instruktioner.",
+    "section8Text2": "Kundanpassade produkter tas som huvudregel inte i retur.",
+    "section8Text3": "Vid godkänd retur kan returavdrag eller kostnadsersättning tillämpas för hantering, kontroll och eventuell ompackning.",
+    "section8Text4": "Avbeställning av order efter bekräftelse kräver vår skriftliga accept och kan medföra kostnader för redan utfört arbete samt inköp av material.",
+
+    "section9Title": "9. Fel, påföljder och ansvar",
+    "section9Text1": "Vid konstaterat fel som vi ansvarar för har vi rätt att efter eget val åtgärda felet, omleverera felfri vara eller kreditera skäligt belopp.",
+    "section9Text2": "Vårt ansvar är begränsat till det direkta värdet av den felaktiga varan.",
+    "section9Text3": "Vi ansvarar inte för indirekta skador, följdskador eller utebliven vinst, om inte uppsåt eller grov vårdslöshet föreligger.",
+    "section9Text4": "Om du själv eller tredje part ändrar eller hanterar varan i strid med våra instruktioner upphör vårt ansvar för fel.",
+
+    "section10Title": "10. Produktförändringar och provexemplar",
+    "section10Text1": "Mindre avvikelser i färg, struktur, mått eller finish kan förekomma mellan olika batcher och jämfört med prover.",
+    "section10Text2": "Sådana avvikelser anses normalt inom textilproduktion och utgör inte fel om avvikelsen är skälig.",
+    "section10Text3": "Prover och bilder är vägledande och inte en exakt garanti för slutprodukt i alla ljus- och miljöförhållanden.",
+
+    "section11Title": "11. Force majeure",
+    "section11Text1": "Vi ansvarar inte för förseningar eller hinder orsakade av omständigheter utanför vår rimliga kontroll, såsom strejk, lockout, brand, naturkatastrof, pandemi, krig, myndighetsbeslut, störningar i transporter eller större driftstörningar hos underleverantör.",
+    "section11Text2": "Vid force majeure får leverans- och prestationstider förlängas med den tid hindret kvarstår.",
+    "section11Text3": "Om hindret varar längre än [3] månader har båda parter rätt att häva berörd del av avtalet utan skadeståndsansvar.",
+
+    "section12Title": "12. Immateriella rättigheter",
+    "section12Text1": "Alla immateriella rättigheter kopplade till våra mönster, design, texter, bilder och varumärken tillhör Galil Textile AB eller våra licensgivare.",
+    "section12Text2": "Ingen överlåtelse eller licens sker utöver vad som uttryckligen avtalats skriftligen.",
+    "section12Text3": "Om du tillhandahåller eget material, till exempel logotyp för brodyr, ansvarar du för att materialet inte gör intrång i tredje mans rätt.",
+
+    "section13Title": "13. Personuppgifter",
+    "section13Text1": "Vi behandlar personuppgifter om kontaktpersoner hos våra kunder för att kunna hantera beställningar, fakturering och kundrelationer.",
+    "section13Text2": "Behandling sker i enlighet med gällande dataskyddsreglering, inklusive GDPR.",
+    "section13Text3": "För mer information om hur vi behandlar personuppgifter, kontakta oss via info@linnevik.se.",
+
+    "section14Title": "14. Tillämplig lag och tvist",
+    "section14Text1": "Svensk materiell rätt tillämpas på avtalet och dessa villkor.",
+    "section14Text2": "Tvister som inte kan lösas genom förhandling ska slutligt avgöras av allmän domstol med [t.ex. Stockholms tingsrätt] som första instans.",
+
+    "section15Title": "15. Kontakt",
+    "section15Text1": "Galil Textile AB",
+    "section15Text2": "Ranhammarsvägen 20",
+    "section15Text3": "168 67 Bromma",
+    "section15Text4": "Sverige",
+    "section15Text5": "E-post: info@linnevik.se"
   }
 
 
 }
-
-

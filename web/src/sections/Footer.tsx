@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import LanguageSelector from "@/components/LanguageSelector";
 import { useTranslation } from '@/hooks/useTranslation';
+import { triggerCookieSettings } from "@/hooks/useCookieConsent";
 
 export default function Footer() {
     const { t } = useTranslation();
@@ -49,7 +50,13 @@ export default function Footer() {
                 <div className="text-center text-xs text-secondary">
                     <span>{copyright}</span>
                     <span className="mx-2">•</span>
-                    <Link href="/cookies" className="hover:underline">{t.common.footer.legal.cookieSettings}</Link>
+                    <button
+                        type="button"
+                        onClick={triggerCookieSettings}
+                        className="hover:underline"
+                    >
+                        {t.common.footer.legal.cookieSettings}
+                    </button>
                     <span className="mx-2">•</span>
                     <Link href="/cookie-policy" className="hover:underline">{t.common.footer.legal.cookiePolicy}</Link>
                     <span className="mx-2">•</span>
