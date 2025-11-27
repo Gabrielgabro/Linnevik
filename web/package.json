@@ -12,6 +12,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
+    "@vercel/speed-insights": "^1.2.0",
     "clsx": "^2.1.1",
     "flowbite-react": "^0.12.10",
     "next": "^15.5.6",
