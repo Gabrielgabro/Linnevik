@@ -8,6 +8,7 @@ import { CookieBanner } from "@/components/CookieBanner";
 import { CartProvider } from "@/contexts/CartContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/next"
 // Serif font for headings - elegant and refined
 const libreBaskerville = Libre_Baskerville({
     variable: "--font-heading",
@@ -69,6 +70,7 @@ export default function RootLayout({
             </CartProvider>
         </LanguageProvider>
         <SpeedInsights />
+        <Analytics />
         </body>
         </html>
     );
