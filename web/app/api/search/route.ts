@@ -18,7 +18,9 @@ export async function GET(request: NextRequest) {
                 ? langParam
                 : await getServerLanguage();
         const shopifyLanguage = toShopifyLanguage(language);
+
         const products = await getProductsBasic(10, query.trim(), shopifyLanguage);
+
         return NextResponse.json({ products });
     } catch (error) {
         console.error('Search API error:', error);

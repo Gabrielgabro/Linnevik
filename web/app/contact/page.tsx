@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 
+import { useRouter } from 'next/navigation';
+
 export default function ContactPage() {
+    const router = useRouter();
     const { t } = useTranslation();
     const [formData, setFormData] = useState({
         name: '',
@@ -13,11 +16,35 @@ export default function ContactPage() {
         message: '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Handle form submission
-        console.log('Form submitted:', formData);
-        alert(t.contact.form.successAlert);
+        setStatus('loading');
+
+        try {
+            const res = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+
+            if (!res.ok) throw new Error('Failed to send message');
+
+            setStatus('success');
+            setFormData({
+                name: '',
+                company: '',
+                email: '',
+                phone: '',
+                message: '',
+            });
+            router.push('/thank-you');
+        } catch (error) {
+            console.error('Error sending message:', error);
+            setStatus('error');
+            alert('Failed to send message. Please try again later.');
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -198,9 +225,17 @@ export default function ContactPage() {
                                     {/* Submit Button */}
                                     <button
                                         type="submit"
-                                        className="w-full md:w-auto bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
+                                        disabled={status === 'loading'}
+                                        className="w-full md:w-auto bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
-                                        {t.contact.form.submit}
+                                        {status === 'loading' ? (
+                                            <>
+                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Sending...
+                                            </>
+                                        ) : (
+                                            t.contact.form.submit
+                                        )}
                                     </button>
                                 </form>
                             </div>

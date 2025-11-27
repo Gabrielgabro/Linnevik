@@ -28,7 +28,7 @@ export default function Example() {
                     <div className="mt-10 flex items-center justify-center gap-x-6">
                         <a
                             href="/collections"
-                            className="rounded-md bg-accent-primary px-3.5 py-2.5 text-sm font-semibold text-white hover:text-white shadow-sm hover:bg-accent-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary"
+                            className="rounded-none bg-accent-primary px-3.5 py-2.5 text-sm font-semibold text-white hover:text-white shadow-sm hover:bg-accent-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary"
                         >
                             {t.home.hero.primaryCta}
                         </a>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import LanguageSelector from "@/components/LanguageSelector";
+import CurrencySelector from "@/components/CurrencySelector";
 import { useTranslation } from '@/hooks/useTranslation';
 import { triggerCookieSettings } from "@/hooks/useCookieConsent";
 
@@ -41,9 +42,11 @@ export default function Footer() {
                     <a href="tel:+46738970239" className="hover:underline">+46 73 897 02 39</a>
                 </div>
 
-                {/* Language selector */}
-                <div className="mb-6">
+                {/* Language and currency selectors */}
+                <div className="mb-6 flex items-center justify-center gap-4">
                     <LanguageSelector variant="footer" />
+                    <span className="text-secondary">•</span>
+                    <CurrencySelector variant="footer" />
                 </div>
 
                 {/* Copyright and links in one line */}

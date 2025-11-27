@@ -25,11 +25,11 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
             { href: "/collections", label: "Kategorier" },
             { href: `/collections/${primaryCollection.handle}`, label: primaryCollection.title },
             { href: `/products/${handle}`, label: product.title }
-          ]
+        ]
         : [
             { href: "/products", label: "Produkter" },
             { href: `/products/${handle}`, label: product.title }
-          ];
+        ];
 
     return (
         <main className="min-h-screen bg-white dark:bg-[#111827]">

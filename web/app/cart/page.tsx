@@ -170,13 +170,13 @@ export default function CartPage() {
 
                     <a
                         href={cart?.checkoutUrl || '#'}
-                        className="mt-6 block w-full py-3 px-6 text-center rounded-full bg-accent text-white font-semibold hover:bg-accent/90 transition-colors"
+                        className="mt-6 block w-full py-3 px-6 text-center rounded-full bg-accent text---color-accent-primary font-semibold hover:bg-accent/90 transition-colors"
                     >
                         {t.cart.summary.checkout}
                     </a>
 
                     <Link
-                        href="/products"
+                        href="/collections"
                         className="mt-3 block text-center text-sm text-accent hover:underline"
                     >
                         {t.cart.summary.continueShopping}

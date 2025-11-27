@@ -16,7 +16,7 @@ export default function Button({
 }: Props) {
   // Base styles shared by all button variants. Uses token-based ring color.
   const base =
-    'inline-block px-6 py-3 font-medium rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-custom disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-block px-6 py-3 font-medium rounded-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ring-custom disabled:opacity-50 disabled:cursor-not-allowed';
 
   // Token-backed variants
   // - Primary: solid accent background from tokens, with on-accent text (fallback to white until token is added)

@@ -17,6 +17,7 @@ export default function SamplesCheckoutPage() {
     const router = useRouter();
     const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         contactName: '',
         organizationName: '',
@@ -64,20 +65,32 @@ export default function SamplesCheckoutPage() {
         });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmitting(true);
 
-        // Here you would send the order to your backend
-        console.log('Sample order:', {
-            products: selectedProducts.map(p => ({ id: p.id, title: p.title })),
-            ...formData,
-        });
+        try {
+            const res = await fetch('/api/sample-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...formData,
+                    products: selectedProducts.map(p => ({ id: p.id, title: p.title })),
+                }),
+            });
 
-        // Clear selection
-        localStorage.removeItem('linnevik:sample-selection');
+            if (!res.ok) throw new Error('Failed to submit request');
 
-        alert(t.samplesCheckout.alert.success);
-        router.push('/');
+            // Clear selection
+            localStorage.removeItem('linnevik:sample-selection');
+
+            router.push('/thank-you');
+        } catch (error) {
+            console.error('Error submitting request:', error);
+            alert('Failed to submit request. Please try again later.');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     if (loading) {
@@ -306,9 +319,17 @@ export default function SamplesCheckoutPage() {
                             {/* Submit */}
                             <button
                                 type="submit"
-                                className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
+                                disabled={submitting}
+                                className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
-                                {t.samplesCheckout.form.submitButton}
+                                {submitting ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    t.samplesCheckout.form.submitButton
+                                )}
                             </button>
                         </form>
                     </div>

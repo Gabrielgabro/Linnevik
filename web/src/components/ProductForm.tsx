@@ -12,11 +12,11 @@ type Variant = {
 };
 
 export default function ProductForm({
-                                        options,
-                                        variants,
-                                        moq,
-                                        packSize,
-                                    }: {
+    options,
+    variants,
+    moq,
+    packSize,
+}: {
     options: { name: string; values: string[] }[];
     variants: Variant[];
     moq?: number | null;
@@ -47,11 +47,8 @@ export default function ProductForm({
         setAddingToCart(true);
         try {
             await addItem(active.id, totalUnits);
-            // Show success feedback
-            alert('Produkt tillagd i varukorgen!');
         } catch (error) {
             console.error('Failed to add to cart:', error);
-            alert('Kunde inte lägga till i varukorgen. Försök igen.');
         } finally {
             setAddingToCart(false);
         }
@@ -83,11 +80,10 @@ export default function ProductForm({
                                     key={v}
                                     type="button"
                                     onClick={() => setSelected(s => ({ ...s, [opt.name]: v }))}
-                                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                                        activeVal
+                                    className={`px-5 py-2.5 rounded-none text-sm font-medium transition-all duration-200 ${activeVal
                                             ? 'bg-[#0B3D2E] text-white border-2 border-[#0B3D2E] dark:bg-[#145C45] dark:border-[#145C45]'
                                             : 'bg-transparent text-primary border-2 border-[#E7EDF1] dark:border-[#374151] hover:border-[#0B3D2E] dark:hover:border-[#145C45]'
-                                    }`}
+                                        }`}
                                 >
                                     {v}
                                 </button>
@@ -108,7 +104,7 @@ export default function ProductForm({
                     step={packSize || 1}
                     value={qty}
                     onChange={e => setQty(Math.max(moq || 1, Number(e.target.value)))}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#145C45] transition-colors"
+                    className="w-full px-4 py-3 rounded-none border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#145C45] transition-colors"
                 />
                 <div className="flex items-center gap-4 text-xs text-secondary">
                     {moq && <span>Minsta beställning: {moq} st</span>}
@@ -123,7 +119,7 @@ export default function ProductForm({
                 type="button"
                 disabled={!active?.availableForSale || addingToCart || isLoading}
                 onClick={handleAddToCart}
-                className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
+                className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-none font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
             >
                 {addingToCart ? 'Lägger till...' : 'Lägg i varukorgen'}
             </button>

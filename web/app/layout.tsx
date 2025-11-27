@@ -24,18 +24,25 @@ const inter = Inter({
     display: "swap",
 });
 
+const lightFavicon = "/brand/favicon_in_black.png";
+const darkFavicon = "/brand/favicon_in_white.png";
+const faviconSize = "256x256";
+
 export const metadata: Metadata = {
     title: "Linnevik",
     description: "Linnevik supplies durable textiles for hotels and hospitality spaces.",
     icons: {
         icon: [
-            { url: "/brand/favicon_in_black.png", type: "image/png", media: "(prefers-color-scheme: light)" },
-            { url: "/brand/favicon_in_white.png", type: "image/png", media: "(prefers-color-scheme: dark)" },
+            { url: lightFavicon, type: "image/png", sizes: faviconSize, media: "(prefers-color-scheme: light)" },
+            { url: darkFavicon, type: "image/png", sizes: faviconSize, media: "(prefers-color-scheme: dark)" },
         ],
-        shortcut: "/brand/favicon_in_black.png",
+        shortcut: [
+            { url: lightFavicon, type: "image/png", sizes: faviconSize, media: "(prefers-color-scheme: light)" },
+            { url: darkFavicon, type: "image/png", sizes: faviconSize, media: "(prefers-color-scheme: dark)" },
+        ],
         apple: [
-            { url: "/brand/favicon_in_black.png", type: "image/png", media: "(prefers-color-scheme: light)" },
-            { url: "/brand/favicon_in_white.png", type: "image/png", media: "(prefers-color-scheme: dark)" },
+            { url: lightFavicon, type: "image/png", sizes: faviconSize, media: "(prefers-color-scheme: light)" },
+            { url: darkFavicon, type: "image/png", sizes: faviconSize, media: "(prefers-color-scheme: dark)" },
         ],
     },
     themeColor: [

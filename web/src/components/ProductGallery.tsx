@@ -28,11 +28,10 @@ export default function ProductGallery({ images }: { images: { url: string; altT
                         <button
                             key={i}
                             onClick={() => setSelectedImage(i)}
-                            className={`relative aspect-square bg-[#F9FAFB] dark:bg-[#1f2937] rounded-xl overflow-hidden border-2 transition-all duration-200 ${
-                                selectedImage === i
+                            className={`relative aspect-square bg-[#F9FAFB] dark:bg-[#1f2937] rounded-xl overflow-hidden border-2 transition-all duration-200 ${selectedImage === i
                                     ? 'border-[#0B3D2E] dark:border-[#379E7D] ring-2 ring-[#0B3D2E]/20 dark:ring-[#379E7D]/30'
                                     : 'border-[#E7EDF1] dark:border-[#374151] hover:border-[#4A6B82] dark:hover:border-[#4F6F8E]'
-                            }`}
+                                }`}
                         >
                             <Image
                                 src={img.url}
