@@ -15,7 +15,7 @@ type Product = {
 };
 
 export default function LiveSearch() {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [query, setQuery] = useState(searchParams.get('q') || '');
@@ -51,7 +51,11 @@ export default function LiveSearch() {
         setIsLoading(true);
         debounceTimerRef.current = setTimeout(async () => {
             try {
-                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const params = new URLSearchParams({
+                    q: query.trim(),
+                    lang: language,
+                });
+                const response = await fetch(`/api/search?${params.toString()}`);
                 const data = await response.json();
                 setSuggestions(data.products || []);
                 setShowSuggestions(true);
@@ -68,13 +72,17 @@ export default function LiveSearch() {
                 clearTimeout(debounceTimerRef.current);
             }
         };
-    }, [query]);
+    }, [language, query]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (query.trim()) {
             setShowSuggestions(false);
-            router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+            const params = new URLSearchParams({
+                q: query.trim(),
+                lang: language,
+            });
+            router.push(`/search?${params.toString()}`);
         }
     };
 

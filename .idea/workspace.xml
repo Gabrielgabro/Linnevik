@@ -6,13 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/collections/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/collections/[handle]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/collections/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/collections/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/contact/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/contact/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/hooks/useTranslation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/hooks/useTranslation.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/sections/Footer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/Footer.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/translations/en.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/translations/en.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/translations/sv.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/translations/sv.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/api/search/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/search/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/search/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/search/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/components/LiveSearch.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/LiveSearch.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/lib/shopify.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/shopify.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -28,8 +25,8 @@
         <option value="CSS File" />
         <option value="JavaScript File" />
         <option value="TypeScript File" />
-        <option value="TypeScript JSX File" />
         <option value="tsconfig.json" />
+        <option value="TypeScript JSX File" />
       </list>
     </option>
   </component>
@@ -90,7 +87,7 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.updates&quot;,
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
     &quot;ts.external.directory.path&quot;: &quot;/Users/gabrielgabro/Linnevik/web/node_modules/typescript/lib&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
@@ -106,18 +103,18 @@
       <recent name="$PROJECT_DIR$/web" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/web/app/login/create-account" />
       <recent name="$PROJECT_DIR$/web/src/sections" />
       <recent name="$PROJECT_DIR$/web/public/client_logos" />
       <recent name="$PROJECT_DIR$/web/public/brand" />
       <recent name="$PROJECT_DIR$/web/public/clientLogo" />
-      <recent name="$PROJECT_DIR$/web/public" />
     </key>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-3aa1da707db6-JavaScript-PS-252.27397.112" />
-        <option value="bundled-php-predefined-a98d8de5180a-b35feea871ed-com.jetbrains.php.sharedIndexes-PS-252.27397.112" />
+        <option value="bundled-js-predefined-d6986cc7102b-a71380e98a7c-JavaScript-PS-252.28238.9" />
+        <option value="bundled-php-predefined-a98d8de5180a-58f58c5035b3-com.jetbrains.php.sharedIndexes-PS-252.28238.9" />
       </set>
     </attachedChunks>
   </component>
@@ -187,7 +184,14 @@
       <workItem from="1763584626746" duration="878000" />
       <workItem from="1763585871717" duration="631000" />
       <workItem from="1763586510291" duration="3572000" />
-      <workItem from="1763645002439" duration="26944000" />
+      <workItem from="1763645002439" duration="27644000" />
+      <workItem from="1763860044718" duration="3271000" />
+      <workItem from="1763930074808" duration="2061000" />
+      <workItem from="1763932165350" duration="17000" />
+      <workItem from="1763932192451" duration="241000" />
+      <workItem from="1763932462562" duration="27367000" />
+      <workItem from="1764088439909" duration="230000" />
+      <workItem from="1764092071234" duration="3588000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />

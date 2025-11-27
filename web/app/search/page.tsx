@@ -3,15 +3,19 @@ import { getProductsBasic } from '@/lib/shopify';
 import LiveSearch from '@/components/LiveSearch';
 import SearchPageClient from '@/components/SearchPageClient';
 import { getServerLanguage, toShopifyLanguage } from '@/lib/language';
+import { isSupportedLanguage, type Language } from '@/lib/languageConfig';
 
 type Props = {
-    searchParams: Promise<{ q?: string }>;
+    searchParams: Promise<{ q?: string; lang?: string }>;
 };
 
 export default async function SearchPage({ searchParams }: Props) {
-    const { q } = await searchParams;
+    const { q, lang } = await searchParams;
     const query = q?.trim() || '';
-    const language = await getServerLanguage();
+    const language: Language =
+        lang && isSupportedLanguage(lang)
+            ? lang
+            : await getServerLanguage();
     const shopifyLang = toShopifyLanguage(language);
 
     // Hämta produkter baserat på sökningen

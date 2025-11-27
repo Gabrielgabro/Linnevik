@@ -344,11 +344,21 @@ export async function getProductsBasic(first = 60, queryStr?: string, language: 
     }
   `;
 
+    // Format search query using Shopify's search syntax
+    // Use wildcards for partial matching: title:*searchterm*
+    let formattedQuery = null;
+    if (queryStr && queryStr.trim()) {
+        const searchTerm = queryStr.trim();
+        // Search in both title and product_type for better results
+        formattedQuery = `title:*${searchTerm}* OR product_type:*${searchTerm}*`;
+    }
+
     const variables = {
         first,
-        query: queryStr && queryStr.trim() ? queryStr.trim() : null,
+        query: formattedQuery,
     };
 
+    // Try searching in the current language
     const data = await storefrontFetch<{
         products: { edges: { node: any }[] };
     }>({
@@ -358,7 +368,26 @@ export async function getProductsBasic(first = 60, queryStr?: string, language: 
         language,
     });
 
-    return data.products.edges.map(edge => edge.node) as Array<{
+    let products = data.products.edges.map(edge => edge.node);
+
+    // If no results and not searching in Swedish, try Swedish as fallback
+    if (products.length === 0 && language !== 'SV' && queryStr && queryStr.trim()) {
+        try {
+            const fallbackData = await storefrontFetch<{
+                products: { edges: { node: any }[] };
+            }>({
+                query: PRODUCTS_QUERY,
+                variables,
+                apiVersion: LEGACY_API_VERSION,
+                language: 'SV',
+            });
+            products = fallbackData.products.edges.map(edge => edge.node);
+        } catch (error) {
+            console.error('Fallback search failed:', error);
+        }
+    }
+
+    return products as Array<{
         id: string;
         title: string;
         handle: string;
