@@ -53,25 +53,25 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({
-                                       children,
-                                   }: {
+    children,
+}: {
     children: React.ReactNode;
 }) {
     return (
-        <html lang="sv">
-        <body className={`${libreBaskerville.variable} ${inter.variable}`}>
-        <LanguageProvider>
-            <CartProvider>
-                <HomePageBubbles />
-                <Header />
-                {children}
-                <Footer />
-                <CookieBanner />
-            </CartProvider>
-        </LanguageProvider>
-        <SpeedInsights />
-        <Analytics />
-        </body>
+        <html lang="sv" suppressHydrationWarning>
+            <body className={`${libreBaskerville.variable} ${inter.variable}`}>
+                <LanguageProvider>
+                    <CartProvider>
+                        <HomePageBubbles />
+                        <Header />
+                        {children}
+                        <Footer />
+                        <CookieBanner />
+                    </CartProvider>
+                </LanguageProvider>
+                <SpeedInsights />
+                <Analytics />
+            </body>
         </html>
     );
 }

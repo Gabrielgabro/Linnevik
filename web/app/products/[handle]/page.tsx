@@ -1,6 +1,8 @@
 import ProductGallery from '@/components/ProductGallery';
 import ProductForm from '@/components/ProductForm';
 import Breadcrumbs from '@/components/Breadcrumbs';
+import GooseDown90PriceTiers from '@/components/GooseDown90PriceTiers';
+import MTOPriceEstimator from '@/components/MTOPriceEstimator';
 import { getProductByHandle } from '@/lib/shopify';
 import { getServerLanguage, toShopifyLanguage } from '@/lib/language';
 
@@ -15,6 +17,7 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
     const variants = product.variants.edges.map(e => e.node);
     const moq = product.moq?.value ? Number(product.moq.value) : null;
     const packSize = product.packSize?.value ? Number(product.packSize.value) : null;
+    const hasMTOTag = product.tags?.includes('MTO') ?? false;
 
     // Build breadcrumbs with collection information
     const collections = product.collections.edges.map(e => e.node);
@@ -57,6 +60,8 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
                             variants={variants}
                             moq={moq}
                             packSize={packSize}
+                            hasMTOTag={hasMTOTag}
+                            productId={product.id}
                         />
 
                         {/* Lead time */}
@@ -78,6 +83,17 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
                         <div
                             className="prose prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:text-primary prose-p:text-secondary prose-li:text-secondary prose-strong:text-primary"
                             dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
+                        />
+                    </div>
+                )}
+
+                {/* Price Tiers for MTO products */}
+                {hasMTOTag && (
+                    <div className="mt-16 pt-16 border-t border-[#E7EDF1] dark:border-[#374151] space-y-12">
+                        <GooseDown90PriceTiers />
+                        <MTOPriceEstimator
+                            options={product.options}
+                            variants={variants}
                         />
                     </div>
                 )}

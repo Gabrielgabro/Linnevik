@@ -6,10 +6,16 @@
   <component name="ChangeListManager">
     <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/api/search/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/search/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/search/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/search/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/components/LiveSearch.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/LiveSearch.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/about/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/about/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/products/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/products/[handle]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/samples/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/samples/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/public/Supporting_visuals/Sample.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/components/ProductForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/ProductForm.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/contexts/LanguageContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/contexts/LanguageContext.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/src/lib/shopify.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/shopify.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/sections/SampleCTA.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/sections/SampleCTA.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -87,7 +93,7 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.updates&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
     &quot;ts.external.directory.path&quot;: &quot;/Users/gabrielgabro/Linnevik/web/node_modules/typescript/lib&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
@@ -192,6 +198,12 @@
       <workItem from="1763932462562" duration="27367000" />
       <workItem from="1764088439909" duration="230000" />
       <workItem from="1764092071234" duration="3588000" />
+      <workItem from="1764254231539" duration="11577000" />
+      <workItem from="1764282036983" duration="485000" />
+      <workItem from="1764282533429" duration="430000" />
+      <workItem from="1764289927761" duration="5000" />
+      <workItem from="1764721340111" duration="188000" />
+      <workItem from="1764721546073" duration="688000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />

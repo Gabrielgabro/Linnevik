@@ -85,6 +85,14 @@
   /* text på gröna bakgrunder */
   --on-beige: #0B3D2E;
   /* text på beige bakgrunder */
+
+  /* Nordic Theme Variables */
+  --nordic-bg-main: #FAF7F2;
+  --nordic-bg-secondary: #FFFFFF;
+  --nordic-text-primary: #0B3D2E;
+  --nordic-text-secondary: #5C5C5C;
+  --nordic-accent: #0B3D2E;
+  --nordic-border: #E5E5E5;
 }
 
 @theme inline {
@@ -98,6 +106,20 @@
     --background: #0a0a0a;
     --foreground: #ededed;
 
+    /* Nordic Theme Dark Mode - Neutral & Clean */
+    --nordic-bg-main: #0F0F0F;
+    /* Pure neutral dark */
+    --nordic-bg-secondary: #1A1A1A;
+    /* Slightly lighter neutral */
+    --nordic-text-primary: #F5F5F5;
+    /* Clean off-white */
+    --nordic-text-secondary: #A0A0A0;
+    /* Neutral gray */
+    --nordic-accent: #E8E8E8;
+    /* Soft neutral accent */
+    --nordic-border: #2A2A2A;
+    /* Subtle neutral border */
+
     /* Background colors */
     --color-bg-primary: #111827;
     /* gray-900 */
@@ -110,12 +132,12 @@
 
     /* Text colors */
     --color-text-primary: #ffffff;
-    --color-text-secondary: #9ca3af;
-    /* gray-400 */
-    --color-text-tertiary: #d1d5db;
-    /* gray-300 */
-    --color-text-muted: #9ca3af;
-    /* gray-400 */
+    --color-text-secondary: #d1d5db;
+    /* gray-300 - brighter for more vibrancy */
+    --color-text-tertiary: #e5e7eb;
+    /* gray-200 - even brighter */
+    --color-text-muted: #d1d5db;
+    /* gray-300 - brighter for readability */
 
     /* Border colors */
     --color-border-light: rgba(39, 39, 42, 0.6);

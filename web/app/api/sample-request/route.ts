@@ -28,9 +28,10 @@ export async function POST(request: NextRequest) {
 
         // Create products list HTML
         const productsHtml = products && products.length > 0
-            ? products.map((p: { title: string; id: string }) =>
-                `<li style="margin: 5px 0;">${p.title}</li>`
-            ).join('')
+            ? products.map((p: { title: string; id: string; variant?: string }) => {
+                const variantText = p.variant ? ` <span style="color: #666; font-size: 0.9em;">(${p.variant})</span>` : '';
+                return `<li style="margin: 5px 0;">${p.title}${variantText}</li>`;
+            }).join('')
             : '<li>No products selected</li>';
 
         // Create email HTML

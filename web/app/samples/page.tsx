@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 
 type Product = {
@@ -17,8 +17,10 @@ export default function SamplesPage() {
     const { t } = useTranslation();
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+    const [variantSelections, setVariantSelections] = useState<Map<string, string>>(new Map());
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         // Fetch products from API route
@@ -38,12 +40,49 @@ export default function SamplesPage() {
         if (saved) {
             setSelectedProducts(new Set(JSON.parse(saved)));
         }
-    }, []);
+
+        // Load variant selections from localStorage
+        const savedVariants = localStorage.getItem('linnevik:sample-variants');
+        if (savedVariants) {
+            setVariantSelections(new Map(JSON.parse(savedVariants)));
+        }
+
+        // Check for preselect parameter in URL
+        const preselectId = searchParams.get('preselect');
+        const variantParam = searchParams.get('variant');
+
+        if (preselectId) {
+            // Add the product to selection
+            setSelectedProducts(prev => {
+                const newSet = new Set(prev);
+                newSet.add(preselectId);
+                localStorage.setItem('linnevik:sample-selection', JSON.stringify(Array.from(newSet)));
+                return newSet;
+            });
+
+            // Add variant selection if provided
+            if (variantParam) {
+                setVariantSelections(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(preselectId, variantParam);
+                    localStorage.setItem('linnevik:sample-variants', JSON.stringify(Array.from(newMap.entries())));
+                    return newMap;
+                });
+            }
+        }
+    }, [searchParams]);
 
     const toggleProduct = (productId: string) => {
         const newSelected = new Set(selectedProducts);
         if (newSelected.has(productId)) {
             newSelected.delete(productId);
+            // Also remove variant selection
+            setVariantSelections(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(productId);
+                localStorage.setItem('linnevik:sample-variants', JSON.stringify(Array.from(newMap.entries())));
+                return newMap;
+            });
         } else {
             newSelected.add(productId);
         }
@@ -128,19 +167,17 @@ export default function SamplesPage() {
                                     <button
                                         key={product.id}
                                         onClick={() => toggleProduct(product.id)}
-                                        className={`group relative text-left p-6 rounded-2xl border-2 transition-all duration-200 ${
-                                            isSelected
-                                                ? 'border-[#0B3D2E] dark:border-[#379E7D] bg-[#D9F0E8] dark:bg-[#0B3D2E]/20 ring-4 ring-[#0B3D2E]/10 dark:ring-[#379E7D]/20'
-                                                : 'border-[#E7EDF1] dark:border-[#374151] hover:border-[#4A6B82] dark:hover:border-[#4F6F8E] bg-white dark:bg-[#1f2937]'
-                                        }`}
+                                        className={`group relative text-left p-6 rounded-2xl border-2 transition-all duration-200 ${isSelected
+                                            ? 'border-[#0B3D2E] dark:border-[#379E7D] bg-[#D9F0E8] dark:bg-[#0B3D2E]/20 ring-4 ring-[#0B3D2E]/10 dark:ring-[#379E7D]/20'
+                                            : 'border-[#E7EDF1] dark:border-[#374151] hover:border-[#4A6B82] dark:hover:border-[#4F6F8E] bg-white dark:bg-[#1f2937]'
+                                            }`}
                                     >
                                         {/* Checkbox indicator */}
                                         <div className="absolute top-4 right-4 z-10">
-                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                                                isSelected
-                                                    ? 'bg-[#0B3D2E] dark:bg-[#379E7D] border-[#0B3D2E] dark:border-[#379E7D]'
-                                                    : 'bg-white dark:bg-[#111827] border-[#E7EDF1] dark:border-[#374151]'
-                                            }`}>
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
+                                                ? 'bg-[#0B3D2E] dark:bg-[#379E7D] border-[#0B3D2E] dark:border-[#379E7D]'
+                                                : 'bg-white dark:bg-[#111827] border-[#E7EDF1] dark:border-[#374151]'
+                                                }`}>
                                                 {isSelected && (
                                                     <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -157,18 +194,23 @@ export default function SamplesPage() {
                                                     alt={image.altText ?? product.title}
                                                     fill
                                                     className="object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-secondary">
-                                                {t.samples.grid.noImage}
-                                            </div>
-                                        )}
-                                    </div>
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-secondary">
+                                                    {t.samples.grid.noImage}
+                                                </div>
+                                            )}
+                                        </div>
 
                                         {/* Product Info */}
                                         <h3 className="text-lg font-semibold text-primary mb-1 pr-8">
                                             {product.title}
                                         </h3>
+                                        {variantSelections.has(product.id) && (
+                                            <p className="text-sm text-secondary mb-1">
+                                                {variantSelections.get(product.id)}
+                                            </p>
+                                        )}
                                         <p className="text-sm text-secondary">
                                             {t.samples.grid.priceFrom} {Number(product.priceRange.minVariantPrice.amount).toLocaleString('sv-SE')} {product.priceRange.minVariantPrice.currencyCode}
                                         </p>

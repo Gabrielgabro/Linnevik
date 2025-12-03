@@ -10,6 +10,7 @@ type Product = {
     handle: string;
     title: string;
     images: { edges: { node: { url: string; altText: string | null } }[] };
+    variant?: string;
 };
 
 export default function SamplesCheckoutPage() {
@@ -44,11 +45,20 @@ export default function SamplesCheckoutPage() {
             return;
         }
 
+        // Load variant selections
+        const savedVariants = localStorage.getItem('linnevik:sample-variants');
+        const variantMap = savedVariants ? new Map(JSON.parse(savedVariants)) : new Map();
+
         // Fetch selected products
         fetch('/api/products')
             .then(res => res.json())
             .then((allProducts: Product[]) => {
-                const selected = allProducts.filter(p => ids.includes(p.id));
+                const selected = allProducts
+                    .filter(p => ids.includes(p.id))
+                    .map(p => ({
+                        ...p,
+                        variant: variantMap.get(p.id) || undefined
+                    }));
                 setSelectedProducts(selected);
                 setLoading(false);
             })
@@ -75,7 +85,11 @@ export default function SamplesCheckoutPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
-                    products: selectedProducts.map(p => ({ id: p.id, title: p.title })),
+                    products: selectedProducts.map(p => ({
+                        id: p.id,
+                        title: p.title,
+                        variant: p.variant
+                    })),
                 }),
             });
 
@@ -83,6 +97,7 @@ export default function SamplesCheckoutPage() {
 
             // Clear selection
             localStorage.removeItem('linnevik:sample-selection');
+            localStorage.removeItem('linnevik:sample-variants');
 
             router.push('/thank-you');
         } catch (error) {
@@ -357,9 +372,16 @@ export default function SamplesCheckoutPage() {
                                                     <div className="w-full h-full bg-[#E7EDF1] dark:bg-[#374151]" />
                                                 )}
                                             </div>
-                                            <p className="text-sm font-medium text-primary flex-1 line-clamp-2">
-                                                {product.title}
-                                            </p>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-primary line-clamp-2">
+                                                    {product.title}
+                                                </p>
+                                                {product.variant && (
+                                                    <p className="text-xs text-secondary mt-0.5">
+                                                        {product.variant}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     );
                                 })}

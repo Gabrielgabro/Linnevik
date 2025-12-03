@@ -26,6 +26,7 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
   const router = useRouter();
 
+
   useEffect(() => {
     const savedLanguage = localStorage.getItem('linnevik:language');
     const cookieMatch = document.cookie.match(/(?:^|; )NEXT_LOCALE=([^;]+)/);
