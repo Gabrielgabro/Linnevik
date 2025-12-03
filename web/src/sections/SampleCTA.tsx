@@ -32,7 +32,7 @@ export default function SampleCTA() {
           <div className="order-1 lg:order-2 relative h-[180px] lg:h-[400px] min-h-[100px]">
             <img
               alt={t.home.sampleCta.imageAlt}
-              src="/Supporting_visuals/sample_best.jpg"
+              src="/Supporting_visuals/Sample_best.jpg"
               className="absolute inset-0 w-full h-full object-cover"
             />
 
