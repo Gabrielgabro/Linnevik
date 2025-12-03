@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -13,7 +13,7 @@ type Product = {
     priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
 };
 
-export default function SamplesPage() {
+function SamplesPageContent() {
     const { t } = useTranslation();
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
@@ -236,5 +236,20 @@ export default function SamplesPage() {
                 </section>
             )}
         </main>
+    );
+}
+
+export default function SamplesPage() {
+    return (
+        <Suspense fallback={
+            <main className="min-h-screen bg-white dark:bg-[#111827] flex items-center justify-center">
+                <div className="text-center">
+                    <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#0B3D2E] border-r-transparent dark:border-[#379E7D]" />
+                    <p className="mt-4 text-secondary">Laddar...</p>
+                </div>
+            </main>
+        }>
+            <SamplesPageContent />
+        </Suspense>
     );
 }
