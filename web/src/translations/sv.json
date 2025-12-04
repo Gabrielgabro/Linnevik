@@ -52,6 +52,9 @@
       }
     }
   },
+  "product": {
+    "orderSample": "Beställ prov"
+  },
   "home": {
     "hero": {
       "announcement": {

@@ -1,6 +1,6 @@
 "use client";
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 
 type Logo = { src: string; alt: string };
@@ -55,90 +55,125 @@ export default function ClientLogosRotatingClient({
     // Always show 4 logos horizontally
     const visibleCount = Math.min(4, totalLogos);
 
-    // Initialize: first m logos visible, last 2 hidden
+    // State for rendering
     const [visibleIndices, setVisibleIndices] = useState<number[]>([]);
-    const [hiddenIndices, setHiddenIndices] = useState<number[]>([]);
-
     const [animatingSlot, setAnimatingSlot] = useState<number | null>(null);
     const [animationState, setAnimationState] = useState<AnimationState>('stable');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [nextLogoIndex, setNextLogoIndex] = useState<number | null>(null);
+    const [imagesPreloaded, setImagesPreloaded] = useState(false);
 
-    // Reset indices when logos change (e.g., dark mode toggle)
-    useEffect(() => {
-        setVisibleIndices(Array.from({ length: visibleCount }, (_, i) => i));
-        setHiddenIndices(Array.from({ length: totalLogos - visibleCount }, (_, i) => i + visibleCount));
-        setAnimatingSlot(null);
-        setAnimationState('stable');
-        setNextLogoIndex(null);
-    }, [logos, totalLogos, visibleCount]);
+    // Refs to track current indices without triggering effect re-runs
+    const visibleRef = useRef<number[]>([]);
+    const hiddenRef = useRef<number[]>([]);
 
+    // Preload all logos on mount to prevent initial animation sluggishness
     useEffect(() => {
-        // Don't animate if we don't have enough logos to rotate
-        if (totalLogos <= visibleCount) {
+        if (logos.length === 0) {
+            setImagesPreloaded(true);
             return;
         }
 
-        let timeoutId: NodeJS.Timeout;
+        let cancelled = false;
 
-        const startRotationCycle = () => {
-            // 1. Pick a random visible slot to replace
-            const randomSlot = Math.floor(Math.random() * visibleCount);
-            const logoToReplace = visibleIndices[randomSlot];
-
-            // 2. Pick a random hidden logo to show
-            const randomHiddenIndex = Math.floor(Math.random() * hiddenIndices.length);
-            const logoToShow = hiddenIndices[randomHiddenIndex];
-
-            setAnimatingSlot(randomSlot);
-            setNextLogoIndex(logoToShow);
-
-            // 3. Start fade out
-            setAnimationState('fading-out');
-
-            // 4. After fade out completes, swap logos and start fade in
-            timeoutId = setTimeout(() => {
-                // Swap the logos in state
-                setVisibleIndices(prev => {
-                    const newVisible = [...prev];
-                    newVisible[randomSlot] = logoToShow;
-                    return newVisible;
+        const preloadImages = async () => {
+            const preloadPromises = logos.map((logo) => {
+                return new Promise<void>((resolve) => {
+                    const img = new window.Image();
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve(); // Resolve anyway to not block
+                    img.src = logo.src;
                 });
+            });
 
-                setHiddenIndices(prev => {
-                    const newHidden = [...prev];
-                    newHidden[randomHiddenIndex] = logoToReplace;
-                    return newHidden;
-                });
+            await Promise.all(preloadPromises);
 
-                // Start fade in
-                setAnimationState('fading-in');
-
-                // 5. After fade in completes, pause, then schedule next cycle
-                timeoutId = setTimeout(() => {
-                    setAnimationState('stable');
-                    setAnimatingSlot(null);
-                    setNextLogoIndex(null);
-
-                    // 6. Pause before next rotation
-                    timeoutId = setTimeout(() => {
-                        startRotationCycle();
-                    }, PAUSE_BETWEEN);
-
-                }, FADE_IN_DURATION);
-
-            }, FADE_OUT_DURATION);
+            if (!cancelled) {
+                setImagesPreloaded(true);
+            }
         };
 
-        // Start first cycle after initial display duration
-        timeoutId = setTimeout(() => {
-            startRotationCycle();
+        preloadImages();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [logos]);
+
+    // Reset indices when logos change (e.g., dark mode toggle)
+    useEffect(() => {
+        const initialVisible = Array.from({ length: visibleCount }, (_, i) => i);
+        const initialHidden = Array.from({ length: totalLogos - visibleCount }, (_, i) => i + visibleCount);
+
+        visibleRef.current = initialVisible;
+        hiddenRef.current = initialHidden;
+
+        setVisibleIndices(initialVisible);
+        setAnimatingSlot(null);
+        setAnimationState('stable');
+    }, [logos, totalLogos, visibleCount]);
+
+    // Stable rotation function using refs
+    const performRotation = useCallback(() => {
+        const currentVisible = visibleRef.current;
+        const currentHidden = hiddenRef.current;
+
+        if (currentHidden.length === 0) return;
+
+        // 1. Pick a random visible slot to replace
+        const randomSlot = Math.floor(Math.random() * currentVisible.length);
+        const logoToReplace = currentVisible[randomSlot];
+
+        // 2. Pick a random hidden logo to show
+        const randomHiddenIndex = Math.floor(Math.random() * currentHidden.length);
+        const logoToShow = currentHidden[randomHiddenIndex];
+
+        setAnimatingSlot(randomSlot);
+        setAnimationState('fading-out');
+
+        // 3. After fade out, swap and fade in
+        setTimeout(() => {
+            // Update refs
+            const newVisible = [...currentVisible];
+            newVisible[randomSlot] = logoToShow;
+            visibleRef.current = newVisible;
+
+            const newHidden = [...currentHidden];
+            newHidden[randomHiddenIndex] = logoToReplace;
+            hiddenRef.current = newHidden;
+
+            // Update render state
+            setVisibleIndices(newVisible);
+            setAnimationState('fading-in');
+
+            // 4. After fade in, reset and schedule next
+            setTimeout(() => {
+                setAnimationState('stable');
+                setAnimatingSlot(null);
+
+                // 5. Pause then rotate again
+                setTimeout(() => {
+                    performRotation();
+                }, PAUSE_BETWEEN);
+
+            }, FADE_IN_DURATION);
+
+        }, FADE_OUT_DURATION);
+    }, []);
+
+    // Start rotation only after images are preloaded
+    useEffect(() => {
+        if (!imagesPreloaded || totalLogos <= visibleCount) {
+            return;
+        }
+
+        const timeoutId = setTimeout(() => {
+            performRotation();
         }, DISPLAY_DURATION);
 
         return () => {
             clearTimeout(timeoutId);
         };
-    }, [totalLogos, visibleCount, visibleIndices, hiddenIndices]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [imagesPreloaded]);
 
     if (totalLogos === 0) {
         return null;
@@ -182,8 +217,8 @@ export default function ClientLogosRotatingClient({
                                         transitionDuration: animationState === 'fading-out'
                                             ? `${FADE_OUT_DURATION}ms`
                                             : animationState === 'fading-in'
-                                            ? `${FADE_IN_DURATION}ms`
-                                            : '0ms'
+                                                ? `${FADE_IN_DURATION}ms`
+                                                : '0ms'
                                     }}
                                 >
                                     <Image
