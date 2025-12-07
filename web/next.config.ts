@@ -25,6 +25,12 @@ const nextConfig: NextConfig = {
                 destination: '/sv',
                 permanent: false,
             },
+            // Redirect Shopify activation links (no locale) to Swedish default
+            {
+                source: '/account/activate/:id/:token',
+                destination: '/sv/account/activate/:id/:token',
+                permanent: false,
+            },
         ];
     },
     eslint: {

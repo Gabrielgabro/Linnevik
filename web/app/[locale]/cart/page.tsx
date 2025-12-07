@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
+import { getHreflang } from '@/lib/metadata';
 import CartClient from './CartClient';
 
 type Props = {
@@ -14,14 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.cart.title + " | Linnevik",
         description: "Din varukorg hos Linnevik.",
-        metadataBase: new URL('https://linnevik.se'),
-        alternates: {
-            canonical: `https://linnevik.se/${locale}/cart`,
-            languages: {
-                'sv': 'https://linnevik.se/sv/cart',
-                'en': 'https://linnevik.se/en/cart',
-            },
-        },
+        alternates: getHreflang('/cart'),
     };
 }
 

@@ -8,6 +8,12 @@ import { getHreflang } from '@/lib/metadata';
 
 const translations: Record<Language, typeof sv> = { sv, en };
 
+import { getStaticLocaleParams } from '@/lib/staticParams';
+
+export async function generateStaticParams() {
+    return getStaticLocaleParams();
+}
+
 type Props = {
     params: Promise<{ locale: string }>;
 };

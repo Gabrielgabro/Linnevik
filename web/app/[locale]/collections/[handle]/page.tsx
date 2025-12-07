@@ -8,7 +8,13 @@ import { toShopifyLanguage } from "@/lib/languageConfig";
 import { getTranslations } from "@/lib/i18n";
 import { normalizeLocale } from "@/lib/i18n";
 
-export const dynamic = 'force-dynamic';
+// export const dynamic = 'force-dynamic';
+
+import { getCollectionStaticParams } from '@/lib/staticParams';
+
+export async function generateStaticParams() {
+    return getCollectionStaticParams();
+}
 
 type Props = {
     params: Promise<{ locale: string; handle: string }>;

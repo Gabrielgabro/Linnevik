@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { handleLogin, type LoginState } from './actions';
 import Button from '@/components/Button';
 import { useTranslation } from '@/contexts/LocaleContext';
+import { LocaleLink } from '@/components/LocaleLink';
 
 const initialState: LoginState = { status: 'idle' };
 
@@ -72,12 +73,12 @@ export default function LoginClient() {
                             <Button type="submit" variant="primary" className="w-full">
                                 {t.login.actions.signIn}
                             </Button>
-                            <a
+                            <LocaleLink
                                 href="/login/create-account"
                                 className="inline-flex w-full items-center justify-center rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 font-medium text-primary transition hover:bg-[#f4f4f5] dark:hover:bg-[#27272a]"
                             >
                                 {t.login.actions.create}
-                            </a>
+                            </LocaleLink>
                         </div>
                     </form>
                 </div>

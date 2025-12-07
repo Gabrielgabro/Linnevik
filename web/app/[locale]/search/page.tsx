@@ -8,6 +8,12 @@ import { normalizeLocale } from '@/lib/i18n';
 import { toShopifyLanguage } from '@/lib/languageConfig';
 
 
+import { getStaticLocaleParams } from '@/lib/staticParams';
+
+export async function generateStaticParams() {
+    return getStaticLocaleParams();
+}
+
 type Props = {
     params: Promise<{ locale: string }>;
     searchParams: Promise<{ q?: string }>;

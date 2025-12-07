@@ -21,11 +21,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale: localeParam } = await params;
   const locale = normalizeLocale(localeParam);
 
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://linnevik.se';
+
   return {
+    metadataBase: new URL(baseUrl),
     alternates: {
+      canonical: `${baseUrl}/${locale}`,
       languages: {
-        sv: '/sv',
-        en: '/en',
+        sv: `${baseUrl}/sv`,
+        en: `${baseUrl}/en`,
       },
     },
   };

@@ -318,6 +318,38 @@
     },
     "fallbackName": "Användare"
   },
+  "activation": {
+    "title": "Aktivera konto",
+    "subtitle": "Skapa ett lösenord för att aktivera ditt konto.",
+    "fields": {
+      "password": "Lösenord",
+      "confirmPassword": "Bekräfta lösenord"
+    },
+    "actions": {
+      "submit": "Aktivera konto",
+      "submitting": "Aktiverar..."
+    },
+    "errors": {
+      "passwordMismatch": "Lösenorden matchar inte",
+      "passwordTooShort": "Lösenordet måste vara minst 5 tecken",
+      "unexpectedError": "Ett oväntat fel uppstod.",
+      "activationFailed": "Kunde inte aktivera kontot. Försök igen."
+    },
+    "metadata": {
+      "title": "Aktivera konto | Linnevik",
+      "description": "Aktivera ditt Linnevik-konto"
+    }
+  },
+  "vatStatus": {
+    "notLoggedIn": "Du är inte inloggad. Logga in via kontosidan först.",
+    "invalidFormat": "Ange ett giltigt VAT-nummer (t.ex. SE123456789).",
+    "saved": "VAT-nummer sparat.",
+    "notProvided": "VAT är markerat som ej angivet.",
+    "updateFailed": "Kunde inte uppdatera VAT just nu. Försök igen.",
+    "isSaved": "VAT är sparat.",
+    "noVatYet": "Inget VAT-nummer sparat ännu.",
+    "loadFailed": "Kunde inte hämta VAT-status just nu. Försök igen."
+  },
   "contact": {
     "hero": {
       "badge": "Kontakt",

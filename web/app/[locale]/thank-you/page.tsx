@@ -1,7 +1,14 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
+import { getHreflang } from '@/lib/metadata';
 import ThankYouClient from './ThankYouClient';
 
+
+import { getStaticLocaleParams } from '@/lib/staticParams';
+
+export async function generateStaticParams() {
+    return getStaticLocaleParams();
+}
 
 type Props = {
     params: Promise<{ locale: string }>;
@@ -14,13 +21,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     return {
         title: t.thankYou.title + " | Linnevik",
-        description: "Tack för att du beställde prover från Linnevik.",
-        alternates: {
-            languages: {
-                'sv': 'https://linnevik.se/sv/thank-you',
-                'en': 'https://linnevik.se/en/thank-you',
-            },
-        },
+        description: t.thankYou.message,
+        alternates: getHreflang('/thank-you'),
     };
 }
 

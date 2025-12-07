@@ -5,6 +5,12 @@ import { isAuthenticated, redirectToAccount } from '@/lib/auth-helpers';
 import { getHreflang } from '@/lib/metadata';
 
 
+import { getStaticLocaleParams } from '@/lib/staticParams';
+
+export async function generateStaticParams() {
+    return getStaticLocaleParams();
+}
+
 type Props = {
     params: Promise<{ locale: string }>;
 };

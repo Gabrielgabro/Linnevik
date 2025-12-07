@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
+import { getHreflang } from '@/lib/metadata';
 import SamplesClient from './SamplesClient';
 
 
@@ -15,12 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.samples.hero.title + " | Linnevik",
         description: "Beställ tygprover gratis för att känna på kvaliteten innan du bestämmer dig.",
-        alternates: {
-            languages: {
-                'sv': 'https://linnevik.se/sv/samples',
-                'en': 'https://linnevik.se/en/samples',
-            },
-        },
+        alternates: getHreflang('/samples'),
     };
 }
 

@@ -187,3 +187,19 @@ export async function clearCustomerToken(): Promise<void> {
     cookieStore.delete('customer_access_token');
     cookieStore.delete('shopify_customer_token');
 }
+
+/**
+ * Create a session from an access token (e.g. after password activation)
+ */
+export async function createSession(accessToken: string, expiresAt: string | Date) {
+    const cookieStore = await cookies();
+    const expiryDate = typeof expiresAt === 'string' ? new Date(expiresAt) : expiresAt;
+
+    cookieStore.set('customer_access_token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        expires: expiryDate,
+        path: '/',
+    });
+}

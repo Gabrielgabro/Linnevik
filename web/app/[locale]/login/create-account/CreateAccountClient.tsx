@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { handleRegister, type RegisterState } from '../actions';
 import Button from '@/components/Button';
 import { useTranslation } from '@/contexts/LocaleContext';
+import { LocaleLink } from '@/components/LocaleLink';
 
 const initialState: RegisterState = { status: 'idle' };
 
@@ -117,12 +118,12 @@ export default function CreateAccountClient() {
                             >
                                 {t.register.submit}
                             </Button>
-                            <a
+                            <LocaleLink
                                 href="/login"
                                 className="inline-flex w-full items-center justify-center rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 font-medium text-primary transition hover:bg-[#f4f4f5] dark:hover:bg-[#27272a]"
                             >
                                 {t.register.backToLogin}
-                            </a>
+                            </LocaleLink>
                         </div>
                     </form>
                 </div>

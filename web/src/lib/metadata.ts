@@ -1,4 +1,4 @@
-const SITE_URL = 'https://linnevik.se';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://linnevik.se';
 
 export function getHreflang(path: string) {
     // Ensure path starts with /

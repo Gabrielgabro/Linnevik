@@ -806,12 +806,51 @@ export async function createCustomerAccount(
     throw new Error(customerUserErrors.map(err => err.message).join(', '));
   }
 
-  if (!customer) {
-    throw new Error('Account creation failed. Please try again.');
-  }
-
-  return customer.id;
+  return customer?.id || '';
 }
+
+export async function customerActivate(
+  id: string,
+  activationToken: string,
+  password: string,
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+): Promise<{ customerAccessToken: CustomerAccessToken; userErrors: any[] }> {
+  const MUTATION = `
+    mutation customerActivate($id: ID!, $input: CustomerActivateInput!, $language: LanguageCode!) @inContext(language: $language) {
+      customerActivate(id: $id, input: $input) {
+        customerAccessToken {
+          accessToken
+          expiresAt
+        }
+        customerUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await storefrontFetch<{
+    customerActivate: {
+      customerAccessToken: CustomerAccessToken | null;
+      customerUserErrors: { code: string | null; field: string[] | null; message: string }[];
+    }
+  }>({
+    query: MUTATION,
+    variables: {
+      id,
+      input: { activationToken, password },
+      language,
+    },
+  });
+
+  return {
+    customerAccessToken: data.customerActivate.customerAccessToken!,
+    userErrors: data.customerActivate.customerUserErrors,
+  };
+}
+
 
 export async function getCustomer(
   customerAccessToken: string,

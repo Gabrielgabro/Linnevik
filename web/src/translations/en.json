@@ -318,6 +318,38 @@
     },
     "fallbackName": "User"
   },
+  "activation": {
+    "title": "Activate Account",
+    "subtitle": "Create a password to activate your account.",
+    "fields": {
+      "password": "Password",
+      "confirmPassword": "Confirm password"
+    },
+    "actions": {
+      "submit": "Activate Account",
+      "submitting": "Activating..."
+    },
+    "errors": {
+      "passwordMismatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 5 characters",
+      "unexpectedError": "An unexpected error occurred.",
+      "activationFailed": "Failed to activate account. Please try again."
+    },
+    "metadata": {
+      "title": "Activate Account | Linnevik",
+      "description": "Activate your Linnevik account"
+    }
+  },
+  "vatStatus": {
+    "notLoggedIn": "You are not logged in. Please log in from the account page first.",
+    "invalidFormat": "Enter a valid VAT number (e.g., SE123456789).",
+    "saved": "VAT number saved.",
+    "notProvided": "VAT is marked as not provided.",
+    "updateFailed": "Could not update VAT right now. Please try again.",
+    "isSaved": "VAT is saved.",
+    "noVatYet": "No VAT number saved yet.",
+    "loadFailed": "Could not load VAT status right now. Please try again."
+  },
   "contact": {
     "hero": {
       "badge": "Contact",

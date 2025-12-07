@@ -5,8 +5,9 @@ import SampleCTA from '@/sections/SampleCTA';
 import Hero from "@/sections/Hero";
 import HomePageBubbles from "@/components/HomePageBubbles";
 import { Metadata } from 'next';
-import { getTranslations, normalizeLocale } from '@/lib/i18n';
-import { getCanonicalUrl } from '@/lib/metadata';
+import { normalizeLocale } from '@/lib/i18n';
+import { getTranslations } from '@/lib/getTranslations';
+import { getHreflang } from '@/lib/metadata';
 
 type Props = {
     params: Promise<{ locale: string }>;
@@ -28,14 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title,
         description,
-        metadataBase: new URL('https://linnevik.se'),
-        alternates: {
-            canonical: getCanonicalUrl(locale, '/'),
-            languages: {
-                'sv': 'https://linnevik.se/sv',
-                'en': 'https://linnevik.se/en',
-            },
-        },
+        alternates: getHreflang('/'),
         openGraph: {
             title,
             description,

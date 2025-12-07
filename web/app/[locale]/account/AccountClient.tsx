@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
 import { logout } from '../login/actions';
 import type { CustomerOrder } from '@/lib/customerAccount';
-import { useTranslation } from '@/contexts/LocaleContext';
+import { useTranslation, useLocale } from '@/contexts/LocaleContext';
+import { LocaleLink } from '@/components/LocaleLink';
 
 type Props = {
     initialEmail?: string;
@@ -23,6 +24,7 @@ export default function AccountClient({
 }: Props) {
     const router = useRouter();
     const { t } = useTranslation();
+    const locale = useLocale();
 
     const displayName = [initialFirstName, initialLastName].filter(Boolean).join(' ') || t.account.fallbackName;
     const greeting = t.account.greeting.replace('{name}', displayName);
@@ -30,7 +32,7 @@ export default function AccountClient({
 
     const handleLogout = async () => {
         await logout();
-        router.push('/login');
+        router.push(`/${locale}/login`);
         router.refresh();
     };
 

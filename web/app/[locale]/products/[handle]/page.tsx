@@ -7,8 +7,15 @@ import { getProductByHandle } from '@/lib/shopify';
 import { getHreflang, getCanonicalUrl } from '@/lib/metadata';
 import { toShopifyLanguage } from '@/lib/languageConfig';
 import { normalizeLocale } from '@/lib/i18n';
+import JsonLd from '@/components/JsonLd';
 
-export const dynamic = 'force-dynamic';
+// export const dynamic = 'force-dynamic';
+
+import { getProductStaticParams } from '@/lib/staticParams';
+
+export async function generateStaticParams() {
+    return getProductStaticParams();
+}
 
 type Props = {
     params: Promise<{ locale: string; handle: string }>;
@@ -97,6 +104,12 @@ export default async function ProductPage({ params }: Props) {
     return (
         <main className="min-h-screen bg-white dark:bg-[#111827]">
             <div className="max-w-7xl mx-auto px-6 pt-32 pb-16">
+                <JsonLd product={{
+                    title: product.title,
+                    description: product.descriptionHtml?.replace(/<[^>]*>/g, '') || undefined,
+                    images: product.images,
+                    variants: product.variants
+                }} url={`https://linnevik.se/${locale}/products/${handle}`} />
                 <Breadcrumbs items={breadcrumbItems} />
 
                 {/* Product grid */}

@@ -4,6 +4,12 @@ import { getTranslations, normalizeLocale } from '@/lib/i18n';
 import { getHreflang } from '@/lib/metadata';
 
 
+import { getStaticLocaleParams } from '@/lib/staticParams';
+
+export async function generateStaticParams() {
+    return getStaticLocaleParams();
+}
+
 type Props = {
     params: Promise<{ locale: string }>;
 };

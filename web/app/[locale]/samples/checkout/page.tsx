@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
+import { getHreflang } from '@/lib/metadata';
 import CheckoutClient from './CheckoutClient';
 
 
@@ -15,12 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.samplesCheckout.header.title + " | Linnevik",
         description: "Fyll i dina uppgifter för att få dina tygprover skickade till dig.",
-        alternates: {
-            languages: {
-                'sv': 'https://linnevik.se/sv/samples/checkout',
-                'en': 'https://linnevik.se/en/samples/checkout',
-            },
-        },
+        alternates: getHreflang('/samples/checkout'),
     };
 }
 

@@ -6,9 +6,14 @@ import { CookieSettingsButton } from '@/components/CookieSettingsButton';
 import { normalizeLocale } from '@/lib/i18n';
 import { getHreflang } from '@/lib/metadata';
 import { Metadata } from 'next';
+import { getStaticLocaleParams } from '@/lib/staticParams';
 
 
 const translations: Record<Language, typeof sv> = { sv, en };
+
+export async function generateStaticParams() {
+    return getStaticLocaleParams();
+}
 
 export const metadata: Metadata = {
     title: "Cookie Policy | Linnevik",

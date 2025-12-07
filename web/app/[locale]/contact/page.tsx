@@ -1,8 +1,13 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
+import { getHreflang } from '@/lib/metadata';
 import { getCanonicalUrl } from '@/lib/metadata';
 import ContactClient from './ContactClient';
+import { getStaticLocaleParams } from '@/lib/staticParams';
 
+export async function generateStaticParams() {
+    return getStaticLocaleParams();
+}
 
 type Props = {
     params: Promise<{ locale: string }>;
@@ -16,14 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.contact.hero.title + " | Linnevik",
         description: "Kontakta oss för frågor om våra produkter, offerter eller samarbeten.",
-        metadataBase: new URL('https://linnevik.se'),
-        alternates: {
-            canonical: getCanonicalUrl(locale, '/contact'),
-            languages: {
-                'sv': 'https://linnevik.se/sv/contact',
-                'en': 'https://linnevik.se/en/contact',
-            },
-        },
+        alternates: getHreflang('/contact'),
     };
 }
 

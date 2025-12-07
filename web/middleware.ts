@@ -23,18 +23,32 @@ export function middleware(request: NextRequest) {
   }
 
   // Check if pathname already has a locale
-  const pathnameHasLocale = locales.some(
+  const pathnameLocale = locales.find(
     locale => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
 
-  if (pathnameHasLocale) {
-    return NextResponse.next();
+  if (pathnameLocale) {
+    // Set the NEXT_LOCALE cookie to match the URL locale for server actions
+    const response = NextResponse.next();
+    response.cookies.set('NEXT_LOCALE', pathnameLocale, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+      sameSite: 'lax',
+    });
+    return response;
   }
 
   // Redirect to default locale if no locale in URL
   const locale = DEFAULT_LANGUAGE;
-  request.nextUrl.pathname = `/${locale}${pathname}`;
-  return NextResponse.redirect(request.nextUrl);
+  const response = NextResponse.redirect(
+    new URL(`/${locale}${pathname}`, request.url)
+  );
+  response.cookies.set('NEXT_LOCALE', locale, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+    sameSite: 'lax',
+  });
+  return response;
 }
 
 export const config = {
@@ -45,3 +59,4 @@ export const config = {
     '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
 };
+

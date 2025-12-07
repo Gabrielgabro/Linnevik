@@ -3,7 +3,11 @@ import { getTranslations, normalizeLocale } from '@/lib/i18n';
 import { getHreflang, getCanonicalUrl } from '@/lib/metadata';
 import AboutClient from './AboutClient';
 
+import { getStaticLocaleParams } from '@/lib/staticParams';
 
+export async function generateStaticParams() {
+    return getStaticLocaleParams();
+}
 type Props = {
     params: Promise<{ locale: string }>;
 };

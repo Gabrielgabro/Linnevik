@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
 import { handleVerifyEmail } from '../actions';
-import { useTranslation } from '@/contexts/LocaleContext';
+import { useTranslation, useLocale } from '@/contexts/LocaleContext';
+import { LocaleLink } from '@/components/LocaleLink';
 
 export default function VerifyEmailClient() {
     const router = useRouter();
     const { t } = useTranslation();
+    const locale = useLocale();
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -26,7 +28,7 @@ export default function VerifyEmailClient() {
                 setSuccess(true);
                 // Redirect to login after 2 seconds
                 setTimeout(() => {
-                    router.push('/login');
+                    router.push(`/${locale}/login`);
                 }, 2000);
             } else {
                 setError(result.message ?? t.verifyEmail.genericError);
@@ -98,12 +100,12 @@ export default function VerifyEmailClient() {
                                     {loading ? t.verifyEmail.submitting : t.verifyEmail.submit}
                                 </Button>
 
-                                <a
+                                <LocaleLink
                                     href="/login/create-account"
                                     className="inline-flex w-full items-center justify-center rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 font-medium text-primary transition hover:bg-[#f4f4f5] dark:hover:bg-[#27272a] text-sm"
                                 >
                                     {t.verifyEmail.backToRegister}
-                                </a>
+                                </LocaleLink>
                             </div>
 
                             <div className="text-center pt-2">
