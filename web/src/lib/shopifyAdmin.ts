@@ -260,7 +260,7 @@ export async function setCustomerVatMetafield(customerId: string, vatNumber: str
  * @param email - Customer email
  * @param firstName - Customer first name
  * @param lastName - Customer last name
- * @param locale - Customer locale (e.g., 'sv', 'en') - stored as tag for Shopify notifications
+ * @param locale - Customer locale (e.g., 'sv', 'en') - will be converted to Shopify format (sv-SE, en-SE)
  */
 export async function createCustomerAccount(
     email: string,
@@ -271,6 +271,10 @@ export async function createCustomerAccount(
     if (!SHOPIFY_ADMIN_TOKEN) {
         throw new Error('SHOPIFY_ADMIN_API_TOKEN is not configured. Cannot create customer.');
     }
+
+    // Convert Next.js locale to Shopify locale format
+    // en -> en-SE, sv -> sv-SE
+    const shopifyLocale = locale === 'en' ? 'en-SE' : 'sv-SE';
 
     const MUTATION = `
     mutation CreateCustomer($input: CustomerInput!) {
@@ -296,8 +300,8 @@ export async function createCustomerAccount(
             marketingState: 'NOT_SUBSCRIBED',
             marketingOptInLevel: 'SINGLE_OPT_IN',
         },
-        // Set customer locale for Shopify notifications (en, sv, etc.)
-        locale: locale || undefined,
+        // Set customer locale for Shopify notifications (en-SE, sv-SE)
+        locale: shopifyLocale,
     };
 
     const response = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/${ADMIN_API_VERSION}/graphql.json`, {
@@ -341,7 +345,8 @@ export async function createCustomerAccount(
         throw new Error('Customer creation failed.');
     }
 
-    console.log('[shopifyAdmin] Customer created with state:', customer.state, 'locale:', (customer as any).locale);
+    const createdLocale = (customer as any).locale;
+    console.log('[shopifyAdmin] Customer created with state:', customer.state, 'locale:', createdLocale);
 
     return {
         id: customer.id,

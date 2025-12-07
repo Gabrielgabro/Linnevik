@@ -7,10 +7,12 @@ The website now passes each customer's locale (language preference) to Shopify w
 ## What We've Implemented
 
 When a customer creates an account:
-- On `/en/login/create-account` → Customer is created with `locale: "en"`
-- On `/sv/login/create-account` → Customer is created with `locale: "sv"`
+- On `/en/login/create-account` → Customer is created with `locale: "en-SE"`
+- On `/sv/login/create-account` → Customer is created with `locale: "sv-SE"`
 
 Shopify stores this in the customer's `locale` field and uses it to determine which language version of notification emails to send.
+
+**Important**: Shopify requires the locale in the format `language-COUNTRY` (e.g., `en-SE`, `sv-SE`), not just the language code. The code automatically converts Next.js locale format (`en`, `sv`) to Shopify format.
 
 ## Shopify Admin Configuration
 
