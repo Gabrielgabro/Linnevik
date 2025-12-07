@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import LoginClient from './LoginClient';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
-import { isAuthenticated, redirectToAccount } from '@/lib/auth-helpers';
+import { isAuthenticated } from '@/lib/auth-helpers';
 import { getHreflang } from '@/lib/metadata';
 
 
@@ -32,8 +33,9 @@ export default async function LoginPage({ params }: Props) {
 
     // Check if already logged in - redirect to account in same locale
     if (await isAuthenticated()) {
-        redirectToAccount(locale);
+        redirect(`/${locale}/account`);
     }
 
     return <LoginClient />;
 }
+

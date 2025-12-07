@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslation, useLocale } from '@/contexts/LocaleContext';
+import { useTranslation } from '@/contexts/LocaleContext';
 import { activateCustomer } from '../../../actions';
+import Button from '@/components/Button';
 
 type Props = {
     id: string;
@@ -11,8 +12,7 @@ type Props = {
 };
 
 export default function ActivateAccountClient({ id, activationToken }: Props) {
-    const { t } = useTranslation();
-    const locale = useLocale();
+    const { t, locale } = useTranslation();
     const router = useRouter();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -52,62 +52,65 @@ export default function ActivateAccountClient({ id, activationToken }: Props) {
     };
 
     return (
-        <div className="max-w-md mx-auto w-full space-y-8">
-            <div className="text-center">
-                <h2 className="mt-8 text-3xl font-extrabold text-primary">
+        <div className="w-full max-w-md">
+            <div className="mb-8 text-center">
+                <h1 className="mb-3 text-3xl font-bold text-primary md:text-4xl">
                     {t.activation.title}
-                </h2>
-                <p className="mt-2 text-sm text-secondary">
+                </h1>
+                <p className="text-secondary">
                     {t.activation.subtitle}
                 </p>
             </div>
 
-            <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                <div className="rounded-md shadow-sm -space-y-px">
-                    <div className="mb-4">
-                        <label htmlFor="password" className="sr-only">{t.activation.fields.password}</label>
+            <div className="rounded-2xl border border-light bg-white dark:bg-[#1f2937] p-8 shadow-sm">
+                {error && (
+                    <div className="mb-6 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div>
+                        <label htmlFor="password" className="block mb-2 text-sm font-medium text-primary">
+                            {t.activation.fields.password}
+                        </label>
                         <input
                             id="password"
                             name="password"
                             type="password"
+                            autoComplete="new-password"
                             required
-                            className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                            className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-3 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
                             placeholder={t.activation.fields.password}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
                     </div>
+
                     <div>
-                        <label htmlFor="confirmPassword" className="sr-only">{t.activation.fields.confirmPassword}</label>
+                        <label htmlFor="confirmPassword" className="block mb-2 text-sm font-medium text-primary">
+                            {t.activation.fields.confirmPassword}
+                        </label>
                         <input
                             id="confirmPassword"
                             name="confirmPassword"
                             type="password"
+                            autoComplete="new-password"
                             required
-                            className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                            className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-3 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
                             placeholder={t.activation.fields.confirmPassword}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                         />
                     </div>
-                </div>
 
-                {error && (
-                    <div className="text-red-600 text-sm text-center bg-red-50 p-2 rounded">
-                        {error}
+                    <div className="pt-2">
+                        <Button type="submit" variant="primary" className="w-full" disabled={loading}>
+                            {loading ? t.activation.actions.submitting : t.activation.actions.submit}
+                        </Button>
                     </div>
-                )}
-
-                <div>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
-                    >
-                        {loading ? t.activation.actions.submitting : t.activation.actions.submit}
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     );
 }
