@@ -1,9 +1,9 @@
 import Image from "next/image";
-import Link from "next/link";
+import { LocaleLink } from "@/components/LocaleLink";
 
 export default function ProductCard({
-                                        product,
-                                    }: {
+    product,
+}: {
     product: {
         id: string;
         handle: string;
@@ -16,7 +16,7 @@ export default function ProductCard({
     const price = product.priceRange?.minVariantPrice;
 
     return (
-        <Link href={`/products/${product.handle}`} className="group block">
+        <LocaleLink href={`/products/${product.handle}`} className="group block">
             <div className="relative aspect-square bg-gray-100 rounded overflow-hidden">
                 {img?.url ? (
                     <Image
@@ -35,6 +35,6 @@ export default function ProductCard({
                     från {Number(price.amount).toLocaleString("sv-SE")} {price.currencyCode}
                 </p>
             )}
-        </Link>
+        </LocaleLink>
     );
 }

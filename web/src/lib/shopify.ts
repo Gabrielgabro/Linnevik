@@ -49,8 +49,7 @@ export async function storefrontFetch<T>({
       'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN,
     },
     body: JSON.stringify({ query, variables: finalVariables }),
-    cache: 'no-store',
-    next: { revalidate: 0 },
+    next: { revalidate: 3600 }, // Revalidate every hour (ISR)
   });
 
   if (!response.ok) {

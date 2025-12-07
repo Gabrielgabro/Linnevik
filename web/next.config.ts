@@ -7,10 +7,23 @@ const nextConfig: NextConfig = {
     },
     async redirects() {
         return [
+            // Redirect /products to /collections for both locales
+            {
+                source: '/:locale(sv|en)/products',
+                destination: '/:locale/collections',
+                permanent: true,
+            },
+            // Redirect root /products to default locale
             {
                 source: '/products',
-                destination: '/collections',
+                destination: '/sv/collections',
                 permanent: true,
+            },
+            // Redirect root to default locale (Swedish)
+            {
+                source: '/',
+                destination: '/sv',
+                permanent: false,
             },
         ];
     },

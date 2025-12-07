@@ -6,7 +6,7 @@ import { isSupportedLanguage, type Language } from '@/lib/languageConfig';
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
-    const langParam = searchParams.get('lang');
+    const langParam = searchParams.get('lang') || searchParams.get('locale');
 
     if (!query || query.trim().length < 2) {
         return NextResponse.json({ products: [] });

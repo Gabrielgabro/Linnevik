@@ -1,6 +1,7 @@
 'use client';
 
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation } from '@/contexts/LocaleContext';
+import { LocaleLink } from '@/components/LocaleLink';
 
 export default function SampleCTA() {
   const { t } = useTranslation();
@@ -20,12 +21,12 @@ export default function SampleCTA() {
             <p className="text-lg text-white/90 mb-6 max-w-lg">
               {t.home.sampleCta.body}
             </p>
-            <a
+            <LocaleLink
               href="/samples"
               className="inline-flex items-center justify-center rounded-xl bg-[#2E5A8F] hover:bg-[#4F6F8E] px-6 py-3 text-base font-semibold text-white hover:text-white shadow-lg transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F6F8E]"
             >
               {t.home.sampleCta.button}
-            </a>
+            </LocaleLink>
           </div>
 
           {/* Image side - Right */}

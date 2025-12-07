@@ -1,12 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-
 export default function HomePageBubbles() {
-  const pathname = usePathname();
-
-  // Only show bubbles on homepage
-  if (pathname !== '/') return null;
 
   return (
     <>

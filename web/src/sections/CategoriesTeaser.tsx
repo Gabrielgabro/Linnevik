@@ -1,11 +1,13 @@
 // web/src/components/CategoriesTeaser.tsx
-import Link from "next/link";
+import { LocaleLink } from "@/components/LocaleLink";
 import Image from "next/image";
 import { getAllCollections } from "@/lib/shopify";
-import { getServerLanguage, toShopifyLanguage } from "@/lib/language";
+import { toShopifyLanguage } from "@/lib/language";
 
-export default async function CategoriesTeaser() {
-    const language = await getServerLanguage();
+import { normalizeLocale } from "@/lib/i18n";
+
+export default async function CategoriesTeaser({ locale }: { locale: string }) {
+    const language = normalizeLocale(locale);
     const shopifyLang = toShopifyLanguage(language);
     // Hämta många så att sektionen kan växa
     const cols = await getAllCollections(24, shopifyLang);
@@ -21,7 +23,7 @@ export default async function CategoriesTeaser() {
 
                     <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-x-6">
                         {visible.map((c: any) => (
-                            <Link key={c.id} href={`/collections/${c.handle}`} className="group relative block">
+                            <LocaleLink key={c.id} href={`/collections/${c.handle}`} className="group relative block">
                                 <div className="relative w-full rounded-lg bg-overlay overflow-hidden aspect-square">
                                     {c.image?.url ? (
                                         <Image
@@ -44,7 +46,7 @@ export default async function CategoriesTeaser() {
                                     <span className="absolute inset-0" aria-hidden="true" />
                                     {c.title}
                                 </h3>
-                            </Link>
+                            </LocaleLink>
                         ))}
                     </div>
                 </div>

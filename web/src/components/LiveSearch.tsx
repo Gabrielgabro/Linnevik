@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { LocaleLink } from '@/components/LocaleLink';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation } from '@/contexts/LocaleContext';
 
 type Product = {
     id: string;
@@ -82,7 +82,7 @@ export default function LiveSearch() {
                 q: query.trim(),
                 lang: language,
             });
-            router.push(`/search?${params.toString()}`);
+            router.push(`/${language}/search?${params.toString()}`);
         }
     };
 
@@ -123,7 +123,7 @@ export default function LiveSearch() {
             {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-2xl shadow-xl max-h-96 overflow-y-auto">
                     {suggestions.map((product) => (
-                        <Link
+                        <LocaleLink
                             key={product.id}
                             href={`/products/${product.handle}`}
                             onClick={() => setShowSuggestions(false)}
@@ -153,7 +153,7 @@ export default function LiveSearch() {
                                     </p>
                                 )}
                             </div>
-                        </Link>
+                        </LocaleLink>
                     ))}
                 </div>
             )}

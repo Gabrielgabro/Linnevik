@@ -1,10 +1,11 @@
 'use client';
 
-import Link from "next/link";
+import { Suspense } from 'react';
+import { LocaleLink } from "@/components/LocaleLink";
 import Image from "next/image";
-import LanguageSelector from "@/components/LanguageSelector";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import CurrencySelector from "@/components/CurrencySelector";
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation } from '@/contexts/LocaleContext';
 import { triggerCookieSettings } from "@/hooks/useCookieConsent";
 
 export default function Footer() {
@@ -17,7 +18,7 @@ export default function Footer() {
             <div className="relative mx-auto max-w-6xl px-6 pt-12 pb-8">
                 {/* Logo centered */}
                 <div className="flex justify-center mb-6">
-                    <Link href="/" className="flex items-center gap-2" aria-label={t.common.footer.brand.homeAria}>
+                    <LocaleLink href="/" className="flex items-center gap-2" aria-label={t.common.footer.brand.homeAria}>
                         <Image
                             src="/brand/logo_in_black.svg"
                             alt={t.common.footer.brand.alt}
@@ -32,7 +33,7 @@ export default function Footer() {
                             height={64}
                             className="hidden dark:block"
                         />
-                    </Link>
+                    </LocaleLink>
                 </div>
 
                 {/* Contact info */}
@@ -44,7 +45,9 @@ export default function Footer() {
 
                 {/* Language and currency selectors */}
                 <div className="mb-6 flex items-center justify-center gap-4">
-                    <LanguageSelector variant="footer" />
+                    <Suspense fallback={<div className="w-24 h-6" />}>
+                        <LanguageSwitcher variant="footer" />
+                    </Suspense>
                     <span className="text-secondary">•</span>
                     <CurrencySelector variant="footer" />
                 </div>
@@ -61,9 +64,9 @@ export default function Footer() {
                         {t.common.footer.legal.cookieSettings}
                     </button>
                     <span className="mx-2">•</span>
-                    <Link href="/cookie-policy" className="hover:underline">{t.common.footer.legal.cookiePolicy}</Link>
+                    <LocaleLink href="/cookie-policy" className="hover:underline">{t.common.footer.legal.cookiePolicy}</LocaleLink>
                     <span className="mx-2">•</span>
-                    <Link href="/terms" className="hover:underline">{t.common.footer.legal.terms}</Link>
+                    <LocaleLink href="/terms" className="hover:underline">{t.common.footer.legal.terms}</LocaleLink>
                 </div>
             </div>
         </footer>

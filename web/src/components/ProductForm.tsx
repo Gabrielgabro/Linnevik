@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { useTranslation } from '@/hooks/useTranslation';
-import Link from 'next/link';
+import { useTranslation } from '@/contexts/LocaleContext';
+import { LocaleLink } from '@/components/LocaleLink';
 import { calculateMTOPrice, MIN_ORDER_QUANTITY } from '@/lib/mtoPrice';
 
 type Variant = {
@@ -155,7 +155,7 @@ export default function ProductForm({
 
             {/* Button - Sample Order for MTO products, Add to Cart for others */}
             {hasMTOTag && productId ? (
-                <Link
+                <LocaleLink
                     href={`/samples?preselect=${encodeURIComponent(productId)}&variant=${encodeURIComponent(active?.selectedOptions.map(o => o.value).join(' / ') || '')}`}
                     className="w-full inline-flex items-center justify-center gap-2 bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-none font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
                 >
@@ -163,7 +163,7 @@ export default function ProductForm({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                     </svg>
                     {t.product.orderSample}
-                </Link>
+                </LocaleLink>
             ) : (
                 <button
                     type="button"

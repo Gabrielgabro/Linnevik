@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import type { ConsentPreferences } from '@/hooks/useCookieConsent';
 import { useCookieConsent } from '@/hooks/useCookieConsent';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation } from '@/contexts/LocaleContext';
+import { LocaleLink } from '@/components/LocaleLink';
 
 const Toggle = ({
     label,
@@ -73,9 +74,9 @@ export const CookieBanner = () => {
                         <p className="text-sm font-semibold text-[#0B3D2E]">{copy.title}</p>
                         <p className="text-sm text-[#4B5563]">
                             {copy.body}{" "}
-                            <a href="/cookie-policy" className="underline">
+                            <LocaleLink href="/cookie-policy" className="underline">
                                 {copy.linkLabel}
-                            </a>
+                            </LocaleLink>
                             .
                         </p>
                     </div>

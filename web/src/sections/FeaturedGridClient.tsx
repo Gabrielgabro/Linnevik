@@ -1,8 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
-import { useTranslation } from '@/hooks/useTranslation';
+import { LocaleLink } from '@/components/LocaleLink';
+import { useTranslation } from '@/contexts/LocaleContext';
 
 type Product = {
     id: string;
@@ -20,7 +20,7 @@ export default function FeaturedGridClient({ products }: { products: Product[] }
             <div className="max-w-6xl mx-auto px-6">
                 <div className="flex items-baseline justify-between mb-6">
                     <h2 className="text-2xl md:text-3xl font-semibold text-primary">{t.home.featuredGrid.title}</h2>
-                    <Link href="/collections/featured" className="text-accent underline">{t.home.featuredGrid.viewAll} →</Link>
+                    <LocaleLink href="/collections/featured" className="text-accent underline">{t.home.featuredGrid.viewAll} →</LocaleLink>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 md:gap-8 md:grid-cols-3">
@@ -28,7 +28,7 @@ export default function FeaturedGridClient({ products }: { products: Product[] }
                         const img = p.images?.edges?.[0]?.node;
                         const price = p.priceRange?.minVariantPrice;
                         return (
-                            <Link key={p.id} href={`/products/${p.handle}`} className="group block">
+                            <LocaleLink key={p.id} href={`/products/${p.handle}`} className="group block">
                                 <article className="flex flex-col h-full">
                                     <div className="relative aspect-square bg-overlay rounded overflow-hidden mb-3">
                                         {img?.url ? (
@@ -53,7 +53,7 @@ export default function FeaturedGridClient({ products }: { products: Product[] }
                                         )}
                                     </div>
                                 </article>
-                            </Link>
+                            </LocaleLink>
                         );
                     })}
                 </div>

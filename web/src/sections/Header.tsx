@@ -1,12 +1,12 @@
 
 'use client';
 
-import Link from 'next/link';
+import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { useTranslation } from '@/hooks/useTranslation';
-import LanguageSelector from '@/components/LanguageSelector';
+import { useTranslation } from '@/contexts/LocaleContext';
+import { LocaleLink } from '@/components/LocaleLink';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import CurrencySelector from '@/components/CurrencySelector';
 
 const loginUrl = '/login';
@@ -33,7 +33,7 @@ export default function Header() {
             <header className="fixed inset-x-0 top-0 z-50 backdrop-blur">
                 <nav className="h-20 w-full flex items-center justify-between px-5" aria-label="Global">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2 z-50" aria-label={t.common.header.brand.homeAria}>
+                    <LocaleLink href="/" className="flex items-center gap-2 z-50" aria-label={t.common.header.brand.homeAria}>
                         <Image
                             src="/brand/logo_in_black.svg"
                             alt={t.common.header.brand.alt}
@@ -50,18 +50,18 @@ export default function Header() {
                             priority
                             className="hidden dark:block w-32 md:w-[150px]"
                         />
-                    </Link>
+                    </LocaleLink>
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center gap-6">
-                        <Link
+                        <LocaleLink
                             href="/collections"
                             className="text-sm font-medium text-primary hover:underline"
                         >
                             {t.common.header.nav.categories}
-                        </Link>
+                        </LocaleLink>
 
-                        <Link
+                        <LocaleLink
                             href="/search"
                             aria-label={t.common.header.nav.search}
                             className="p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
@@ -70,9 +70,9 @@ export default function Header() {
                                 <circle cx="11" cy="11" r="7" />
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                             </svg>
-                        </Link>
+                        </LocaleLink>
 
-                        <Link
+                        <LocaleLink
                             href={loginUrl}
                             aria-label={t.common.header.nav.login}
                             className="p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
@@ -81,9 +81,9 @@ export default function Header() {
                                 <path d="M20 21a8 8 0 0 0-16 0" />
                                 <circle cx="12" cy="7" r="4" />
                             </svg>
-                        </Link>
+                        </LocaleLink>
 
-                        <Link
+                        <LocaleLink
                             href="/cart"
                             aria-label={t.common.header.nav.cart}
                             className="relative p-2.5 rounded-full text-secondary hover-surface focus:outline-none"
@@ -98,17 +98,19 @@ export default function Header() {
                                     {displayCount}
                                 </span>
                             )}
-                        </Link>
+                        </LocaleLink>
 
-                        <LanguageSelector />
+                        <Suspense fallback={<div className="w-12 h-10" />}>
+                            <LanguageSwitcher />
+                        </Suspense>
                         <CurrencySelector />
 
-                        <Link
+                        <LocaleLink
                             href="/contact"
                             className="text-sm font-semibold px-3.5 py-2 rounded-2xl ring-1 ring-inset ring-surface text-primary hover-surface focus:outline-none"
                         >
                             {t.common.header.nav.contact}
-                        </Link>
+                        </LocaleLink>
                     </div>
 
                     {/* Mobile Hamburger Button */}
@@ -147,15 +149,15 @@ export default function Header() {
                         }`}
                 >
                     <div className="flex flex-col p-6 space-y-6">
-                        <Link
+                        <LocaleLink
                             href="/collections"
                             onClick={() => setMobileMenuOpen(false)}
                             className="text-lg font-medium text-primary hover:underline py-2"
                         >
                             {t.common.header.nav.categories}
-                        </Link>
+                        </LocaleLink>
 
-                        <Link
+                        <LocaleLink
                             href="/search"
                             onClick={() => setMobileMenuOpen(false)}
                             className="flex items-center gap-3 text-lg font-medium text-primary hover:underline py-2"
@@ -165,9 +167,9 @@ export default function Header() {
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                             </svg>
                             {t.common.header.nav.search}
-                        </Link>
+                        </LocaleLink>
 
-                        <Link
+                        <LocaleLink
                             href={loginUrl}
                             onClick={() => setMobileMenuOpen(false)}
                             className="flex items-center gap-3 text-lg font-medium text-primary hover:underline py-2"
@@ -177,9 +179,9 @@ export default function Header() {
                                 <circle cx="12" cy="7" r="4" />
                             </svg>
                             {t.common.header.nav.login}
-                        </Link>
+                        </LocaleLink>
 
-                        <Link
+                        <LocaleLink
                             href="/cart"
                             onClick={() => setMobileMenuOpen(false)}
                             className="flex items-center gap-3 text-lg font-medium text-primary hover:underline py-2 relative"
@@ -197,23 +199,25 @@ export default function Header() {
                                 )}
                             </div>
                             {t.common.header.nav.cart}
-                        </Link>
+                        </LocaleLink>
 
                         <div className="py-2">
-                            <LanguageSelector />
+                            <Suspense fallback={<div className="w-full h-10" />}>
+                                <LanguageSwitcher />
+                            </Suspense>
                         </div>
 
                         <div className="py-2">
                             <CurrencySelector variant="footer" />
                         </div>
 
-                        <Link
+                        <LocaleLink
                             href="/contact"
                             onClick={() => setMobileMenuOpen(false)}
                             className="text-lg font-semibold px-4 py-3 rounded-2xl ring-1 ring-inset ring-surface text-primary hover-surface text-center"
                         >
                             {t.common.header.nav.contact}
-                        </Link>
+                        </LocaleLink>
                     </div>
                 </div>
             </header>

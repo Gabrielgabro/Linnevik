@@ -1,7 +1,7 @@
 "use client";
 import Image from 'next/image';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation } from '@/contexts/LocaleContext';
 
 type Logo = { src: string; alt: string };
 

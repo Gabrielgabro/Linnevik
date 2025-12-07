@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
+import { LocaleLink } from '@/components/LocaleLink';
 import Image from 'next/image';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation } from '@/contexts/LocaleContext';
 
 type Product = {
     id: string;
@@ -45,7 +45,7 @@ export default function SearchPageClient({ query, products }: Props) {
             {products.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:gap-8 md:grid-cols-3 lg:grid-cols-4">
                     {products.map((product) => (
-                        <Link
+                        <LocaleLink
                             key={product.id}
                             href={`/products/${product.handle}`}
                             className="group block"
@@ -74,7 +74,7 @@ export default function SearchPageClient({ query, products }: Props) {
                                     </p>
                                 )}
                             </article>
-                        </Link>
+                        </LocaleLink>
                     ))}
                 </div>
             ) : (
@@ -82,12 +82,12 @@ export default function SearchPageClient({ query, products }: Props) {
                     <p className="text-secondary mb-4">
                         {t.search.noResultsSection.helpText}
                     </p>
-                    <Link
+                    <LocaleLink
                         href="/collections"
                         className="inline-block px-6 py-3 rounded-full bg-accent text-white hover:bg-accent/90 transition-colors"
                     >
                         {t.search.noResultsSection.viewCategories}
-                    </Link>
+                    </LocaleLink>
                 </div>
             )}
         </>
