@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
 import { handleVerifyEmail } from '../actions';
-import { useTranslation, useLocale } from '@/contexts/LocaleContext';
+import { useTranslation } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
 
 export default function VerifyEmailClient() {
     const router = useRouter();
-    const { t } = useTranslation();
-    const locale = useLocale();
+    const { t, locale } = useTranslation();
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
