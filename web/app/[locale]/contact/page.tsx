@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     return {
         title: t.contact.hero.title + " | Linnevik",
-        description: "Kontakta oss för frågor om våra produkter, offerter eller samarbeten.",
+        description: t.contact.metadata.description,
         alternates: getHreflang('/contact'),
     };
 }

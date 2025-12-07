@@ -6,7 +6,7 @@ import { Metadata } from 'next';
 import { getProductByHandle } from '@/lib/shopify';
 import { getHreflang, getCanonicalUrl } from '@/lib/metadata';
 import { toShopifyLanguage } from '@/lib/languageConfig';
-import { normalizeLocale } from '@/lib/i18n';
+import { normalizeLocale, getTranslations } from '@/lib/i18n';
 import JsonLd from '@/components/JsonLd';
 
 // export const dynamic = 'force-dynamic';
@@ -77,8 +77,9 @@ export default async function ProductPage({ params }: Props) {
     const { locale: localeParam, handle } = await params;
     const locale = normalizeLocale(localeParam);
     const shopifyLang = toShopifyLanguage(locale);
+    const t = getTranslations(locale);
     const product = await getProductByHandle(handle, shopifyLang);
-    if (!product) return <div className="p-8">Produkten hittades inte.</div>;
+    if (!product) return <div className="p-8">{t.breadcrumb.products}</div>;
 
     const images = product.images.edges.map(e => e.node);
     const variants = product.variants.edges.map(e => e.node);
@@ -92,12 +93,12 @@ export default async function ProductPage({ params }: Props) {
 
     const breadcrumbItems = primaryCollection
         ? [
-            { href: "/collections", label: "Kategorier" },
+            { href: "/collections", label: t.breadcrumb.categories },
             { href: `/collections/${primaryCollection.handle}`, label: primaryCollection.title },
             { href: `/products/${handle}`, label: product.title }
         ]
         : [
-            { href: "/products", label: "Produkter" },
+            { href: "/products", label: t.breadcrumb.products },
             { href: `/products/${handle}`, label: product.title }
         ];
 
@@ -110,7 +111,11 @@ export default async function ProductPage({ params }: Props) {
                     images: product.images,
                     variants: product.variants
                 }} url={`https://linnevik.se/${locale}/products/${handle}`} />
-                <Breadcrumbs items={breadcrumbItems} />
+                <Breadcrumbs
+                    items={breadcrumbItems}
+                    homeLabel={t.breadcrumb.home}
+                    ariaLabel={t.breadcrumb.ariaLabel}
+                />
 
                 {/* Product grid */}
                 <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 mt-8">

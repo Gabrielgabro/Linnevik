@@ -4,10 +4,11 @@ import Image from "next/image";
 import { getAllCollections } from "@/lib/shopify";
 import { toShopifyLanguage } from "@/lib/language";
 
-import { normalizeLocale } from "@/lib/i18n";
+import { normalizeLocale, getTranslations } from "@/lib/i18n";
 
 export default async function CategoriesTeaser({ locale }: { locale: string }) {
     const language = normalizeLocale(locale);
+    const t = getTranslations(language);
     const shopifyLang = toShopifyLanguage(language);
     // Hämta många så att sektionen kan växa
     const cols = await getAllCollections(24, shopifyLang);
@@ -37,7 +38,7 @@ export default async function CategoriesTeaser({ locale }: { locale: string }) {
                                     ) : (
                                         // Fallback om kollektionen saknar bild
                                         <div className="absolute inset-0 grid place-items-center text-secondary text-sm">
-                                            Ingen bild
+                                            {t.product.noImage}
                                         </div>
                                     )}
                                 </div>

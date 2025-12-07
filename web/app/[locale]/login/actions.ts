@@ -96,6 +96,11 @@ export type RegisterState = {
 
 export async function handleRegister(_: RegisterState, formData: FormData): Promise<RegisterState> {
     const t = await getActionTranslations();
+
+    // Get current locale from cookie
+    const cookieStore = await cookies();
+    const locale = cookieStore.get('NEXT_LOCALE')?.value;
+
     const email = formData.get('email')?.toString().trim() ?? '';
     const firstName = formData.get('firstName')?.toString().trim() || undefined;
     const lastName = formData.get('lastName')?.toString().trim() || undefined;
@@ -160,10 +165,10 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     }
 
     try {
-        console.log('[register] Creating customer account for:', email);
+        console.log('[register] Creating customer account for:', email, 'locale:', locale);
 
         // Create customer with Admin API (will be in DISABLED state)
-        const { id: customerId } = await createCustomerAccount(email, firstName, lastName);
+        const { id: customerId } = await createCustomerAccount(email, firstName, lastName, locale);
         console.log('[register] Customer created successfully:', customerId);
 
         // Store VAT metafield
@@ -188,6 +193,7 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
         }
 
         // Send activation email (customer will set password via email link)
+        // Shopify will use the customer's locale to send the email in the correct language
         try {
             await sendActivationEmail(customerId, email);
             console.log('[register] Activation email sent successfully');

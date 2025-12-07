@@ -1,5 +1,11 @@
 {
   "lang": "en",
+  "breadcrumb": {
+    "ariaLabel": "Breadcrumbs",
+    "home": "Home",
+    "categories": "Categories",
+    "products": "Products"
+  },
   "common": {
     "header": {
       "brand": {
@@ -53,7 +59,41 @@
     }
   },
   "product": {
-    "orderSample": "Order sample"
+    "orderSample": "Order sample",
+    "perUnit": "/unit",
+    "excludingVat": "excl. VAT",
+    "volumeDiscount": "volume discount",
+    "priceNote": "Price based on {quantity} units. Larger volumes give lower unit price.",
+    "quantityLabel": "Quantity",
+    "packOf": "pack of {size}",
+    "mtoMinOrder": "Minimum order for MTO: {quantity} units",
+    "minOrder": "Minimum order: {quantity} units",
+    "adjustedTo": "Adjusted to {quantity} units",
+    "addingToCart": "Adding...",
+    "addToCart": "Add to cart",
+    "priceEstimate": "Price estimate",
+    "discount": "discount",
+    "total": "Total",
+    "finalPriceNote": "Excl. VAT. Final price confirmed in quote.",
+    "from": "from",
+    "noImage": "No image",
+    "notFound": "Product not found."
+  },
+  "mto": {
+    "priceEstimate": {
+      "title": "Price Estimate",
+      "subtitle": "Select variant and enter desired volume for an approximate price indication.",
+      "volumeLabel": "Expected volume (units)",
+      "minVolume": "Minimum volume for MTO order: {quantity} units",
+      "volumeDiscounts": "Volume Discounts",
+      "basePrice": "Base price",
+      "unitPrice": "Estimated price per unit:",
+      "totalEstimate": "Total estimate ({quantity} units):",
+      "exclVat": "excl. VAT",
+      "disclaimer": "Prices are approximate and based on serial production. Final price quoted based on volume and specification. Contact us for exact quote.",
+      "note": "Note:",
+      "units": "units"
+    }
   },
   "home": {
     "hero": {
@@ -319,6 +359,10 @@
     "fallbackName": "User"
   },
   "activation": {
+    "metadata": {
+      "title": "Activate Account",
+      "description": "Activate your Linnevik account"
+    },
     "title": "Activate Account",
     "subtitle": "Create a password to activate your account.",
     "fields": {
@@ -334,10 +378,6 @@
       "passwordTooShort": "Password must be at least 5 characters",
       "unexpectedError": "An unexpected error occurred.",
       "activationFailed": "Failed to activate account. Please try again."
-    },
-    "metadata": {
-      "title": "Activate Account | Linnevik",
-      "description": "Activate your Linnevik account"
     }
   },
   "vatStatus": {
@@ -351,6 +391,9 @@
     "loadFailed": "Could not load VAT status right now. Please try again."
   },
   "contact": {
+    "metadata": {
+      "description": "Contact us for questions about our products, quotes or collaborations."
+    },
     "hero": {
       "badge": "Contact",
       "title": "Get in touch",
@@ -452,6 +495,9 @@
     }
   },
   "samples": {
+    "metadata": {
+      "description": "Order fabric samples for free to feel the quality before you decide."
+    },
     "hero": {
       "badge": "Free of charge",
       "title": "Order samples",
@@ -481,6 +527,9 @@
     }
   },
   "samplesCheckout": {
+    "metadata": {
+      "description": "Fill in your details to have your fabric samples sent to you."
+    },
     "loading": {
       "label": "Loading..."
     },
@@ -568,6 +617,9 @@
     }
   },
   "cart": {
+    "metadata": {
+      "description": "Your cart at Linnevik."
+    },
     "loading": "Loading cart...",
     "empty": {
       "title": "Your cart is empty",
@@ -591,6 +643,10 @@
     }
   },
   "search": {
+    "metadata": {
+      "title": "Search",
+      "description": "Search our products"
+    },
     "input": {
       "placeholder": "Search for products..."
     },

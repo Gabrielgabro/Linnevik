@@ -110,7 +110,7 @@ export default function AccountClient({
                     {isLoggedIn && orders.length > 0 ? (
                         <div className="space-y-4">
                             {orders.map((order) => {
-                                const orderDate = new Date(order.processedAt).toLocaleDateString('sv-SE', {
+                                const orderDate = new Date(order.processedAt).toLocaleDateString(locale === 'sv' ? 'sv-SE' : 'en-US', {
                                     year: 'numeric',
                                     month: 'long',
                                     day: 'numeric',
@@ -211,14 +211,14 @@ export default function AccountClient({
                                 <p className="text-sm text-secondary">
                                     {t.account.ordersEmptyBody}
                                 </p>
-                                <a
+                                <LocaleLink
                                     href="/collections"
                                     className="inline-block mt-4"
                                 >
                                     <Button variant="primary">
                                         {t.account.ordersCta}
                                     </Button>
-                                </a>
+                                </LocaleLink>
                             </div>
                         </div>
                     )}

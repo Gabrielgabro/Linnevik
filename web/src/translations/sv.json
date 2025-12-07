@@ -1,5 +1,11 @@
 {
   "lang": "sv",
+  "breadcrumb": {
+    "ariaLabel": "Brödsmulor",
+    "home": "Hem",
+    "categories": "Kategorier",
+    "products": "Produkter"
+  },
   "common": {
     "header": {
       "brand": {
@@ -53,7 +59,41 @@
     }
   },
   "product": {
-    "orderSample": "Beställ prov"
+    "orderSample": "Beställ prov",
+    "perUnit": "/st",
+    "excludingVat": "exkl. moms",
+    "volumeDiscount": "volymrabatt",
+    "priceNote": "Pris baserat på {quantity} st. Större volymer ger lägre pris per enhet.",
+    "quantityLabel": "Antal",
+    "packOf": "pack om {size}",
+    "mtoMinOrder": "Minsta beställning för MTO: {quantity} st",
+    "minOrder": "Minsta beställning: {quantity} st",
+    "adjustedTo": "Justerat till {quantity} st",
+    "addingToCart": "Lägger till...",
+    "addToCart": "Lägg i varukorgen",
+    "priceEstimate": "Prisuppskattning",
+    "discount": "rabatt",
+    "total": "Totalt",
+    "finalPriceNote": "Exkl. moms. Slutpris bekräftas vid offert.",
+    "from": "från",
+    "noImage": "Ingen bild",
+    "notFound": "Produkten hittades inte."
+  },
+  "mto": {
+    "priceEstimate": {
+      "title": "Prisuppskattning",
+      "subtitle": "Välj variant och ange önskad volym för att få en ungefärlig prisindikation.",
+      "volumeLabel": "Förväntad volym (st)",
+      "minVolume": "Minsta volym för MTO-beställning: {quantity} st",
+      "volumeDiscounts": "Volymrabatter",
+      "basePrice": "Baspris",
+      "unitPrice": "Uppskattat pris per enhet:",
+      "totalEstimate": "Total uppskattning ({quantity} st):",
+      "exclVat": "exkl. moms",
+      "disclaimer": "Priserna är ungefärliga och baseras på serietillverkning. Slutpris offereras efter volym och specifikation. Kontakta oss för exakt offert.",
+      "note": "Observera:",
+      "units": "st"
+    }
   },
   "home": {
     "hero": {
@@ -319,6 +359,10 @@
     "fallbackName": "Användare"
   },
   "activation": {
+    "metadata": {
+      "title": "Aktivera konto",
+      "description": "Aktivera ditt Linnevik-konto"
+    },
     "title": "Aktivera konto",
     "subtitle": "Skapa ett lösenord för att aktivera ditt konto.",
     "fields": {
@@ -334,10 +378,6 @@
       "passwordTooShort": "Lösenordet måste vara minst 5 tecken",
       "unexpectedError": "Ett oväntat fel uppstod.",
       "activationFailed": "Kunde inte aktivera kontot. Försök igen."
-    },
-    "metadata": {
-      "title": "Aktivera konto | Linnevik",
-      "description": "Aktivera ditt Linnevik-konto"
     }
   },
   "vatStatus": {
@@ -351,6 +391,9 @@
     "loadFailed": "Kunde inte hämta VAT-status just nu. Försök igen."
   },
   "contact": {
+    "metadata": {
+      "description": "Kontakta oss för frågor om våra produkter, offerter eller samarbeten."
+    },
     "hero": {
       "badge": "Kontakt",
       "title": "Hör av dig",
@@ -452,6 +495,9 @@
     }
   },
   "samples": {
+    "metadata": {
+      "description": "Beställ tygprover gratis för att känna på kvaliteten innan du bestämmer dig."
+    },
     "hero": {
       "badge": "Kostnadsfritt",
       "title": "Beställ prover",
@@ -481,6 +527,9 @@
     }
   },
   "samplesCheckout": {
+    "metadata": {
+      "description": "Fyll i dina uppgifter för att få dina tygprover skickade till dig."
+    },
     "loading": {
       "label": "Laddar..."
     },
@@ -568,6 +617,9 @@
     }
   },
   "cart": {
+    "metadata": {
+      "description": "Din varukorg hos Linnevik."
+    },
     "loading": "Laddar varukorg...",
     "empty": {
       "title": "Din varukorg är tom",
@@ -591,6 +643,10 @@
     }
   },
   "search": {
+    "metadata": {
+      "title": "Sök",
+      "description": "Sök bland våra produkter"
+    },
     "input": {
       "placeholder": "Sök efter produkter..."
     },

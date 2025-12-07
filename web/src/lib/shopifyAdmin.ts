@@ -256,11 +256,17 @@ export async function setCustomerVatMetafield(customerId: string, vatNumber: str
  * Create customer account with Admin API
  * Customer will be created in DISABLED state
  * Use sendActivationEmail() after this to send activation email
+ *
+ * @param email - Customer email
+ * @param firstName - Customer first name
+ * @param lastName - Customer last name
+ * @param locale - Customer locale (e.g., 'sv', 'en') - stored as tag for Shopify notifications
  */
 export async function createCustomerAccount(
     email: string,
     firstName?: string,
-    lastName?: string
+    lastName?: string,
+    locale?: string
 ): Promise<{ id: string }> {
     if (!SHOPIFY_ADMIN_TOKEN) {
         throw new Error('SHOPIFY_ADMIN_API_TOKEN is not configured. Cannot create customer.');
@@ -272,6 +278,7 @@ export async function createCustomerAccount(
         customer {
           id
           state
+          locale
         }
         userErrors {
           field
@@ -289,6 +296,8 @@ export async function createCustomerAccount(
             marketingState: 'NOT_SUBSCRIBED',
             marketingOptInLevel: 'SINGLE_OPT_IN',
         },
+        // Set customer locale for Shopify notifications (en, sv, etc.)
+        locale: locale || undefined,
     };
 
     const response = await fetch(`https://${SHOPIFY_DOMAIN}/admin/api/${ADMIN_API_VERSION}/graphql.json`, {
@@ -332,7 +341,7 @@ export async function createCustomerAccount(
         throw new Error('Customer creation failed.');
     }
 
-    console.log('[shopifyAdmin] Customer created with state:', customer.state);
+    console.log('[shopifyAdmin] Customer created with state:', customer.state, 'locale:', (customer as any).locale);
 
     return {
         id: customer.id,
@@ -341,8 +350,14 @@ export async function createCustomerAccount(
 
 /**
  * Send activation email to customer
- * Customer will receive Shopify's "Customer account activate" email
+ * Customer will receive Shopify's "Customer account activate" email in their preferred locale
  * They will set their password during activation
+ *
+ * Note: The email language is determined by the customer's locale field set during creation.
+ * Shopify will automatically use the appropriate language template if configured in Shopify Admin.
+ *
+ * @param customerId - Customer GID
+ * @param email - Customer email
  */
 export async function sendActivationEmail(customerId: string, email: string): Promise<void> {
     if (!SHOPIFY_ADMIN_TOKEN) {
@@ -372,7 +387,7 @@ export async function sendActivationEmail(customerId: string, email: string): Pr
         throw new Error(`Failed to send activation email: ${response.status}`);
     }
 
-    console.log('[shopifyAdmin] Activation email sent successfully');
+    console.log('[shopifyAdmin] Activation email sent successfully (language based on customer locale)');
 }
 
 export async function deleteCustomer(customerId: string) {

@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     return {
         title: t.cart.title + " | Linnevik",
-        description: "Din varukorg hos Linnevik.",
+        description: t.cart.metadata.description,
         alternates: getHreflang('/cart'),
     };
 }

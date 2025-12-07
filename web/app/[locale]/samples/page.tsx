@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     return {
         title: t.samples.hero.title + " | Linnevik",
-        description: "Beställ tygprover gratis för att känna på kvaliteten innan du bestämmer dig.",
+        description: t.samples.metadata.description,
         alternates: getHreflang('/samples'),
     };
 }

@@ -30,7 +30,12 @@ export default function ProductForm({
     productId?: string;
 }) {
     const { addItem, isLoading } = useCart();
-    const { t } = useTranslation();
+    const { t, locale } = useTranslation();
+
+    // Use locale-appropriate number formatting
+    const numberLocale = locale === 'sv' ? 'sv-SE' : 'en-US';
+    const formatNumber = (num: number) => num.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     const initial = useMemo(() => {
         const obj: Record<string, string> = {};
         options.forEach(o => { obj[o.name] = o.values[0]; });
@@ -82,18 +87,18 @@ export default function ProductForm({
                 <div className="pb-6 border-b border-[#E7EDF1] dark:border-[#374151]">
                     <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-3xl font-semibold text-primary">
-                            {(hasMTOTag ? mtoUnitPrice : unitPrice).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {active.price.currencyCode}
+                            {formatNumber(hasMTOTag ? mtoUnitPrice : unitPrice)} {active.price.currencyCode}
                         </span>
-                        <span className="text-sm text-secondary">/st (exkl. moms)</span>
+                        <span className="text-sm text-secondary">{t.product.perUnit} ({t.product.excludingVat})</span>
                         {hasMTOTag && currentTier && currentTier.discountPercent > 0 && (
                             <span className="text-sm font-medium text-[#0B3D2E] dark:text-[#379E7D]">
-                                -{currentTier.discountPercent}% volymrabatt
+                                -{currentTier.discountPercent}% {t.product.volumeDiscount}
                             </span>
                         )}
                     </div>
                     {hasMTOTag && (
                         <p className="text-xs text-secondary mt-2">
-                            Pris baserat på {effectiveQty} st. Större volymer ger lägre pris per enhet.
+                            {t.product.priceNote.replace('{quantity}', String(effectiveQty))}
                         </p>
                     )}
                 </div>
@@ -127,7 +132,7 @@ export default function ProductForm({
             {/* Quantity */}
             <div className="space-y-3">
                 <label className="block text-sm font-medium text-primary uppercase tracking-wide">
-                    Antal {packSize ? `(pack om ${packSize})` : ''}
+                    {t.product.quantityLabel} {packSize ? `(${t.product.packOf.replace('{size}', String(packSize))})` : ''}
                 </label>
                 <input
                     type="number"
@@ -143,12 +148,12 @@ export default function ProductForm({
                 />
                 <div className="flex items-center gap-4 text-xs text-secondary">
                     {hasMTOTag ? (
-                        <span>Minsta beställning för MTO: 50 st</span>
+                        <span>{t.product.mtoMinOrder.replace('{quantity}', String(MIN_ORDER_QUANTITY))}</span>
                     ) : (
-                        moq && <span>Minsta beställning: {moq} st</span>
+                        moq && <span>{t.product.minOrder.replace('{quantity}', String(moq))}</span>
                     )}
                     {packSize && qty !== totalUnits && (
-                        <span>Justerat till {totalUnits} st</span>
+                        <span>{t.product.adjustedTo.replace('{quantity}', String(totalUnits))}</span>
                     )}
                 </div>
             </div>
@@ -171,7 +176,7 @@ export default function ProductForm({
                     onClick={handleAddToCart}
                     className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-none font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
                 >
-                    {addingToCart ? 'Lägger till...' : 'Lägg i varukorgen'}
+                    {addingToCart ? t.product.addingToCart : t.product.addToCart}
                 </button>
             )}
 
@@ -179,25 +184,25 @@ export default function ProductForm({
             {hasMTOTag && active?.price && effectiveQty > 0 && (
                 <div className="p-5 bg-[#F3EDE4] dark:bg-[#1f2937] border border-[#EBDCCB] dark:border-[#374151]">
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-primary uppercase tracking-wide">Prisuppskattning</span>
+                        <span className="text-sm font-medium text-primary uppercase tracking-wide">{t.product.priceEstimate}</span>
                         {currentTier && currentTier.discountPercent > 0 && (
                             <span className="text-xs font-medium px-2 py-1 bg-[#0B3D2E] text-white dark:bg-[#145C45]">
-                                -{currentTier.discountPercent}% rabatt
+                                -{currentTier.discountPercent}% {t.product.discount}
                             </span>
                         )}
                     </div>
                     <div className="space-y-2 text-sm text-secondary">
                         <div className="flex justify-between">
-                            <span>{effectiveQty} st × {mtoUnitPrice.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {active.price.currencyCode}</span>
+                            <span>{effectiveQty} × {formatNumber(mtoUnitPrice)} {active.price.currencyCode}</span>
                         </div>
                     </div>
                     <div className="mt-3 pt-3 border-t border-[#EBDCCB] dark:border-[#374151] flex items-baseline justify-between">
-                        <span className="text-sm font-medium text-primary">Totalt</span>
+                        <span className="text-sm font-medium text-primary">{t.product.total}</span>
                         <span className="text-2xl font-bold text-[#0B3D2E] dark:text-[#379E7D]">
-                            {(mtoUnitPrice * effectiveQty).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {active.price.currencyCode}
+                            {formatNumber(mtoUnitPrice * effectiveQty)} {active.price.currencyCode}
                         </span>
                     </div>
-                    <p className="text-xs text-secondary mt-2">Exkl. moms. Slutpris bekräftas vid offert.</p>
+                    <p className="text-xs text-secondary mt-2">{t.product.finalPriceNote}</p>
                 </div>
             )}
         </div>

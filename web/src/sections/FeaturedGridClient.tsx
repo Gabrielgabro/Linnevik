@@ -13,7 +13,7 @@ type Product = {
 };
 
 export default function FeaturedGridClient({ products }: { products: Product[] }) {
-    const { t } = useTranslation();
+    const { t, locale } = useTranslation();
 
     return (
         <section className="py-16">
@@ -48,7 +48,7 @@ export default function FeaturedGridClient({ products }: { products: Product[] }
                                         </h3>
                                         {price?.amount && (
                                             <p className="text-xs md:text-sm text-secondary">
-                                                {t.home.featuredGrid.from} {Number(price.amount).toLocaleString('sv-SE')} {price.currencyCode}
+                                                {t.home.featuredGrid.from} {Number(price.amount).toLocaleString(locale === 'sv' ? 'sv-SE' : 'en-US')} {price.currencyCode}
                                             </p>
                                         )}
                                     </div>
