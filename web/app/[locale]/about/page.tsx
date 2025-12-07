@@ -21,10 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: t.about.hero.heading + " | Linnevik",
         description: "Läs mer om Linnevik och våra hållbara textilier för hotell och offentlig miljö.",
         metadataBase: new URL('https://linnevik.se'),
-        alternates: {
-            canonical: getCanonicalUrl(locale, '/about'),
-            ...getHreflang('/about'),
-        },
+        alternates: getHreflang('/about', locale),
     };
 }
 

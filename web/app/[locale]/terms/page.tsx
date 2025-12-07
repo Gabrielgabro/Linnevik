@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: "Terms and Conditions | Linnevik",
         description: "Read our terms and conditions.",
-        alternates: getHreflang('/terms'),
+        alternates: getHreflang('/terms', language),
     };
 }
 

@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.account.metadata.title,
         description: t.account.metadata.description,
-        alternates: getHreflang('/account'),
+        alternates: getHreflang('/account', locale),
     };
 }
 

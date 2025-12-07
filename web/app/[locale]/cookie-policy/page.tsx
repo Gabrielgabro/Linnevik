@@ -15,11 +15,21 @@ export async function generateStaticParams() {
     return getStaticLocaleParams();
 }
 
-export const metadata: Metadata = {
-    title: "Cookie Policy | Linnevik",
-    description: "Read about how we use cookies.",
-    alternates: getHreflang('/cookie-policy'),
+type Props = {
+    params: Promise<{ locale: string }>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const { locale: localeParam } = await params;
+    const locale = normalizeLocale(localeParam);
+
+    return {
+        title: "Cookie Policy | Linnevik",
+        description: "Read about how we use cookies.",
+        alternates: getHreflang('/cookie-policy', locale),
+    };
+}
+
 
 export default async function CookiePolicyPage({ params }: { params: Promise<{ locale: string }> }) {
     const { locale: localeParam } = await params;

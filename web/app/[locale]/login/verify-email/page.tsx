@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.verifyEmail.metadata.title,
         description: t.verifyEmail.metadata.description,
-        alternates: getHreflang('/login/verify-email'),
+        alternates: getHreflang('/login/verify-email', locale),
     };
 }
 

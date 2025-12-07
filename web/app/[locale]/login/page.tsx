@@ -24,6 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.login.metadata.title,
         description: t.login.metadata.description,
+        alternates: getHreflang('/login', locale),
     };
 }
 

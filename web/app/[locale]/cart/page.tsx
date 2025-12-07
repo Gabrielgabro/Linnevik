@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.cart.title + " | Linnevik",
         description: t.cart.metadata.description,
-        alternates: getHreflang('/cart'),
+        alternates: getHreflang('/cart', locale),
     };
 }
 

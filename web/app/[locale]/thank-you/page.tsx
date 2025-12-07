@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.thankYou.title + " | Linnevik",
         description: t.thankYou.message,
-        alternates: getHreflang('/thank-you'),
+        alternates: getHreflang('/thank-you', locale),
     };
 }
 

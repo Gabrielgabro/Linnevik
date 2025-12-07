@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.samplesCheckout.header.title + " | Linnevik",
         description: t.samplesCheckout.metadata.description,
-        alternates: getHreflang('/samples/checkout'),
+        alternates: getHreflang('/samples/checkout', locale),
     };
 }
 

@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.register.metadata.title,
         description: t.register.metadata.description,
-        alternates: getHreflang('/login/create-account'),
+        alternates: getHreflang('/login/create-account', locale),
     };
 }
 

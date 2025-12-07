@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props) {
     return {
         title: t.collections.metadata.title,
         description: t.collections.metadata.description,
-        alternates: getHreflang('/collections'),
+        alternates: getHreflang('/collections', locale),
     };
 }
 

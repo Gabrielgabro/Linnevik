@@ -9,12 +9,22 @@ export default function AboutClient() {
     return (
         <main className="min-h-screen bg-white dark:bg-black">
             {/* Hero Section */}
-            <section className="relative py-32 lg:py-40 flex items-center justify-center overflow-hidden bg-[#FAF7F2] dark:bg-black border-b border-gray-200 dark:border-zinc-800">
+            <section className="relative min-h-screen flex items-center justify-center overflow-hidden border-b border-gray-200 dark:border-zinc-800">
+                {/* Background Image */}
+                <div className="absolute inset-0 w-full h-full">
+                    <img
+                        src="/Bakgrundsbilder/2.jpg"
+                        alt=""
+                        className="w-full h-full object-cover"
+                    />
+                </div>
+
+                {/* Content */}
                 <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-                    <h1 className="text-5xl md:text-7xl font-serif font-medium text-[#0B3D2E] dark:text-white mb-8 tracking-tight leading-[1.1] lg:tracking-[-0.02em]">
+                    <h1 className="text-5xl md:text-7xl font-serif font-medium text-white mb-8 tracking-tight leading-[1.1] lg:tracking-[-0.02em]">
                         {t.about.hero.heading}
                     </h1>
-                    <p className="text-xl md:text-2xl text-[#5C5C5C] dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto leading-relaxed">
                         {t.about.hero.subheading}
                     </p>
                 </div>

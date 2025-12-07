@@ -47,10 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             title: `${product.title} | Linnevik`,
             description: plainDescription,
             metadataBase: new URL('https://linnevik.se'),
-            alternates: {
-                canonical: getCanonicalUrl(locale, `/products/${handle}`),
-                ...getHreflang(`/products/${handle}`),
-            },
+            alternates: getHreflang(`/products/${handle}`, locale),
             openGraph: {
                 title: `${product.title} | Linnevik`,
                 description: plainDescription,
