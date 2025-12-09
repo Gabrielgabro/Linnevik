@@ -742,5 +742,10 @@
     "section15Text3": "168 67 Bromma",
     "section15Text4": "Sverige",
     "section15Text5": "E-post: info@linnevik.se"
+  },
+  "regionSelector": {
+    "title": "Välj din region",
+    "subtitle": "Välj land för att se priser i din valuta",
+    "changeNote": "Du kan ändra detta när som helst via valutaväljaren"
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 
 type CountryOption = {
@@ -16,7 +16,8 @@ interface CurrencySelectorProps {
 
 export default function CurrencySelector({ variant = 'header' }: CurrencySelectorProps) {
   const router = useRouter();
-  const { refreshCart } = useCart();
+  const pathname = usePathname();
+  const { updateCartCountry, refreshCart } = useCart();
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,9 +49,14 @@ export default function CurrencySelector({ variant = 'header' }: CurrencySelecto
         body: JSON.stringify({ country }),
       });
       setSelected(country);
-      // Refresh server components and re-fetch cart in selected currency
-      router.refresh();
+      // Update cart's buyer identity to the new country (preserves items, updates prices)
+      await updateCartCountry(country);
+      // Refresh cart client state so prices update without flashing empty cart
       await refreshCart();
+      // Refresh server components to reflect new currency (skip on cart page to avoid UI flash)
+      if (!pathname?.includes('/cart')) {
+        router.refresh();
+      }
     } catch {
       // ignore
     } finally {
@@ -72,7 +78,7 @@ export default function CurrencySelector({ variant = 'header' }: CurrencySelecto
   const selectedCurrency =
     countries.find(c => c.isoCode === selected)?.currency || uniqueCurrencies[0]?.currency || '—';
 
-  if (!countries.length || !uniqueCurrencies.length) {
+  if (!uniqueCurrencies.length) {
     return null;
   }
 
@@ -83,9 +89,8 @@ export default function CurrencySelector({ variant = 'header' }: CurrencySelecto
           <button
             key={c.currency}
             onClick={() => onChange(c.isoCode)}
-            className={`text-sm transition-all ${
-              selectedCurrency === c.currency ? 'text-primary font-medium' : 'text-secondary hover:text-primary'
-            }`}
+            className={`text-sm transition-all ${selectedCurrency === c.currency ? 'text-primary font-medium' : 'text-secondary hover:text-primary'
+              }`}
             disabled={loading}
             aria-label={`Change currency to ${c.currency}`}
             title={c.currency}
@@ -112,11 +117,10 @@ export default function CurrencySelector({ variant = 'header' }: CurrencySelecto
             key={c.currency}
             onClick={() => onChange(c.isoCode)}
             disabled={loading}
-            className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between gap-3 transition-colors ${
-              selectedCurrency === c.currency
+            className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between gap-3 transition-colors ${selectedCurrency === c.currency
                 ? 'bg-gray-50 dark:bg-gray-700 text-primary font-medium'
                 : 'text-secondary hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
+              }`}
           >
             <span className="tabular-nums">{c.currency}</span>
           </button>

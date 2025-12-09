@@ -5,6 +5,7 @@ import { LocaleProvider } from "@/contexts/LocaleContext";
 import Header from "@/sections/Header";
 import Footer from "@/sections/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
+import RegionSelectorModal from "@/components/RegionSelectorModal";
 
 type Props = {
   children: React.ReactNode;
@@ -45,6 +46,8 @@ export default async function LocaleLayout({ children, params }: Props) {
       {children}
       <Footer />
       <CookieBanner />
+      <RegionSelectorModal />
     </LocaleProvider>
   );
 }
+

@@ -22,12 +22,6 @@ export default function CartClient() {
     const lines = cart?.lines?.edges || [];
     const isEmpty = lines.length === 0;
 
-    // Beräkna pris ex moms (för B2B)
-    const calculateExVAT = (amount: string) => {
-        const num = parseFloat(amount);
-        return (num / 1.25).toFixed(2); // Antag 25% moms
-    };
-
     if (isEmpty) {
         return (
             <div className="min-h-screen pt-32 pb-16">
@@ -54,8 +48,8 @@ export default function CartClient() {
                     {lines.map(({ node: line }) => {
                         const product = line.merchandise.product;
                         const price = parseFloat(line.merchandise.price.amount);
-                        const priceExVAT = calculateExVAT(line.merchandise.price.amount);
-                        const totalExVAT = (parseFloat(priceExVAT) * line.quantity).toFixed(2);
+                        const currency = line.merchandise.price.currencyCode;
+                        const lineTotal = (price * line.quantity).toFixed(2);
 
                         return (
                             <div
@@ -95,7 +89,7 @@ export default function CartClient() {
                                         </p>
                                     )}
                                     <p className="text-sm text-secondary mt-2">
-                                        {priceExVAT} {line.merchandise.price.currencyCode} {t.cart.item.priceExVatSuffix}
+                                        {price.toFixed(2)} {currency} {t.cart.item.priceExVatSuffix}
                                     </p>
                                 </div>
 
@@ -123,7 +117,7 @@ export default function CartClient() {
                                 {/* Line Total */}
                                 <div className="flex flex-col items-end justify-between">
                                     <p className="font-semibold text-primary">
-                                        {totalExVAT} {line.merchandise.price.currencyCode}
+                                        {lineTotal} {currency}
                                     </p>
                                     <button
                                         onClick={() => removeItem(line.id)}
@@ -139,34 +133,36 @@ export default function CartClient() {
 
                 {/* Cart Summary */}
                 <div className="mt-8 p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div className="space-y-2">
-                        <div className="flex justify-between text-secondary">
-                            <span>{t.cart.summary.subtotalExVat}</span>
-                            <span>
-                                {calculateExVAT(cart?.cost?.subtotalAmount?.amount || '0')}{' '}
-                                {cart?.cost?.subtotalAmount?.currencyCode || 'SEK'}
-                            </span>
-                        </div>
-                        <div className="flex justify-between text-secondary">
-                            <span>{t.cart.summary.vatLabel}</span>
-                            <span>
-                                {(
-                                    parseFloat(cart?.cost?.subtotalAmount?.amount || '0') -
-                                    parseFloat(calculateExVAT(cart?.cost?.subtotalAmount?.amount || '0'))
-                                ).toFixed(2)}{' '}
-                                {cart?.cost?.subtotalAmount?.currencyCode || 'SEK'}
-                            </span>
-                        </div>
-                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                            <div className="flex justify-between text-lg font-semibold text-primary">
-                                <span>{t.cart.summary.totalInclVat}</span>
-                                <span>
-                                    {parseFloat(cart?.cost?.subtotalAmount?.amount || '0').toFixed(2)}{' '}
-                                    {cart?.cost?.subtotalAmount?.currencyCode || 'SEK'}
-                                </span>
+                    {(() => {
+                        const subtotalAmount = parseFloat(cart?.cost?.subtotalAmount?.amount || '0');
+                        const totalAmount = parseFloat(cart?.cost?.totalAmount?.amount || '0');
+                        const currencyCode = cart?.cost?.totalAmount?.currencyCode || cart?.cost?.subtotalAmount?.currencyCode || 'SEK';
+                        const vatAmount = Math.max(totalAmount - subtotalAmount, 0);
+                        return (
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-secondary">
+                                    <span>{t.cart.summary.subtotalExVat}</span>
+                                    <span>
+                                        {subtotalAmount.toFixed(2)} {currencyCode}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-secondary">
+                                    <span>{t.cart.summary.vatLabel}</span>
+                                    <span>
+                                        {vatAmount.toFixed(2)} {currencyCode}
+                                    </span>
+                                </div>
+                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                    <div className="flex justify-between text-lg font-semibold text-primary">
+                                        <span>{t.cart.summary.totalInclVat}</span>
+                                        <span>
+                                            {totalAmount.toFixed(2)} {currencyCode}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        );
+                    })()}
 
                     <a
                         href={cart?.checkoutUrl || '#'}

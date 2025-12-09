@@ -6,28 +6,25 @@
   <component name="ChangeListManager">
     <list default="true" id="31b53480-09ea-4c1d-8709-dfb45d0982ac" name="Changes" comment="Beta version">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/about/AboutClient.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/about/AboutClient.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/about/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/about/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/account/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/account/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/cart/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/cart/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/collections/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/collections/[handle]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/collections/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/collections/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/contact/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/contact/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/cookie-policy/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/cookie-policy/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/login/create-account/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/login/create-account/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/login/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/login/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/login/verify-email/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/login/verify-email/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/products/[handle]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/products/[handle]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/samples/checkout/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/samples/checkout/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/samples/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/samples/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/search/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/search/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/terms/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/terms/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/[locale]/thank-you/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/thank-you/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SHOPIFY_EMAIL_LOCALIZATION.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/AUTH_I18N_SOLUTION.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/I18N_MIGRATION_GUIDE.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/MIGRATION_ANALYSIS.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/SHOPIFY_AUTH_SETUP.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/SMTP_SETUP.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/[locale]/cart/CartClient.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/cart/CartClient.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/[locale]/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/[locale]/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/api/cart/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/api/cart/route.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/robots.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/robots.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/app/sitemap.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/sitemap.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/src/lib/metadata.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/metadata.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/public/Bakgrundsbilder/4.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/components/CurrencySelector.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/components/CurrencySelector.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/contexts/CartContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/contexts/CartContext.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/contexts/LocaleContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/contexts/LocaleContext.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/lib/shopify.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/lib/shopify.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/translations/en.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/translations/en.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/translations/sv.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/translations/sv.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -220,6 +217,8 @@
       <workItem from="1765121948649" duration="8166000" />
       <workItem from="1765135288738" duration="3481000" />
       <workItem from="1765149357213" duration="901000" />
+      <workItem from="1765155382428" duration="1090000" />
+      <workItem from="1765238551850" duration="2165000" />
     </task>
     <task id="LOCAL−00001" summary="Senaste upplagan David Skiöld">
       <option name="closed" value="true" />

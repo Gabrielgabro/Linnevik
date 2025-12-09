@@ -52,7 +52,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="sv" dir="ltr" suppressHydrationWarning>
+        <html dir="ltr" suppressHydrationWarning>
             <body className={`${libreBaskerville.variable} ${inter.variable}`}>
                 <CartProvider>
                     {children}

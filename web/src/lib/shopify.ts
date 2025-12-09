@@ -433,7 +433,7 @@ export async function getProductsBasic(first = 60, queryStr?: string, language: 
 }
 
 // Cart functions
-export async function createCart(language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
+export async function createCart(language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE), country?: string) {
   const CREATE_CART_MUTATION = `
     mutation CreateCart($input: CartInput!, $language: LanguageCode!, $country: CountryCode) @inContext(language: $language, country: $country) {
       cartCreate(input: $input) {
@@ -467,20 +467,37 @@ export async function createCart(language: ShopifyLanguage = toShopifyLanguage(D
             }
           }
         }
+        userErrors {
+          field
+          message
+        }
       }
     }
   `;
 
   const data = await storefrontFetch<any>({
     query: CREATE_CART_MUTATION,
-    variables: { input: {} },
+    variables: {
+      input: country ? { buyerIdentity: { countryCode: country } } : {}
+    },
     language,
+    country,
   });
+
+  if (data.cartCreate.userErrors?.length) {
+    const message = data.cartCreate.userErrors.map((e: any) => e.message).join(', ');
+    console.error('cartCreate error:', message);
+    throw new Error(message);
+  }
 
   return data.cartCreate.cart;
 }
 
-export async function getCart(cartId: string, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
+export async function getCart(
+  cartId: string,
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE),
+  country?: string
+) {
   const GET_CART_QUERY = `
     query GetCart($cartId: ID!, $language: LanguageCode!, $country: CountryCode) @inContext(language: $language, country: $country) {
       cart(id: $cartId) {
@@ -520,12 +537,19 @@ export async function getCart(cartId: string, language: ShopifyLanguage = toShop
     query: GET_CART_QUERY,
     variables: { cartId },
     language,
+    country,
   });
 
   return data.cart;
 }
 
-export async function addToCart(cartId: string, variantId: string, quantity: number, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
+export async function addToCart(
+  cartId: string,
+  variantId: string,
+  quantity: number,
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE),
+  country?: string
+) {
   const ADD_TO_CART_MUTATION = `
     mutation AddToCart($cartId: ID!, $lines: [CartLineInput!]!, $language: LanguageCode!, $country: CountryCode) @inContext(language: $language, country: $country) {
       cartLinesAdd(cartId: $cartId, lines: $lines) {
@@ -559,6 +583,10 @@ export async function addToCart(cartId: string, variantId: string, quantity: num
             }
           }
         }
+        userErrors {
+          field
+          message
+        }
       }
     }
   `;
@@ -570,12 +598,25 @@ export async function addToCart(cartId: string, variantId: string, quantity: num
       lines: [{ merchandiseId: variantId, quantity }],
     },
     language,
+    country,
   });
+
+  if (data.cartLinesAdd.userErrors?.length) {
+    const message = data.cartLinesAdd.userErrors.map((e: any) => e.message).join(', ');
+    console.error('cartLinesAdd error:', message);
+    throw new Error(message);
+  }
 
   return data.cartLinesAdd.cart;
 }
 
-export async function updateCartLine(cartId: string, lineId: string, quantity: number, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
+export async function updateCartLine(
+  cartId: string,
+  lineId: string,
+  quantity: number,
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE),
+  country?: string
+) {
   const UPDATE_CART_MUTATION = `
     mutation UpdateCart($cartId: ID!, $lines: [CartLineUpdateInput!]!, $language: LanguageCode!, $country: CountryCode) @inContext(language: $language, country: $country) {
       cartLinesUpdate(cartId: $cartId, lines: $lines) {
@@ -620,12 +661,18 @@ export async function updateCartLine(cartId: string, lineId: string, quantity: n
       lines: [{ id: lineId, quantity }],
     },
     language,
+    country,
   });
 
   return data.cartLinesUpdate.cart;
 }
 
-export async function removeFromCart(cartId: string, lineIds: string[], language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
+export async function removeFromCart(
+  cartId: string,
+  lineIds: string[],
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE),
+  country?: string
+) {
   const REMOVE_FROM_CART_MUTATION = `
     mutation RemoveFromCart($cartId: ID!, $lineIds: [ID!]!, $language: LanguageCode!, $country: CountryCode) @inContext(language: $language, country: $country) {
       cartLinesRemove(cartId: $cartId, lineIds: $lineIds) {
@@ -667,9 +714,81 @@ export async function removeFromCart(cartId: string, lineIds: string[], language
     query: REMOVE_FROM_CART_MUTATION,
     variables: { cartId, lineIds },
     language,
+    country,
   });
 
   return data.cartLinesRemove.cart;
+}
+
+export async function updateCartBuyerIdentity(
+  cartId: string,
+  countryCode: string,
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+) {
+  const UPDATE_BUYER_IDENTITY_MUTATION = `
+    mutation UpdateBuyerIdentity($cartId: ID!, $buyerIdentity: CartBuyerIdentityInput!, $language: LanguageCode!, $country: CountryCode) @inContext(language: $language, country: $country) {
+      cartBuyerIdentityUpdate(cartId: $cartId, buyerIdentity: $buyerIdentity) {
+        cart {
+          id
+          checkoutUrl
+          totalQuantity
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 100) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount currencyCode }
+                    product {
+                      id
+                      title
+                      handle
+                      featuredImage { url altText }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await storefrontFetch<{
+    cartBuyerIdentityUpdate: {
+      cart: any;
+      userErrors: { field: string[]; message: string }[];
+    };
+  }>({
+    query: UPDATE_BUYER_IDENTITY_MUTATION,
+    variables: {
+      cartId,
+      buyerIdentity: { countryCode },
+    },
+    language,
+    country: countryCode,
+  });
+
+  if (data.cartBuyerIdentityUpdate.userErrors?.length) {
+    const message = data.cartBuyerIdentityUpdate.userErrors
+      .map((e) => e.message)
+      .join(', ');
+    console.error('cartBuyerIdentityUpdate error:', message);
+  }
+
+  return data.cartBuyerIdentityUpdate.cart;
 }
 
 export type CustomerAccessToken = {

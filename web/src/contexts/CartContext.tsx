@@ -36,6 +36,7 @@ type CartContextType = {
     updateItem: (lineId: string, quantity: number) => Promise<void>;
     removeItem: (lineId: string) => Promise<void>;
     refreshCart: () => Promise<void>;
+    updateCartCountry: (country: string) => Promise<void>;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -179,9 +180,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const updateCartCountry = async (country: string) => {
+        const cartId = cart?.id || localStorage.getItem('shopify_cart_id');
+        if (!cartId) return; // No cart to update
+
+        try {
+            const response = await fetch('/api/cart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'updateBuyerIdentity', cartId, country }),
+            });
+            const data = await response.json();
+            if (data.cart) {
+                setCart(data.cart);
+            }
+        } catch (error) {
+            console.error('Failed to update cart country:', error);
+        }
+    };
+
     return (
         <CartContext.Provider
-            value={{ cart, isLoading, addItem, updateItem, removeItem, refreshCart }}
+            value={{ cart, isLoading, addItem, updateItem, removeItem, refreshCart, updateCartCountry }}
         >
             {children}
         </CartContext.Provider>

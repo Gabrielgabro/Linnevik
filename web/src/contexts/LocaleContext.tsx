@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import type { Language, ShopifyLanguage } from '@/lib/languageConfig';
 import { toShopifyLanguage } from '@/lib/languageConfig';
 import sv from '@/translations/sv.json';
@@ -28,6 +28,11 @@ type LocaleProviderProps = {
 export function LocaleProvider({ children, locale }: LocaleProviderProps) {
   const t = translations[locale];
   const shopifyLanguage = toShopifyLanguage(locale);
+
+  // Update the HTML lang attribute when locale changes
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   return (
     <LocaleContext.Provider value={{ locale, language: locale, t, shopifyLanguage }}>
