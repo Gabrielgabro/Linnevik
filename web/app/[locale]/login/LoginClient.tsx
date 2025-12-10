@@ -13,8 +13,8 @@ export default function LoginClient() {
     const { t } = useTranslation();
 
     return (
-        <main className="min-h-screen bg-white dark:bg-[#111827] flex items-center justify-center px-6 py-16">
-            <div className="w-full max-w-md">
+        <main className="min-h-screen bg-white dark:bg-[#111827] pt-28 pb-16 px-6">
+            <div className="w-full max-w-md mx-auto">
                 <div className="mb-8 text-center">
                     <h1 className="mb-3 text-3xl font-bold text-primary md:text-4xl">
                         {t.login.title}

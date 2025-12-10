@@ -25,8 +25,10 @@ export default async function ActivateAccountPage({ params }: Props) {
     const { id, activationToken } = await params;
 
     return (
-        <main className="min-h-screen bg-white dark:bg-[#111827] flex items-center justify-center px-6 py-16">
-            <ActivateAccountClient id={id} activationToken={activationToken} />
+        <main className="min-h-screen bg-white dark:bg-[#111827] pt-28 pb-16 px-6">
+            <div className="w-full max-w-md mx-auto">
+                <ActivateAccountClient id={id} activationToken={activationToken} />
+            </div>
         </main>
     );
 }
