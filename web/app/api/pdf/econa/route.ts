@@ -22,7 +22,6 @@ export async function GET() {
                 'Content-Disposition': 'inline',
                 'Cache-Control': 'no-store, no-cache, must-revalidate',
                 'X-Content-Type-Options': 'nosniff',
-                'Content-Security-Policy': "default-src 'none'",
             },
         });
     } catch {
