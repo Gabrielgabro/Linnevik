@@ -17,6 +17,25 @@ function useNoIndex() {
 
 export default function EconaPage() {
     useNoIndex();
+
+    // Hide header, footer, and other site chrome on this page
+    useEffect(() => {
+        const selectors = ['header', 'footer', '[data-cookie-banner]', '[data-region-modal]'];
+        const hidden: HTMLElement[] = [];
+
+        selectors.forEach((sel) => {
+            document.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+                el.style.display = 'none';
+                hidden.push(el);
+            });
+        });
+
+        return () => {
+            hidden.forEach((el) => {
+                el.style.display = '';
+            });
+        };
+    }, []);
     useEffect(() => {
         // Disable right-click on the entire page
         const handleContextMenu = (e: MouseEvent) => {
