@@ -11,12 +11,11 @@ export async function appendVisitLog(data: string[]) {
             return;
         }
 
-        const auth = new google.auth.JWT(
-            serviceAccountEmail,
-            undefined,
-            privateKey,
-            ['https://www.googleapis.com/auth/spreadsheets']
-        );
+        const auth = new google.auth.JWT({
+            email: serviceAccountEmail,
+            key: privateKey,
+            scopes: ['https://www.googleapis.com/auth/spreadsheets']
+        });
 
         const sheets = google.sheets({ version: 'v4', auth });
 
