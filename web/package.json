@@ -17,6 +17,7 @@
     "clsx": "^2.1.1",
     "country-flag-icons": "^1.6.4",
     "flowbite-react": "^0.12.10",
+    "googleapis": "^170.1.0",
     "next": "^15.5.7",
     "nodemailer": "^7.0.11",
     "react": "^19.2.1",

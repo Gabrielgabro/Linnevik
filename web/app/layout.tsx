@@ -5,6 +5,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next"
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import VisitLogger from "@/components/VisitLogger";
 
 // Serif font for headings - elegant and refined
 const libreBaskerville = Libre_Baskerville({
@@ -60,6 +61,7 @@ export default function RootLayout({
                 <SpeedInsights />
                 <Analytics />
                 <GoogleAnalytics />
+                <VisitLogger />
             </body>
         </html>
     );
