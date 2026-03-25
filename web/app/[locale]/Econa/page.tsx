@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
+const MIN_WIDTH = 768; // px — phones below this are blocked
 
 // noindex meta tag added directly in the head to prevent search engine indexing
 function useNoIndex() {
@@ -17,6 +19,15 @@ function useNoIndex() {
 
 export default function EconaPage() {
     useNoIndex();
+
+    const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        const check = () => setIsDesktop(window.innerWidth >= MIN_WIDTH);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
 
     // Hide header, footer, and other site chrome on this page
     useEffect(() => {
@@ -63,7 +74,56 @@ export default function EconaPage() {
         };
     }, []);
 
+    // Still measuring — render nothing to avoid a flash
+    if (isDesktop === null) return null;
+
+    // Phone / small tablet — show a friendly block screen
+    if (!isDesktop) {
+        return (
+            <div
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100vh',
+                    padding: '2rem',
+                    textAlign: 'center',
+                    background: '#f9f9f9',
+                    color: '#333',
+                    fontFamily: 'sans-serif',
+                }}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="64"
+                    height="64"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#888"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ marginBottom: '1.5rem' }}
+                >
+                    {/* Monitor icon */}
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+                <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.75rem' }}>
+                    Desktop required
+                </h1>
+                <p style={{ fontSize: '1rem', lineHeight: 1.6, maxWidth: '320px', color: '#555' }}>
+                    This page is only available on larger screens. Please open it on a desktop or
+                    laptop computer.
+                </p>
+            </div>
+        );
+    }
+
     return (
+
         <div
             style={{
                 position: 'relative',
