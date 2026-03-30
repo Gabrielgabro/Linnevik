@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const MIN_WIDTH = 768; // px — phones below this are blocked
+const MIN_WIDTH = 600; // px — devices below this (phones) are blocked
 
 // noindex meta tag added directly in the head to prevent search engine indexing
 function useNoIndex() {
@@ -20,10 +20,10 @@ function useNoIndex() {
 export default function EconaPage() {
     useNoIndex();
 
-    const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
-
+    const [isAllowedDevice, setIsAllowedDevice] = useState<boolean | null>(null);
+    
     useEffect(() => {
-        const check = () => setIsDesktop(window.innerWidth >= MIN_WIDTH);
+        const check = () => setIsAllowedDevice(window.innerWidth >= MIN_WIDTH);
         check();
         window.addEventListener('resize', check);
         return () => window.removeEventListener('resize', check);
@@ -75,10 +75,10 @@ export default function EconaPage() {
     }, []);
 
     // Still measuring — render nothing to avoid a flash
-    if (isDesktop === null) return null;
+    if (isAllowedDevice === null) return null;
 
-    // Phone / small tablet — show a friendly block screen
-    if (!isDesktop) {
+    // Phone — show a friendly block screen
+    if (!isAllowedDevice) {
         return (
             <div
                 style={{
@@ -110,13 +110,16 @@ export default function EconaPage() {
                     <rect x="2" y="3" width="20" height="14" rx="2" />
                     <line x1="8" y1="21" x2="16" y2="21" />
                     <line x1="12" y1="17" x2="12" y2="21" />
+                    {/* Tablet icon - slightly overlapping/offset */}
+                    <rect x="14" y="10" width="8" height="12" rx="1" fill="#f9f9f9" />
+                    <circle cx="18" cy="20" r="0.5" fill="#888" />
                 </svg>
                 <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-                    Desktop required
+                    Larger screen required
                 </h1>
                 <p style={{ fontSize: '1rem', lineHeight: 1.6, maxWidth: '320px', color: '#555' }}>
-                    This page is only available on larger screens. Please open it on a desktop or
-                    laptop computer.
+                    This page is optimized for larger screens. Please open it on a tablet, laptop,
+                    or desktop computer.
                 </p>
             </div>
         );
