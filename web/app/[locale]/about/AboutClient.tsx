@@ -31,35 +31,29 @@ export default function AboutClient() {
             </section>
 
             {/* Our Story */}
-            <section className="py-32 bg-white dark:bg-black">
-                <div className="max-w-6xl mx-auto px-6">
-                    <div className="grid lg:grid-cols-2 gap-20 items-center">
-                        <div className="space-y-8">
-                            <h2 className="text-4xl lg:text-5xl font-serif font-medium text-[#0B3D2E] dark:text-white leading-[1.15] tracking-tight">
-                                {t.about.story.title}
-                            </h2>
-                            <div className="space-y-6 text-lg text-[#5C5C5C] dark:text-gray-300 leading-relaxed">
-                                <p>
-                                    {t.about.story.paragraph1}
-                                </p>
-                                <p>
-                                    {t.about.story.paragraph2}
-                                </p>
-                                <p className="font-medium text-[#0B3D2E] dark:text-white pt-4 border-t border-gray-200 dark:border-zinc-800">
-                                    {t.about.story.highlight}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="relative">
-                            <div className="relative aspect-[4/5] overflow-hidden bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800">
-                                {/* Placeholder for actual image */}
-                                <div className="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-600 text-sm tracking-wider">
-                                    {t.about.story.imagePlaceholder}
-                                </div>
-                            </div>
-                        </div>
+            <section className="pt-32 pb-0 bg-white dark:bg-black">
+                <div className="max-w-4xl mx-auto px-6 mb-20">
+                    <h2 className="text-4xl lg:text-5xl font-serif font-medium text-[#0B3D2E] dark:text-white leading-[1.15] tracking-tight mb-10">
+                        {t.about.story.title}
+                    </h2>
+                    <div className="grid md:grid-cols-2 gap-x-16 gap-y-6 text-lg text-[#5C5C5C] dark:text-gray-300 leading-relaxed">
+                        <p>
+                            {t.about.story.paragraph1}
+                        </p>
+                        <p>
+                            {t.about.story.paragraph2}
+                        </p>
                     </div>
+                    <p className="font-medium text-[#0B3D2E] dark:text-white pt-6 mt-10 border-t border-gray-200 dark:border-zinc-800 max-w-2xl">
+                        {t.about.story.highlight}
+                    </p>
+                </div>
+                <div className="w-full aspect-[21/9] overflow-hidden">
+                    <img
+                        src="/Supporting_visuals/hq.jpeg"
+                        alt={t.about.story.imagePlaceholder}
+                        className="w-full h-full object-cover"
+                    />
                 </div>
             </section>
 
