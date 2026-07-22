@@ -12,6 +12,9 @@ export type FetchArgs = {
   apiVersion?: string;
   language?: ShopifyLanguage;
   country?: string; // ISO 2-letter country code, e.g. "SE", "US"
+  // Opt out of the Data Cache for per-buyer data (carts, customers). Mutations
+  // are detected automatically and never need to set this.
+  cache?: 'no-store';
 };
 
 export async function storefrontFetch<T>({
@@ -20,6 +23,7 @@ export async function storefrontFetch<T>({
   apiVersion = DEFAULT_API_VERSION,
   language = toShopifyLanguage(DEFAULT_LANGUAGE),
   country,
+  cache,
 }: FetchArgs): Promise<T> {
   const endpoint = `https://${SHOPIFY_DOMAIN}/api/${apiVersion}/graphql.json`;
 
@@ -42,6 +46,12 @@ export async function storefrontFetch<T>({
     country: resolvedCountry,
   };
 
+  // Every Storefront call is an HTTP POST, so Next does not auto-exclude it from
+  // the Data Cache — an explicit revalidate would happily cache cart mutations
+  // and log-ins for an hour. Skip the cache for anything that is not a
+  // cacheable, shared-across-buyers read.
+  const skipCache = cache === 'no-store' || /^\s*mutation\b/.test(query);
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -49,7 +59,9 @@ export async function storefrontFetch<T>({
       'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN,
     },
     body: JSON.stringify({ query, variables: finalVariables }),
-    next: { revalidate: 3600 }, // Revalidate every hour (ISR)
+    ...(skipCache
+      ? { cache: 'no-store' as const }
+      : { next: { revalidate: 3600 } }), // Revalidate every hour (ISR)
   });
 
   if (!response.ok) {
@@ -538,6 +550,7 @@ export async function getCart(
     variables: { cartId },
     language,
     country,
+    cache: 'no-store',
   });
 
   return data.cart;
@@ -1051,6 +1064,7 @@ export async function getCustomer(
     query: QUERY,
     variables: { customerAccessToken },
     language,
+    cache: 'no-store',
   });
 
   return data.customer;
