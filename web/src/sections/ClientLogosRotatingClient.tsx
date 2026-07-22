@@ -10,8 +10,11 @@ const DISPLAY_DURATION = 3000; // 3 seconds showing logo
 const FADE_OUT_DURATION = 800; // Calm fade out
 const FADE_IN_DURATION = 800; // Calm fade in
 const PAUSE_BETWEEN = 1000; // 1 second pause after fade in complete
+const INCOMING_LOAD_TIMEOUT = 5000; // Failsafe so a hung image request can't stall the rotation
+
 // Animation states
 type AnimationState = 'stable' | 'fading-out' | 'fading-in';
+type Swap = { slot: number; incomingIndex: number };
 
 
 export default function ClientLogosRotatingClient({
@@ -57,46 +60,14 @@ export default function ClientLogosRotatingClient({
 
     // State for rendering
     const [visibleIndices, setVisibleIndices] = useState<number[]>([]);
-    const [animatingSlot, setAnimatingSlot] = useState<number | null>(null);
+    const [swap, setSwap] = useState<Swap | null>(null);
     const [animationState, setAnimationState] = useState<AnimationState>('stable');
-    const [imagesPreloaded, setImagesPreloaded] = useState(false);
 
     // Refs to track current indices without triggering effect re-runs
     const visibleRef = useRef<number[]>([]);
     const hiddenRef = useRef<number[]>([]);
-
-    // Preload all logos on mount to prevent initial animation sluggishness
-    useEffect(() => {
-        if (logos.length === 0) {
-            setImagesPreloaded(true);
-            return;
-        }
-
-        let cancelled = false;
-
-        const preloadImages = async () => {
-            const preloadPromises = logos.map((logo) => {
-                return new Promise<void>((resolve) => {
-                    const img = new window.Image();
-                    img.onload = () => resolve();
-                    img.onerror = () => resolve(); // Resolve anyway to not block
-                    img.src = logo.src;
-                });
-            });
-
-            await Promise.all(preloadPromises);
-
-            if (!cancelled) {
-                setImagesPreloaded(true);
-            }
-        };
-
-        preloadImages();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [logos]);
+    // Called by the incoming image's onLoad/onError; rebound on every rotation
+    const incomingReadyRef = useRef<(() => void) | null>(null);
 
     // Reset indices when logos change (e.g., dark mode toggle)
     useEffect(() => {
@@ -107,7 +78,7 @@ export default function ClientLogosRotatingClient({
         hiddenRef.current = initialHidden;
 
         setVisibleIndices(initialVisible);
-        setAnimatingSlot(null);
+        setSwap(null);
         setAnimationState('stable');
     }, [logos, totalLogos, visibleCount]);
 
@@ -126,42 +97,61 @@ export default function ClientLogosRotatingClient({
         const randomHiddenIndex = Math.floor(Math.random() * currentHidden.length);
         const logoToShow = currentHidden[randomHiddenIndex];
 
-        setAnimatingSlot(randomSlot);
+        // 3. Mount the incoming logo invisibly so it loads during the fade out,
+        //    and start fading the old logo out
+        setSwap({ slot: randomSlot, incomingIndex: logoToShow });
         setAnimationState('fading-out');
 
-        // 3. After fade out, swap and fade in
-        setTimeout(() => {
-            // Update refs
-            const newVisible = [...currentVisible];
-            newVisible[randomSlot] = logoToShow;
-            visibleRef.current = newVisible;
+        // 4. Fade in only once the fade out is done AND the incoming image has
+        //    loaded — starting earlier paints the old bitmap and hard-swaps it mid-fade
+        let fadeOutDone = false;
+        let incomingReady = false;
+        let fadeInStarted = false;
 
-            const newHidden = [...currentHidden];
-            newHidden[randomHiddenIndex] = logoToReplace;
-            hiddenRef.current = newHidden;
+        const tryStartFadeIn = () => {
+            if (fadeInStarted || !fadeOutDone || !incomingReady) return;
+            fadeInStarted = true;
 
-            // Update render state
-            setVisibleIndices(newVisible);
             setAnimationState('fading-in');
 
-            // 4. After fade in, reset and schedule next
+            // 5. After fade in, commit the swap and schedule the next rotation
             setTimeout(() => {
-                setAnimationState('stable');
-                setAnimatingSlot(null);
+                const newVisible = [...currentVisible];
+                newVisible[randomSlot] = logoToShow;
+                visibleRef.current = newVisible;
 
-                // 5. Pause then rotate again
+                const newHidden = [...currentHidden];
+                newHidden[randomHiddenIndex] = logoToReplace;
+                hiddenRef.current = newHidden;
+
+                setVisibleIndices(newVisible);
+                setSwap(null);
+                setAnimationState('stable');
+
                 setTimeout(() => {
                     performRotation();
                 }, PAUSE_BETWEEN);
-
             }, FADE_IN_DURATION);
+        };
 
+        const markIncomingReady = () => {
+            incomingReady = true;
+            tryStartFadeIn();
+        };
+
+        incomingReadyRef.current = markIncomingReady;
+
+        setTimeout(() => {
+            fadeOutDone = true;
+            tryStartFadeIn();
         }, FADE_OUT_DURATION);
+
+        setTimeout(markIncomingReady, INCOMING_LOAD_TIMEOUT);
     }, []);
 
-    // Start rotation only after images are preloaded
+    // Start rotation after the initial display period
     useEffect(() => {
-        if (!imagesPreloaded || totalLogos <= visibleCount) {
+        if (totalLogos <= visibleCount) {
             return;
         }
 
@@ -173,7 +163,7 @@ export default function ClientLogosRotatingClient({
             clearTimeout(timeoutId);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [imagesPreloaded]);
+    }, []);
 
     if (totalLogos === 0) {
         return null;
@@ -188,21 +178,14 @@ export default function ClientLogosRotatingClient({
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
                     {visibleIndices.map((logoIndex, slotIndex) => {
-                        const logo = logos[logoIndex];
+                        const isSwappingSlot = swap !== null && swap.slot === slotIndex;
 
-                        // Safety check: skip if logo doesn't exist
-                        if (!logo) return null;
-
-                        const isAnimating = animatingSlot === slotIndex;
-
-                        // Calculate opacity based on animation state
-                        let opacity = 1;
-                        if (isAnimating) {
-                            if (animationState === 'fading-out') {
-                                opacity = 0;
-                            } else if (animationState === 'fading-in') {
-                                opacity = 1;
-                            }
+                        // Current logo, plus the incoming one stacked on top during a swap.
+                        // Entries are keyed by logo index so the incoming element is kept
+                        // across the commit instead of changing src on a visible img.
+                        const stack = [{ logoIndex, incoming: false }];
+                        if (isSwappingSlot) {
+                            stack.push({ logoIndex: swap.incomingIndex, incoming: true });
                         }
 
                         return (
@@ -210,25 +193,44 @@ export default function ClientLogosRotatingClient({
                                 key={`slot-${slotIndex}`}
                                 className="relative aspect-square flex items-center justify-center"
                             >
-                                <div
-                                    className="relative w-full h-full transition-opacity ease-in-out"
-                                    style={{
-                                        opacity,
-                                        transitionDuration: animationState === 'fading-out'
-                                            ? `${FADE_OUT_DURATION}ms`
-                                            : animationState === 'fading-in'
-                                                ? `${FADE_IN_DURATION}ms`
-                                                : '0ms'
-                                    }}
-                                >
-                                    <Image
-                                        src={logo.src}
-                                        alt={logo.alt}
-                                        fill
-                                        className="object-contain"
-                                        sizes="(max-width: 640px) 50vw, 25vw"
-                                    />
-                                </div>
+                                {stack.map(({ logoIndex: stackLogoIndex, incoming }) => {
+                                    const logo = logos[stackLogoIndex];
+
+                                    // Safety check: skip if logo doesn't exist
+                                    if (!logo) return null;
+
+                                    let opacity = 1;
+                                    let duration = 0;
+                                    if (incoming) {
+                                        opacity = animationState === 'fading-in' ? 1 : 0;
+                                        duration = animationState === 'fading-in' ? FADE_IN_DURATION : 0;
+                                    } else if (isSwappingSlot) {
+                                        opacity = 0;
+                                        duration = animationState === 'fading-out' ? FADE_OUT_DURATION : 0;
+                                    }
+
+                                    return (
+                                        <div
+                                            key={`logo-${stackLogoIndex}`}
+                                            className="absolute inset-0 transition-opacity ease-in-out"
+                                            style={{
+                                                opacity,
+                                                transitionDuration: `${duration}ms`
+                                            }}
+                                        >
+                                            <Image
+                                                src={logo.src}
+                                                alt={logo.alt}
+                                                fill
+                                                loading={incoming ? 'eager' : undefined}
+                                                onLoad={incoming ? () => incomingReadyRef.current?.() : undefined}
+                                                onError={incoming ? () => incomingReadyRef.current?.() : undefined}
+                                                className="object-contain"
+                                                sizes="(max-width: 640px) 50vw, 25vw"
+                                            />
+                                        </div>
+                                    );
+                                })}
                             </div>
                         );
                     })}
