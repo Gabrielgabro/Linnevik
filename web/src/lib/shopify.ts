@@ -983,6 +983,77 @@ export async function customerActivate(
   };
 }
 
+export async function customerRecover(
+  email: string,
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+): Promise<{ userErrors: { code: string | null; field: string[] | null; message: string }[] }> {
+  const MUTATION = `
+    mutation customerRecover($email: String!, $language: LanguageCode!) @inContext(language: $language) {
+      customerRecover(email: $email) {
+        customerUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await storefrontFetch<{
+    customerRecover: {
+      customerUserErrors: { code: string | null; field: string[] | null; message: string }[];
+    } | null;
+  }>({
+    query: MUTATION,
+    variables: { email },
+    language,
+  });
+
+  return { userErrors: data.customerRecover?.customerUserErrors ?? [] };
+}
+
+export async function customerReset(
+  id: string,
+  resetToken: string,
+  password: string,
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+): Promise<{ customerAccessToken: CustomerAccessToken | null; userErrors: any[] }> {
+  const MUTATION = `
+    mutation customerReset($id: ID!, $input: CustomerResetInput!, $language: LanguageCode!) @inContext(language: $language) {
+      customerReset(id: $id, input: $input) {
+        customerAccessToken {
+          accessToken
+          expiresAt
+        }
+        customerUserErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await storefrontFetch<{
+    customerReset: {
+      customerAccessToken: CustomerAccessToken | null;
+      customerUserErrors: { code: string | null; field: string[] | null; message: string }[];
+    };
+  }>({
+    query: MUTATION,
+    variables: {
+      id,
+      input: { resetToken, password },
+    },
+    language,
+  });
+
+  return {
+    customerAccessToken: data.customerReset.customerAccessToken,
+    userErrors: data.customerReset.customerUserErrors,
+  };
+}
+
 
 export async function getCustomer(
   customerAccessToken: string,

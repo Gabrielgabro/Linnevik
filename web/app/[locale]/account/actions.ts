@@ -107,7 +107,7 @@ export async function loadVatStatus(_: VatState): Promise<VatState> {
     }
 }
 
-import { customerActivate } from '@/lib/shopify';
+import { customerActivate, customerReset } from '@/lib/shopify';
 import { createSession } from '@/lib/customerAccountAuth';
 
 export async function activateCustomer(id: string, activationToken: string, password: string) {
@@ -136,6 +136,36 @@ export async function activateCustomer(id: string, activationToken: string, pass
     } catch (error) {
         console.error('Activation failed:', error);
         return { error: t.activation.errors.activationFailed };
+    }
+}
+
+export async function resetCustomerPassword(id: string, resetToken: string, password: string) {
+    const t = await getActionTranslations();
+    try {
+        // Shopify reset URLs use numeric IDs but the Storefront API
+        // customerReset mutation requires GID format (same as activation)
+        const customerId = id.startsWith('gid://')
+            ? id
+            : `gid://shopify/Customer/${id}`;
+
+        const { customerAccessToken, userErrors } = await customerReset(customerId, resetToken, password);
+
+        if (userErrors.length > 0) {
+            console.error('[resetCustomerPassword] User errors:', userErrors);
+            return { error: userErrors[0].message };
+        }
+
+        if (!customerAccessToken) {
+            return { error: t.reset.errors.resetFailed };
+        }
+
+        // Log the customer in with their new password right away
+        await createSession(customerAccessToken.accessToken, customerAccessToken.expiresAt);
+
+        return { success: true };
+    } catch (error) {
+        console.error('Password reset failed:', error);
+        return { error: t.reset.errors.resetFailed };
     }
 }
 

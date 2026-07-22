@@ -380,6 +380,51 @@
       "activationFailed": "Kunde inte aktivera kontot. Försök igen."
     }
   },
+  "forgot": {
+    "metadata": {
+      "title": "Glömt lösenordet",
+      "description": "Återställ lösenordet till ditt Linnevik-konto"
+    },
+    "title": "Glömt lösenordet?",
+    "subtitle": "Ange din e-postadress så skickar vi en länk för att återställa lösenordet.",
+    "fields": {
+      "email": "E-postadress"
+    },
+    "placeholders": {
+      "email": "namn@foretag.se"
+    },
+    "actions": {
+      "submit": "Skicka återställningslänk",
+      "submitting": "Skickar...",
+      "backToLogin": "Tillbaka till inloggning"
+    },
+    "confirmation": "Om det finns ett konto med den e-postadressen har vi skickat en återställningslänk. Kolla även skräpposten.",
+    "errors": {
+      "invalidEmail": "Ange en giltig e-postadress"
+    }
+  },
+  "reset": {
+    "metadata": {
+      "title": "Återställ lösenord",
+      "description": "Välj ett nytt lösenord för ditt Linnevik-konto"
+    },
+    "title": "Återställ lösenord",
+    "subtitle": "Välj ett nytt lösenord för ditt konto.",
+    "fields": {
+      "password": "Nytt lösenord",
+      "confirmPassword": "Bekräfta nytt lösenord"
+    },
+    "actions": {
+      "submit": "Spara nytt lösenord",
+      "submitting": "Sparar..."
+    },
+    "errors": {
+      "passwordMismatch": "Lösenorden matchar inte",
+      "passwordTooShort": "Lösenordet måste vara minst 5 tecken",
+      "unexpectedError": "Ett oväntat fel uppstod.",
+      "resetFailed": "Kunde inte återställa lösenordet. Länken kan ha gått ut – begär en ny."
+    }
+  },
   "vatStatus": {
     "notLoggedIn": "Du är inte inloggad. Logga in via kontosidan först.",
     "invalidFormat": "Ange ett giltigt VAT-nummer (t.ex. SE123456789).",

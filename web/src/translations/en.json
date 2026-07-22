@@ -380,6 +380,51 @@
       "activationFailed": "Failed to activate account. Please try again."
     }
   },
+  "forgot": {
+    "metadata": {
+      "title": "Forgot Password",
+      "description": "Reset the password for your Linnevik account"
+    },
+    "title": "Forgot your password?",
+    "subtitle": "Enter your email address and we will send you a link to reset your password.",
+    "fields": {
+      "email": "Email address"
+    },
+    "placeholders": {
+      "email": "name@company.com"
+    },
+    "actions": {
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "backToLogin": "Back to sign in"
+    },
+    "confirmation": "If an account exists for that email address, we have sent a reset link. Remember to check your spam folder.",
+    "errors": {
+      "invalidEmail": "Enter a valid email address"
+    }
+  },
+  "reset": {
+    "metadata": {
+      "title": "Reset Password",
+      "description": "Choose a new password for your Linnevik account"
+    },
+    "title": "Reset Password",
+    "subtitle": "Choose a new password for your account.",
+    "fields": {
+      "password": "New password",
+      "confirmPassword": "Confirm new password"
+    },
+    "actions": {
+      "submit": "Save new password",
+      "submitting": "Saving..."
+    },
+    "errors": {
+      "passwordMismatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 5 characters",
+      "unexpectedError": "An unexpected error occurred.",
+      "resetFailed": "Could not reset the password. The link may have expired – request a new one."
+    }
+  },
   "vatStatus": {
     "notLoggedIn": "You are not logged in. Please log in from the account page first.",
     "invalidFormat": "Enter a valid VAT number (e.g., SE123456789).",

@@ -31,6 +31,12 @@ const nextConfig: NextConfig = {
                 destination: '/sv/account/activate/:id/:token',
                 permanent: false,
             },
+            // Redirect Shopify password-reset links (no locale) to Swedish default
+            {
+                source: '/account/reset/:id/:token',
+                destination: '/sv/account/reset/:id/:token',
+                permanent: false,
+            },
         ];
     },
     eslint: {

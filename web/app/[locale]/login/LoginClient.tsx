@@ -67,6 +67,14 @@ export default function LoginClient() {
                                 className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-3 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
                                 placeholder={t.login.placeholders.password}
                             />
+                            <div className="mt-2 text-right">
+                                <LocaleLink
+                                    href="/login/forgot"
+                                    className="text-sm text-secondary hover:text-primary hover:underline"
+                                >
+                                    {t.login.actions.forgot}
+                                </LocaleLink>
+                            </div>
                         </div>
 
                         <div className="space-y-3 pt-2">

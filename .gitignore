@@ -1,3 +1,5 @@
 bokföring/
 .vercel
 .env*
+sales/
+beställningar/

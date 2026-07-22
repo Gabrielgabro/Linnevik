@@ -1,7 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { createCustomerAccessToken } from '@/lib/shopify';
+import { createCustomerAccessToken, customerRecover } from '@/lib/shopify';
 import {
     createCustomerAccount,
     sendActivationEmail,
@@ -239,6 +239,34 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
 
         return { status: 'error', message, fields };
     }
+}
+
+export type RecoverState = {
+    status: 'idle' | 'success' | 'error';
+    message?: string;
+};
+
+export async function handleRecover(_: RecoverState, formData: FormData): Promise<RecoverState> {
+    const t = await getActionTranslations();
+    const email = formData.get('email')?.toString().trim() ?? '';
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!email || email.length > 254 || !EMAIL_REGEX.test(email)) {
+        return { status: 'error', message: t.forgot.errors.invalidEmail };
+    }
+
+    try {
+        const { userErrors } = await customerRecover(email);
+        // Log for ourselves, but never surface whether the email has an
+        // account - always answer with the same neutral confirmation.
+        if (userErrors.length > 0) {
+            console.error('[recover] customerRecover user errors:', userErrors);
+        }
+    } catch (error) {
+        console.error('[recover] customerRecover failed:', error);
+    }
+
+    return { status: 'success', message: t.forgot.confirmation };
 }
 
 /**
