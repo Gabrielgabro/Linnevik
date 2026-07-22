@@ -65,13 +65,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 const data = await response.json();
                 if (data.cart) {
                     setCart(data.cart);
-                } else {
-                    // Cart not found, clear localStorage
+                } else if (response.ok) {
+                    // Shopify resolved the ID and reported no such cart, so it
+                    // expired (carts last ~10 days) or was already checked out.
+                    // It is never coming back — stop asking for it.
                     localStorage.removeItem('shopify_cart_id');
+                } else {
+                    // Transient failure. The cart most likely still exists, so
+                    // keep the ID and let the next load pick it up again.
+                    console.error('Failed to load cart:', data.error);
                 }
             } catch (error) {
+                // Network or parse failure — same reasoning, keep the ID.
                 console.error('Failed to load cart:', error);
-                localStorage.removeItem('shopify_cart_id');
             } finally {
                 setIsLoading(false);
             }
