@@ -43,30 +43,37 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
     const [cart, setCart] = useState<Cart>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    // Starts true so the cart page renders its loading state instead of
+    // flashing "your cart is empty" before the stored cart has been fetched.
+    const [isLoading, setIsLoading] = useState(true);
 
     // Load cart from localStorage on mount
     useEffect(() => {
         const loadCart = async () => {
             const cartId = localStorage.getItem('shopify_cart_id');
-            if (cartId) {
-                try {
-                    const response = await fetch('/api/cart', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'get', cartId }),
-                    });
-                    const data = await response.json();
-                    if (data.cart) {
-                        setCart(data.cart);
-                    } else {
-                        // Cart not found, clear localStorage
-                        localStorage.removeItem('shopify_cart_id');
-                    }
-                } catch (error) {
-                    console.error('Failed to load cart:', error);
+            if (!cartId) {
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/cart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get', cartId }),
+                });
+                const data = await response.json();
+                if (data.cart) {
+                    setCart(data.cart);
+                } else {
+                    // Cart not found, clear localStorage
                     localStorage.removeItem('shopify_cart_id');
                 }
+            } catch (error) {
+                console.error('Failed to load cart:', error);
+                localStorage.removeItem('shopify_cart_id');
+            } finally {
+                setIsLoading(false);
             }
         };
         loadCart();
