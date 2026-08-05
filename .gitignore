@@ -3,3 +3,5 @@ bokföring/
 .env*
 sales/
 beställningar/
+catalog/
+outputs/

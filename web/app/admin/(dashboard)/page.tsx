@@ -1,5 +1,7 @@
+import CompetitorCharts from '@/components/admin/CompetitorCharts';
 import CostCharts from '@/components/admin/CostCharts';
-import { landedPerPcs, lineTotal, products, shipment } from '@/data/landedCost';
+import { collectedAt } from '@/data/competitorPrices';
+import { landedPerPcs, products, shipment } from '@/data/landedCost';
 
 const sek = (v: number, decimals = 2) =>
   v.toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -126,139 +128,31 @@ export default function AdminPricingPage() {
 
       <CostCharts products={byLandedDesc} />
 
-      <section
-        className="rounded-[3px] border px-6 py-6"
-        style={{ background: 'var(--viz-surface)', borderColor: 'var(--viz-rule)' }}
+      <header
+        className="flex flex-col gap-[14px] border-b border-t-2 pb-5 pt-[18px]"
+        style={{ borderTopColor: 'var(--viz-ink)', borderBottomColor: 'var(--viz-rule)' }}
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-[13px]">
-            <caption
-              className="pb-2.5 text-left font-mono text-[10.5px] uppercase tracking-[0.1em]"
-              style={{ color: 'var(--viz-ink-3)' }}
-            >
-              Fullständigt underlag · SEK exkl. moms · frakt fördelad på CBM, tull på varuvärde
-            </caption>
-            <thead>
-              <tr>
-                {['Produkt', 'Antal', 'CBM', 'Vara/st', 'Frakt/st', 'Tull/st', 'Landad/st', 'Radtotal', 'Pålägg'].map(
-                  (h, i) => (
-                    <th
-                      key={h}
-                      scope="col"
-                      className={`whitespace-nowrap border-b px-2.5 py-2 font-mono text-[10.5px] font-normal uppercase tracking-[0.06em] ${
-                        i === 0 ? 'text-left' : 'text-right'
-                      }`}
-                      style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody style={{ color: 'var(--viz-ink)' }}>
-              {byLandedDesc.map(p => {
-                const cells = [
-                  String(p.qty),
-                  sek(p.cbm, 2),
-                  sek(p.goodsPerPcs),
-                  sek(p.freightPerPcs),
-                  sek(p.dutyPerPcs),
-                  sek(landedPerPcs(p)),
-                  sek(lineTotal(p)),
-                  `+${sek((landedPerPcs(p) / p.goodsPerPcs - 1) * 100, 0)} %`,
-                ];
-                return (
-                  <tr key={p.skuPrefix}>
-                    <th
-                      scope="row"
-                      className="border-b px-2.5 py-2 text-left font-normal"
-                      style={{ borderColor: 'var(--viz-rule)' }}
-                    >
-                      {p.title}
-                      {p.confidence === 'likely' && (
-                        <span
-                          className="ml-[7px] whitespace-nowrap rounded-sm border px-[5px] py-px font-mono text-[10px] uppercase tracking-[0.06em]"
-                          style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
-                          title="Mappningen mot Shopify är sannolik men inte verifierad."
-                        >
-                          trolig
-                        </span>
-                      )}
-                    </th>
-                    {cells.map((c, i) => (
-                      <td
-                        key={i}
-                        className="border-b px-2.5 py-2 text-right tabular-nums"
-                        style={{ borderColor: 'var(--viz-rule)' }}
-                      >
-                        {c}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot style={{ color: 'var(--viz-ink)' }}>
-              <tr className="font-semibold">
-                <th
-                  scope="row"
-                  className="border-t-2 px-2.5 py-2 text-left"
-                  style={{ borderColor: 'var(--viz-rule)' }}
-                >
-                  Totalt
-                </th>
-                {[String(shipment.qty), sek(shipment.cbm, 2), '—', '—', '—', '—', sek(landedTotal), `+${sek((landedTotal / goodsTotal - 1) * 100, 1)} %`].map(
-                  (c, i) => (
-                    <td
-                      key={i}
-                      className="border-t-2 px-2.5 py-2 text-right tabular-nums"
-                      style={{ borderColor: 'var(--viz-rule)' }}
-                    >
-                      {c}
-                    </td>
-                  )
-                )}
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </section>
+        <span
+          className="font-mono text-[11px] uppercase tracking-[0.14em]"
+          style={{ color: 'var(--viz-ink-3)' }}
+        >
+          Konkurrentanalys · publika prislistor · insamlat {collectedAt}
+        </span>
+        <h2
+          className="max-w-[24ch] text-balance font-heading text-[clamp(22px,3.2vw,30px)] leading-[1.12] tracking-[-0.02em]"
+          style={{ color: 'var(--viz-ink)' }}
+        >
+          Vad marknaden tar — och vad vi borde ta
+        </h2>
+        <p className="max-w-[64ch] text-[15px]" style={{ color: 'var(--viz-ink-2)' }}>
+          För varje produkt har vi letat upp den närmast likvärdiga produkten hos svenska och nordiska
+          hotelltextilleverantörer och lagt deras listpris bredvid vår landade kostnad. Tyngdpunkten
+          ligger på B2B; konsumentpriserna finns med som referens och är omräknade till exklusive moms.
+          Där matchningen inte är exakt står avvikelsen utskriven i källtabellen.
+        </p>
+      </header>
 
-      <footer
-        className="flex flex-col gap-1.5 border-t pt-4 text-[12.5px]"
-        style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
-      >
-        <p>
-          <b className="font-semibold" style={{ color: 'var(--viz-ink-2)' }}>
-            Ingen deposition är betald.
-          </b>{' '}
-          Leverantören fakturerade USD {sek(shipment.invoicedUsd)} med en deposition på 1 500 och ett
-          restbelopp på 3 671,02, men bara restbeloppet har lämnat banken (ref {shipment.bankRef},
-          2026-06-03). Varukostnaden här bygger på det som faktiskt betalats. Att godset ändå levererades
-          är obekräftat mot leverantören.
-        </p>
-        <p>
-          Mellanskillnaden mot fakturan är fördelad pro rata över raderna, eftersom fakturan inte anger
-          vilken post den gäller.
-        </p>
-        <p>
-          Frakt fördelad på volymandel (CBM), tull på varuvärdesandel, bankavgift på värde. Moms ingår
-          inte — den är avdragsgill.
-        </p>
-        <p>
-          Mappningen mot Shopify är bekräftad för fyra produkter. Madrasskydd och Kuddskydd är märkta
-          &rdquo;trolig&rdquo; — de är inte verifierade.
-        </p>
-        <p>
-          Kostnaden gäller denna ordervolym. 42 % av logistiknotan är fasta avgifter, så styckkostnaden
-          faller cirka 21 % vid dubbel ordervolym.
-        </p>
-        <p>
-          Källa: <code>catalog/beställningar/2026/prisanalys.csv</code>. Kör{' '}
-          <code>node scripts/build-landed-cost.mjs</code> när den ändras.
-        </p>
-      </footer>
+      <CompetitorCharts />
     </>
   );
 }

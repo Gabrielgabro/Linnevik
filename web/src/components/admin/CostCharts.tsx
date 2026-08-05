@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import type { LandedCostProduct } from '@/data/landedCost';
 import { landedPerPcs, lineTotal } from '@/data/landedCost';
+import { Axis, Card, Legend, sek, Tooltip, useTip } from './VizPrimitives';
 
 type Props = { products: LandedCostProduct[] };
 
@@ -14,66 +14,8 @@ const PARTS: Part[] = [
   { key: 'dutyPerPcs', label: 'Tull', varName: '--viz-s3' },
 ];
 
-const sek = (v: number, decimals = 2) =>
-  v.toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-
-type Tip = { x: number; y: number; title: string; rows: string[]; note: string } | null;
-
-function Swatch({ varName }: { varName: string }) {
-  return (
-    <span
-      aria-hidden
-      className="inline-block h-[9px] w-[9px] shrink-0 rounded-sm"
-      style={{ background: `var(${varName})` }}
-    />
-  );
-}
-
-function Legend() {
-  return (
-    <div className="flex flex-wrap gap-x-[18px] gap-y-1.5">
-      {PARTS.map(p => (
-        <span
-          key={p.key}
-          className="inline-flex items-center gap-[7px] text-[12.5px]"
-          style={{ color: 'var(--viz-ink-2)' }}
-        >
-          <Swatch varName={p.varName} />
-          {p.label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function Axis({ ticks, max, unit, format }: { ticks: number[]; max: number; unit: string; format: (t: number) => string }) {
-  return (
-    <div className="mt-0.5 grid grid-cols-[132px_1fr_88px] items-start gap-3 max-[620px]:grid-cols-[1fr_auto]">
-      <span className="max-[620px]:hidden" />
-      <div className="relative h-[17px] border-t" style={{ borderColor: 'var(--viz-grid)' }}>
-        {ticks.map((t, i) => (
-          <i
-            key={t}
-            className="absolute top-[3px] whitespace-nowrap font-mono text-[10.5px] not-italic tabular-nums"
-            style={{
-              left: `${(t / max) * 100}%`,
-              color: 'var(--viz-ink-3)',
-              transform: i === 0 ? 'none' : i === ticks.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)',
-            }}
-          >
-            {format(t)}
-          </i>
-        ))}
-      </div>
-      <span className="pt-[3px] font-mono text-[10.5px]" style={{ color: 'var(--viz-ink-3)' }}>
-        {unit}
-      </span>
-    </div>
-  );
-}
-
 export default function CostCharts({ products }: Props) {
-  const [tip, setTip] = useState<Tip>(null);
+  const { tip, showTip, hideTip } = useTip();
 
   const capital = products.reduce((sum, p) => sum + lineTotal(p), 0);
   const shareOf = (...prefixes: string[]) =>
@@ -84,12 +26,6 @@ export default function CostCharts({ products }: Props) {
     100;
   const MAX_PER_PCS = 450;
   const MAX_LINE = 18000;
-
-  const showTip = (e: React.MouseEvent | React.FocusEvent, next: Omit<NonNullable<Tip>, 'x' | 'y'>) => {
-    const point = 'clientX' in e ? { x: e.clientX, y: e.clientY } : null;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setTip({ ...next, x: point?.x ?? rect.left + rect.width / 2, y: point?.y ?? rect.top });
-  };
 
   const stackedRow = (p: LandedCostProduct, normalized: boolean) => {
     const landed = landedPerPcs(p);
@@ -126,8 +62,8 @@ export default function CostCharts({ products }: Props) {
                 onMouseEnter={e => showTip(e, tipFor(p, part, value, share, landed))}
                 onMouseMove={e => showTip(e, tipFor(p, part, value, share, landed))}
                 onFocus={e => showTip(e, tipFor(p, part, value, share, landed))}
-                onMouseLeave={() => setTip(null)}
-                onBlur={() => setTip(null)}
+                onMouseLeave={() => hideTip()}
+                onBlur={() => hideTip()}
               />
             );
           })}
@@ -172,8 +108,8 @@ export default function CostCharts({ products }: Props) {
             onMouseEnter={e => showTip(e, soloTip(p, total, share))}
             onMouseMove={e => showTip(e, soloTip(p, total, share))}
             onFocus={e => showTip(e, soloTip(p, total, share))}
-            onMouseLeave={() => setTip(null)}
-            onBlur={() => setTip(null)}
+            onMouseLeave={() => hideTip()}
+            onBlur={() => hideTip()}
           />
         </div>
         <span
@@ -204,7 +140,7 @@ export default function CostCharts({ products }: Props) {
           </>
         }
       >
-        <Legend />
+        <Legend items={PARTS} />
         <div className="flex flex-col gap-[9px]">{products.map(p => stackedRow(p, false))}</div>
         <Axis ticks={[0, 150, 300, 450]} max={MAX_PER_PCS} unit="kr/st" format={t => sek(t, 0)} />
       </Card>
@@ -221,7 +157,7 @@ export default function CostCharts({ products }: Props) {
           </>
         }
       >
-        <Legend />
+        <Legend items={PARTS} />
         <div className="flex flex-col gap-[9px]">{products.map(p => stackedRow(p, true))}</div>
         <Axis ticks={[0, 25, 50, 75, 100]} max={100} unit="frakt + tull" format={t => `${t} %`} />
       </Card>
@@ -242,69 +178,7 @@ export default function CostCharts({ products }: Props) {
         <Axis ticks={[0, 6000, 12000, 18000]} max={MAX_LINE} unit="SEK" format={t => sek(t, 0)} />
       </Card>
 
-      {tip && (
-        <div
-          role="status"
-          className="pointer-events-none fixed z-50 max-w-[250px] rounded-[3px] border px-[11px] py-[9px] text-[12.5px] shadow-lg"
-          style={{
-            left: Math.min(Math.max(8, tip.x + 14), (typeof window !== 'undefined' ? window.innerWidth : 1200) - 258),
-            top: Math.max(8, tip.y - 90),
-            background: 'var(--viz-surface)',
-            color: 'var(--viz-ink)',
-            borderColor: 'var(--viz-rule)',
-          }}
-        >
-          <div className="mb-[3px] font-semibold">{tip.title}</div>
-          {tip.rows.map(r => (
-            <div key={r} className="tabular-nums" style={{ color: 'var(--viz-ink-2)' }}>
-              {r}
-            </div>
-          ))}
-          <div className="mt-1 text-[11.5px]" style={{ color: 'var(--viz-ink-3)' }}>
-            {tip.note}
-          </div>
-        </div>
-      )}
+      <Tooltip tip={tip} />
     </>
-  );
-}
-
-function Card({
-  title,
-  sub,
-  note,
-  flag,
-  children,
-}: {
-  title: string;
-  sub: string;
-  note: React.ReactNode;
-  flag?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      className="flex flex-col gap-[18px] rounded-[3px] border px-6 pb-5 pt-6"
-      style={{ background: 'var(--viz-surface)', borderColor: 'var(--viz-rule)' }}
-    >
-      <header className="flex flex-col gap-[5px]">
-        <h2 className="text-[17px] font-semibold tracking-[-0.012em]" style={{ color: 'var(--viz-ink)' }}>
-          {title}
-        </h2>
-        <p className="max-w-[70ch] text-[13.5px]" style={{ color: 'var(--viz-ink-2)' }}>
-          {sub}
-        </p>
-      </header>
-      {children}
-      <p
-        className="max-w-[72ch] border-l-2 pl-[13px] text-[13px] [&_b]:font-semibold [&_b]:text-[color:var(--viz-ink)]"
-        style={{
-          color: 'var(--viz-ink-2)',
-          borderColor: flag ? 'var(--viz-flag)' : 'var(--viz-s2)',
-        }}
-      >
-        {note}
-      </p>
-    </section>
   );
 }
