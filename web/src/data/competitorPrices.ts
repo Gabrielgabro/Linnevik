@@ -1,15 +1,24 @@
 // Konkurrentpriser — handunderhållen fil. Inte genererad.
 //
-// Insamlad 2026-08-05 från publika prislistor. Alla belopp i SEK per styck.
+// Insamlad 2026-08-05, verifierad mot leverantörernas råa sidkällor (JSON-LD,
+// WooCommerce-variantpayloads, Tingstads data-analytics-attribut och Livvs
+// Medusa-payload). Alla belopp i SEK per styck.
 // Priser i EUR är omräknade till kurs 10,975 EUR/SEK (mittkurs 2026-08-05).
 //
-// Momsbasen skiljer sig mellan källorna och står utskriven per rad i `basis`:
-//   'ex'       — leverantören anger uttryckligen exkl. moms.
-//   'ex-antag' — B2B-grossist som inte anger momsstatus. Vi räknar priset som
-//                exkl. moms. Gäller Livv och Mandales. Se noten i grafen.
+// VIKTIGT om storlekar: flera leverantörer visar ett "från"-pris på kategori-
+// sidan som avser den minsta varianten. Priserna här är per exakt variant,
+// hämtade ur variantdatan — inte kortets frånpris. Det var källan till tre fel
+// i den första versionen av den här filen.
+//
+// Momsbasen står per rad i `basis`:
+//   'ex'       — leverantören anger uttryckligen exkl. moms. Gäller även Livv:
+//                deras storefront skickar is_calculated_price_tax_inclusive:
+//                false på varje pris.
+//   'ex-antag' — B2B-leverantör som inte skriver ut momsstatus. Gäller Mandales.
 //   'b2c'      — konsumentpris inkl. moms hos handlaren, här delat med 1,25.
 //
-// Uppdatera priserna manuellt och flytta fram `collectedAt` när du gör det.
+// `watch` beskriver hur prisboten hämtar om priset. Rader utan watch måste
+// kontrolleras för hand — se /api/cron/price-watch.
 
 export const collectedAt = '2026-08-05';
 export const eurSek = 10.975;
@@ -21,6 +30,25 @@ export const BASIS_LABEL: Record<Basis, string> = {
   ex: 'exkl. moms enligt leverantören',
   'ex-antag': 'momsstatus ej angiven — antaget exkl. moms',
   b2c: 'konsumentpris inkl. moms, omräknat med /1,25',
+};
+
+/** Hur boten läser ut priset ur sidan. En parser per butiksplattform. */
+export type Parser =
+  | 'jsonld-offer' // WooCommerce/Yoast: @graph → Product.offers.price
+  | 'woo-variations' // WooCommerce: data-product_variations, matchas på SKU
+  | 'tingstad-analytics' // Tingstad: data-analytics-price, matchas på item_id + variant
+  | 'livv-variant' // Livv/Medusa: variantens title + calculated_amount
+  | 'livv-card' // Livv: kortets rubrik + pris, för produkter vars variant heter "Default"
+  | 'bedbath-card'; // Bed & Bath: kortets rubrik + class="price"
+
+export type WatchSpec = {
+  /** Sidan som hämtas — ofta produktsidan, inte kategorisidan i `url`. */
+  fetchUrl: string;
+  parser: Parser;
+  /** Pekar ut rätt post på en sida med flera produkter/varianter. */
+  key?: string;
+  /** Multiplikator till SEK. Sätts för källor som prissätter i EUR. */
+  fx?: number;
 };
 
 export type Competitor = {
@@ -38,19 +66,27 @@ export type Competitor = {
   primary?: boolean;
   /** Varför matchningen inte är exakt. */
   caveat?: string;
+  watch?: WatchSpec;
 };
 
 export type CompetitorProduct = {
   skuPrefix: string;
-  /** Vår specifikation, i samma format som konkurrenternas. */
   ourSpec: string;
   ourSize: string;
   /** Föreslaget listpris B2B, SEK exklusive moms. */
   suggestedSek: number;
-  /** Kort motivering till förslaget. */
   rationale: string;
   competitors: Competitor[];
 };
+
+const TINGSTAD_BADD = 'https://www.tingstad.com/se-sv/hotell-konferens/textilier/tacken-kuddar';
+const TINGSTAD_KUDDOVERDRAG =
+  'https://www.tingstad.com/se-sv/mobler-inredning/textilier/baddtextilier/kuddoverdrag-bed-bath-10bb37010902';
+const LIVV_TACKEN = 'https://livv.se/se/textilier/tacken';
+const LIVV_KUDDAR = 'https://livv.se/se/textilier/kuddar';
+const LIVV_MADRASS = 'https://livv.se/se/textilier/madrasskydd';
+const BB_PILLOWS = 'https://bed-bath.com/eu/bedroom/pillows/';
+const BB_DUVETS = 'https://bed-bath.com/eu/bedroom/duvets/';
 
 export const competitorProducts: CompetitorProduct[] = [
   {
@@ -63,15 +99,16 @@ export const competitorProducts: CompetitorProduct[] = [
     competitors: [
       {
         vendor: 'Tingstad',
-        product: 'Duntäcke Grand Luxe',
+        product: 'Duntäcke grand luxe 150x200cm',
         spec: '50/50 dun/fjäder, bomullscambric, 800 g',
         size: '150 × 200',
         priceSek: 1390,
         channel: 'b2b',
         basis: 'ex',
-        url: 'https://www.tingstad.com/se-sv/hotell-konferens/textilier/tacken-kuddar',
+        url: TINGSTAD_BADD,
         primary: true,
         caveat: 'Halva dunandelen mot vår (50/50 mot 90/10) — vår produkt är den bättre av de två.',
+        watch: { fetchUrl: TINGSTAD_BADD, parser: 'tingstad-analytics', key: 'BB46060300' },
       },
       {
         vendor: 'Livv',
@@ -80,9 +117,10 @@ export const competitorProducts: CompetitorProduct[] = [
         size: '150 × 200',
         priceSek: 1199,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/tacken',
+        basis: 'ex',
+        url: LIVV_TACKEN,
         caveat: 'Billigaste duntäcket i underlaget — det är den här prispunkten vi konkurrerar mot.',
+        watch: { fetchUrl: LIVV_TACKEN, parser: 'livv-card', key: 'Täcke Ripa Dun/Fjäder' },
       },
       {
         vendor: 'Bed & Bath',
@@ -92,8 +130,14 @@ export const competitorProducts: CompetitorProduct[] = [
         priceSek: 130 * 10.975,
         channel: 'b2b',
         basis: 'ex',
-        url: 'https://bed-bath.com/eu/bedroom/duvets/down-duvet-grand-luxe-150x200-cm-800-g/',
+        url: BB_DUVETS,
         caveat: 'Samma produkt som Tingstad säljer, köpt direkt i EUR. Tingstad är billigare.',
+        watch: {
+          fetchUrl: BB_DUVETS,
+          parser: 'bedbath-card',
+          key: 'Down Duvet Grand Luxe 150x200 cm, 800 g',
+          fx: 10.975,
+        },
       },
       {
         vendor: 'Värnamo of Sweden',
@@ -118,36 +162,54 @@ export const competitorProducts: CompetitorProduct[] = [
     competitors: [
       {
         vendor: 'Livv',
-        product: 'Täcke Juleboda 800 g',
+        product: 'Täcke Juleboda 150x200cm, 800 g',
         spec: 'Mikrofiber, bomullscambric',
         size: '150 × 200',
         priceSek: 429,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/tacken',
+        basis: 'ex',
+        url: LIVV_TACKEN,
         primary: true,
         caveat: 'Bomullscambric — närmaste yttertygsnivå till vår bomullssatin.',
+        watch: { fetchUrl: LIVV_TACKEN, parser: 'livv-card', key: 'Täcke Juleboda 150x200cm, 800g stoppning' },
       },
       {
         vendor: 'Livv',
-        product: 'Täcke Konstantin 800 g',
+        product: 'Täcke Konstantin',
         spec: 'Mikrofiber',
         size: '150 × 200',
         priceSek: 595,
         channel: 'b2b',
+        basis: 'ex',
+        url: LIVV_TACKEN,
+        watch: { fetchUrl: LIVV_TACKEN, parser: 'livv-card', key: 'Täcke Konstantin' },
+      },
+      {
+        vendor: 'Mandales',
+        product: 'Duvet Grey Elkh 800 g',
+        spec: 'Fibertäcke',
+        size: '150 × 210',
+        priceSek: 510,
+        channel: 'b2b',
         basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/tacken',
+        url: 'https://www.mandales.com/products/duvet-grey-elkh/',
+        watch: {
+          fetchUrl: 'https://www.mandales.com/products/duvet-grey-elkh/',
+          parser: 'woo-variations',
+          key: '2010210202/100',
+        },
       },
       {
         vendor: 'Livv',
-        product: 'Täcke Twill 800 g',
+        product: 'Täcke Twill 150x200cm, 800 g',
         spec: '100 % polyestertwill, mikrofiber',
         size: '150 × 200',
         priceSek: 319,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/tacken',
+        basis: 'ex',
+        url: LIVV_TACKEN,
         caveat: 'Samma produkt som Hotex säljer för 298 kr — Livv lägger ca 7 % på.',
+        watch: { fetchUrl: LIVV_TACKEN, parser: 'livv-card', key: 'Täcke Twill 150X200cm, 800g' },
       },
       {
         vendor: 'Hotex',
@@ -158,16 +220,38 @@ export const competitorProducts: CompetitorProduct[] = [
         channel: 'b2b',
         basis: 'ex',
         url: 'https://hotex.se/butik/evento/badosangtextilier/tacken-och-kuddar/tacken/hotelltacke-twill-150x200-cm/',
+        watch: {
+          fetchUrl:
+            'https://hotex.se/butik/evento/badosangtextilier/tacken-och-kuddar/tacken/hotelltacke-twill-150x200-cm/',
+          parser: 'jsonld-offer',
+        },
       },
       {
         vendor: 'Tingstad',
         product: 'Täcke Bed & Bath Comfort',
         spec: 'Hålfiber',
         size: '150 × 200',
-        priceSek: 245,
+        priceSek: 298,
         channel: 'b2b',
         basis: 'ex',
-        url: 'https://www.tingstad.com/se-sv/hotell-konferens/textilier/tacken-kuddar',
+        url: TINGSTAD_BADD,
+        caveat: 'Priset avser varianten 150 × 200. Kategorisidans frånpris gäller en mindre storlek.',
+        watch: { fetchUrl: TINGSTAD_BADD, parser: 'tingstad-analytics', key: 'BB16' },
+      },
+      {
+        vendor: 'Mandales',
+        product: 'Duvet Pink Martha 800 g',
+        spec: 'Fibertäcke',
+        size: '150 × 210',
+        priceSek: 285,
+        channel: 'b2b',
+        basis: 'ex-antag',
+        url: 'https://www.mandales.com/products/duvet-pink-martha/',
+        watch: {
+          fetchUrl: 'https://www.mandales.com/products/duvet-pink-martha/',
+          parser: 'woo-variations',
+          key: '2010210215/100',
+        },
       },
       {
         vendor: 'Mandales',
@@ -177,18 +261,13 @@ export const competitorProducts: CompetitorProduct[] = [
         priceSek: 190,
         channel: 'b2b',
         basis: 'ex-antag',
-        url: 'https://www.mandales.com/cat/bedroom/duvets/',
-        caveat: 'Marknadens golv. Något större format (150 × 210) och lägre utförande, men samma användning.',
-      },
-      {
-        vendor: 'Mandales',
-        product: 'Duvet Grey Elkh 800 g',
-        spec: 'Fibertäcke',
-        size: '150 × 210',
-        priceSek: 510,
-        channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://www.mandales.com/cat/bedroom/duvets/',
+        url: 'https://www.mandales.com/products/duvet-envious-julie/',
+        caveat: 'Marknadens golv. Något större format (150 × 210) och enklare utförande, men samma användning.',
+        watch: {
+          fetchUrl: 'https://www.mandales.com/products/duvet-envious-julie/',
+          parser: 'woo-variations',
+          key: '2010210208/100',
+        },
       },
       {
         vendor: 'Hotellkompaniet',
@@ -206,9 +285,9 @@ export const competitorProducts: CompetitorProduct[] = [
     skuPrefix: 'MAD',
     ourSpec: 'Vadderat madrasskydd',
     ourSize: '160 × 200',
-    suggestedSek: 169,
+    suggestedSek: 179,
     rationale:
-      'Tre B2B-priser inom 159–199 kr gör segmentet nästan helt prisstyrt. 169 kr ligger i mitten; det finns inget utrymme att ta mer utan en egenskap ingen annan har.',
+      'I exakt 160 × 200 spänner fältet 182–459 kr. Vi lägger oss strax under Hotellvaror och långt under Livv. Marginalen blir låg, men produkten är odifferentierad och volymen är näst störst i sändningen.',
     competitors: [
       {
         vendor: 'Hotellvaror',
@@ -220,18 +299,8 @@ export const competitorProducts: CompetitorProduct[] = [
         basis: 'ex',
         url: 'https://hotellvaror.se/1210-madrasskydd',
         primary: true,
-        caveat: 'Exakt storlek och produkttyp. Har spärrskikt, vilket vår specifikation inte anger.',
-      },
-      {
-        vendor: 'Livv',
-        product: 'Bäddmadrasskydd Standard',
-        spec: 'Bäddmadrasskydd',
-        size: 'Flera storlekar',
-        priceSek: 159,
-        channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/madrasskydd',
-        caveat: 'Marknadens golv. Vilken storlek priset avser framgår inte av listningen.',
+        caveat:
+          'Exakt storlek och produkttyp. Har spärrskikt, vilket vår specifikation inte anger. Sidan exponerar inget maskinläsbart pris — måste kontrolleras för hand.',
       },
       {
         vendor: 'Livv',
@@ -240,19 +309,22 @@ export const competitorProducts: CompetitorProduct[] = [
         size: '160 × 200',
         priceSek: 199,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/madrasskydd',
+        basis: 'ex',
+        url: LIVV_MADRASS,
         caveat: 'Stretchöverdrag, inte vadderat skydd — angränsande produkt.',
+        watch: { fetchUrl: LIVV_MADRASS, parser: 'livv-variant', key: 'Stretchöverdrag 160X200cm' },
       },
       {
         vendor: 'Livv',
-        product: 'Bäddmadrasskydd Secura',
-        spec: 'Bäddmadrasskydd, högre utförande',
-        size: 'Flera storlekar',
-        priceSek: 239,
+        product: 'Bäddmadrasskydd Standard',
+        spec: 'Bäddmadrasskydd',
+        size: '160 × 200',
+        priceSek: 279,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/madrasskydd',
+        basis: 'ex',
+        url: LIVV_MADRASS,
+        caveat: 'Kategorisidans 159 kr avser 80 × 200. Priset för vår storlek är 279 kr.',
+        watch: { fetchUrl: LIVV_MADRASS, parser: 'livv-variant', key: 'Bäddmadrasskydd Standard 160x200cm' },
       },
       {
         vendor: 'Mandales',
@@ -264,6 +336,17 @@ export const competitorProducts: CompetitorProduct[] = [
         basis: 'ex-antag',
         url: 'https://www.mandales.com/cat/bedroom/all-beds/mattress-protector/',
         caveat: 'Närmaste listade storlek är 120 × 200 — Mandales listar inte 160 × 200.',
+      },
+      {
+        vendor: 'Livv',
+        product: 'Bäddmadrasskydd Secura',
+        spec: 'Bäddmadrasskydd, högre utförande',
+        size: '160 × 200',
+        priceSek: 459,
+        channel: 'b2b',
+        basis: 'ex',
+        url: LIVV_MADRASS,
+        watch: { fetchUrl: LIVV_MADRASS, parser: 'livv-variant', key: 'Bäddmadrasskydd - Secura 160x200cm' },
       },
       {
         vendor: 'IKEA',
@@ -288,15 +371,33 @@ export const competitorProducts: CompetitorProduct[] = [
     competitors: [
       {
         vendor: 'Tingstad',
-        product: 'Kudde Grand Luxe',
+        product: 'Kudde grand luxe 50x70 cm',
         spec: '50/50 dun/fjäder, bomullscambric',
         size: '50 × 70',
         priceSek: 875,
         channel: 'b2b',
         basis: 'ex',
-        url: 'https://www.tingstad.com/se-sv/hotell-konferens/textilier/tacken-kuddar',
+        url: TINGSTAD_BADD,
         primary: true,
         caveat: 'Exakt storlek. Halva dunandelen mot vår.',
+        watch: { fetchUrl: TINGSTAD_BADD, parser: 'tingstad-analytics', key: 'BB37010303' },
+      },
+      {
+        vendor: 'Bed & Bath',
+        product: 'Pillow Grand Luxe down 700 g',
+        spec: '50/50 dun/fjäder, bomullscambric, OEKO-TEX',
+        size: '50 × 70',
+        priceSek: 80 * 10.975,
+        channel: 'b2b',
+        basis: 'ex',
+        url: BB_PILLOWS,
+        caveat: 'Samma produkt som Tingstads, direktpris i EUR.',
+        watch: {
+          fetchUrl: BB_PILLOWS,
+          parser: 'bedbath-card',
+          key: 'Pillow Grand Luxe down 50x70 cm, 700 g',
+          fx: 10.975,
+        },
       },
       {
         vendor: 'Livv',
@@ -305,31 +406,22 @@ export const competitorProducts: CompetitorProduct[] = [
         size: '50 × 60',
         priceSek: 849,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/kuddar',
+        basis: 'ex',
+        url: LIVV_KUDDAR,
         caveat: 'Mindre format (50 × 60).',
+        watch: { fetchUrl: LIVV_KUDDAR, parser: 'livv-variant', key: 'Kudde Ripa' },
       },
       {
         vendor: 'Tingstad',
-        product: 'Dunkudde vit',
+        product: 'Dunkudde vit 50x60cm',
         spec: 'Dun',
         size: '50 × 60',
         priceSek: 825,
         channel: 'b2b',
         basis: 'ex',
-        url: 'https://www.tingstad.com/se-sv/hotell-konferens/textilier/tacken-kuddar',
+        url: TINGSTAD_BADD,
         caveat: 'Marknadens golv i dunsegmentet, men mindre format.',
-      },
-      {
-        vendor: 'Bed & Bath',
-        product: 'Pillow Grand Luxe 810 g',
-        spec: '50/50 dun/fjäder, bomullscambric, OEKO-TEX',
-        size: '50 × 70',
-        priceSek: 80 * 10.975,
-        channel: 'b2b',
-        basis: 'ex',
-        url: 'https://bed-bath.com/eu/bedroom/pillows/pillow-grand-luxe-down-50x70-cm-700-g/',
-        caveat: 'Samma produkt som Tingstads, direktpris i EUR.',
+        watch: { fetchUrl: TINGSTAD_BADD, parser: 'tingstad-analytics', key: 'BB37010302' },
       },
     ],
   },
@@ -339,19 +431,35 @@ export const competitorProducts: CompetitorProduct[] = [
     ourSize: '50 × 70',
     suggestedSek: 159,
     rationale:
-      'Sju jämförbara priser mellan 85 och 199 kr och ingenting som skiljer vår produkt från fältet. 159 kr är strax under mitten — det här är den produkt där vi minst har råd att ligga högt.',
+      'Åtta jämförbara priser mellan 95 och 229 kr och ingenting som skiljer vår produkt från fältet. 159 kr ligger strax under mitten — det här är den produkt där vi minst har råd att ligga högt.',
     competitors: [
       {
-        vendor: 'Mandales',
-        product: 'Pillow Grey Elkh 800 g',
-        spec: 'Fiberkudde',
+        vendor: 'Livv',
+        product: 'Kudde Konstantin 1 050 g',
+        spec: 'Mikrofiber',
         size: '50 × 70',
-        priceSek: 185,
+        priceSek: 229,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://www.mandales.com/cat/bedroom/pillows/',
-        primary: true,
-        caveat: 'Exakt storlek och jämförbar fyllnadsvikt.',
+        basis: 'ex',
+        url: LIVV_KUDDAR,
+        caveat: 'Kategorisidans 179 kr avser 50 × 60. Priset i vår storlek är 229 kr.',
+        watch: { fetchUrl: LIVV_KUDDAR, parser: 'livv-variant', key: 'Kudde Konstantin 50x70cm, 1050g Fyllning' },
+      },
+      {
+        vendor: 'Bed & Bath',
+        product: 'Pillow Surprise Premium 800 g',
+        spec: 'Mikrofiber, OEKO-TEX',
+        size: '50 × 70',
+        priceSek: 19 * 10.975,
+        channel: 'b2b',
+        basis: 'ex',
+        url: BB_PILLOWS,
+        watch: {
+          fetchUrl: BB_PILLOWS,
+          parser: 'bedbath-card',
+          key: 'Pillow Surprise Premium 50x70 cm, 800 g',
+          fx: 10.975,
+        },
       },
       {
         vendor: 'Hotex',
@@ -362,17 +470,40 @@ export const competitorProducts: CompetitorProduct[] = [
         channel: 'b2b',
         basis: 'ex',
         url: 'https://hotex.se/butik/evento/badosangtextilier/tacken-och-kuddar/kuddar/hotellkudde-konstantin-originalet-50x70-cm/',
+        watch: {
+          fetchUrl:
+            'https://hotex.se/butik/evento/badosangtextilier/tacken-och-kuddar/kuddar/hotellkudde-konstantin-originalet-50x70-cm/',
+          parser: 'jsonld-offer',
+        },
       },
       {
-        vendor: 'Livv',
-        product: 'Kudde Konstantin 850 g',
-        spec: 'Mikrofiber',
-        size: '50 × 60',
-        priceSek: 179,
+        vendor: 'Mandales',
+        product: 'Pillow Grey Elkh 800 g',
+        spec: 'Fiberkudde',
+        size: '50 × 70',
+        priceSek: 185,
         channel: 'b2b',
         basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/kuddar',
-        caveat: 'Samma modell som Hotex 50 × 70, mindre format.',
+        url: 'https://www.mandales.com/products/pillow-grey-elkhs-head/',
+        primary: true,
+        caveat: 'Exakt storlek och jämförbar fyllnadsvikt.',
+        watch: {
+          fetchUrl: 'https://www.mandales.com/products/pillow-grey-elkhs-head/',
+          parser: 'woo-variations',
+          key: '2010510202/101',
+        },
+      },
+      {
+        vendor: 'Tingstad',
+        product: 'Kudde Bed & Bath Comfort 450 g',
+        spec: 'Bollfiber',
+        size: '50 × 70',
+        priceSek: 183,
+        channel: 'b2b',
+        basis: 'ex',
+        url: TINGSTAD_BADD,
+        caveat: 'Priset avser varianten 50 × 70. Kategorisidans frånpris gäller en mindre storlek.',
+        watch: { fetchUrl: TINGSTAD_BADD, parser: 'tingstad-analytics', key: 'BB07' },
       },
       {
         vendor: 'Hygieniq of Scandinavia',
@@ -383,6 +514,11 @@ export const competitorProducts: CompetitorProduct[] = [
         channel: 'b2b',
         basis: 'ex',
         url: 'https://www.hygieniq.se/butik/bedding/kuddar-tacken/hotellkudde-med-polyesterfyllning-50x70-cm/',
+        watch: {
+          fetchUrl:
+            'https://www.hygieniq.se/butik/bedding/kuddar-tacken/hotellkudde-med-polyesterfyllning-50x70-cm/',
+          parser: 'jsonld-offer',
+        },
       },
       {
         vendor: 'Livv',
@@ -391,8 +527,21 @@ export const competitorProducts: CompetitorProduct[] = [
         size: '50 × 60',
         priceSek: 149,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/kuddar',
+        basis: 'ex',
+        url: LIVV_KUDDAR,
+        watch: { fetchUrl: LIVV_KUDDAR, parser: 'livv-variant', key: 'Kudde Juleboda 50x60 750g' },
+      },
+      {
+        vendor: 'Bed & Bath',
+        product: 'Pillow Comfort 550 g',
+        spec: 'Bollfiber',
+        size: '50 × 70',
+        priceSek: 9.7 * 10.975,
+        channel: 'b2b',
+        basis: 'ex',
+        url: BB_PILLOWS,
+        caveat: 'Billigast i exakt vår storlek. Enklare fyllning, men samma hylla.',
+        watch: { fetchUrl: BB_PILLOWS, parser: 'bedbath-card', key: 'Pillow Comfort 50x70 cm, 550 g', fx: 10.975 },
       },
       {
         vendor: 'Livv',
@@ -401,20 +550,10 @@ export const competitorProducts: CompetitorProduct[] = [
         size: '50 × 60',
         priceSek: 95,
         channel: 'b2b',
-        basis: 'ex-antag',
-        url: 'https://livv.se/se/textilier/kuddar',
-        caveat: 'Bollfiber, enklare utförande.',
-      },
-      {
-        vendor: 'Tingstad',
-        product: 'Kudde Bed & Bath Comfort 450 g',
-        spec: 'Bollfiber',
-        size: '50 × 70',
-        priceSek: 85,
-        channel: 'b2b',
         basis: 'ex',
-        url: 'https://www.tingstad.com/se-sv/hotell-konferens/textilier/tacken-kuddar',
-        caveat: 'Marknadens golv, i exakt vår storlek. Enklare fyllning men samma hylla.',
+        url: LIVV_KUDDAR,
+        caveat: 'Marknadens golv. Bollfiber i mindre format — enklaste hyllan.',
+        watch: { fetchUrl: LIVV_KUDDAR, parser: 'livv-variant', key: 'Kudde Jesper 50x60cm, 450g bollfiber' },
       },
     ],
   },
@@ -422,10 +561,22 @@ export const competitorProducts: CompetitorProduct[] = [
     skuPrefix: 'KSK',
     ourSpec: '80 % bomull / 20 % polyester stretchfrotté, dragkedja',
     ourSize: '50 × 70',
-    suggestedSek: 49,
+    suggestedSek: 44,
     rationale:
-      'Fältet spänner 23–95 kr för samma funktion. Mandales tar 95 kr för exakt vår storlek. 49 kr ligger tryggt i nedre halvan och ger ändå högsta marginalen i sortimentet.',
+      'Livv säljer ett kuddskydd i exakt 50 × 70 för 45 kr. Det är referensen. 44 kr lägger oss precis under den och ger ändå högsta marginalen i sortimentet.',
     competitors: [
+      {
+        vendor: 'Tingstad',
+        product: 'Kuddöverdrag Bed & Bath',
+        spec: 'Kuddöverdrag',
+        size: '50 × 70',
+        priceSek: 154,
+        channel: 'b2b',
+        basis: 'ex',
+        url: TINGSTAD_KUDDOVERDRAG,
+        caveat: 'Exakt vår storlek, men klart högre prisläge än övriga.',
+        watch: { fetchUrl: TINGSTAD_KUDDOVERDRAG, parser: 'tingstad-analytics', key: 'BB009' },
+      },
       {
         vendor: 'Mandales',
         product: 'Pillow Protector',
@@ -434,9 +585,13 @@ export const competitorProducts: CompetitorProduct[] = [
         priceSek: 95,
         channel: 'b2b',
         basis: 'ex-antag',
-        url: 'https://www.mandales.com/cat/bedroom/pillows/',
-        primary: true,
+        url: 'https://www.mandales.com/products/pillow-protector/',
         caveat: 'Exakt vår storlek. Materialet framgår inte av listningen.',
+        watch: {
+          fetchUrl: 'https://www.mandales.com/products/pillow-protector/',
+          parser: 'woo-variations',
+          key: '2010110102/102',
+        },
       },
       {
         vendor: 'Bed & Bath',
@@ -457,7 +612,25 @@ export const competitorProducts: CompetitorProduct[] = [
         priceSek: 50,
         channel: 'b2b',
         basis: 'ex-antag',
-        url: 'https://www.mandales.com/cat/bedroom/pillows/',
+        url: 'https://www.mandales.com/products/pillow-protector/',
+        watch: {
+          fetchUrl: 'https://www.mandales.com/products/pillow-protector/',
+          parser: 'woo-variations',
+          key: '2010110102/100',
+        },
+      },
+      {
+        vendor: 'Livv',
+        product: 'Kuddskydd',
+        spec: 'Kuddskydd',
+        size: '50 × 70',
+        priceSek: 45,
+        channel: 'b2b',
+        basis: 'ex',
+        url: LIVV_KUDDAR,
+        primary: true,
+        caveat: 'Exakt vår storlek och produkttyp. Den prispunkt vi faktiskt konkurrerar mot.',
+        watch: { fetchUrl: LIVV_KUDDAR, parser: 'livv-variant', key: 'Kuddskydd 50x70cm' },
       },
       {
         vendor: 'Hotellvaror',
@@ -478,7 +651,7 @@ export const competitorProducts: CompetitorProduct[] = [
         channel: 'b2b',
         basis: 'ex',
         url: 'https://hotellvaror.se/1211-kuddskydd',
-        caveat: 'Marknadens golv. Vattentät PU-jersey, inte stretchfrotté.',
+        caveat: 'Marknadens golv. Vattentät PU-jersey, inte stretchfrotté, och mindre format.',
       },
     ],
   },
@@ -488,7 +661,32 @@ export const primaryOf = (p: CompetitorProduct) =>
   p.competitors.find(c => c.primary) ?? p.competitors[0];
 
 /** Billigaste B2B-alternativet i underlaget — den prispunkt en inköpare faktiskt kan välja i stället. */
-export const floorOf = (p: CompetitorProduct) =>
+export const floorOf = (p: CompetitorProduct) => {
+  const b2b = p.competitors.filter(c => c.channel === 'b2b');
+  return b2b.reduce((lo, c) => (c.priceSek < lo.priceSek ? c : lo), b2b[0]);
+};
+
+/** Platt lista över allt boten kan hämta om, med koppling tillbaka till vår produkt. */
+export type WatchTarget = {
+  id: string;
+  skuPrefix: string;
+  vendor: string;
+  product: string;
+  size: string;
+  baselineSek: number;
+  watch: WatchSpec;
+};
+
+export const watchTargets: WatchTarget[] = competitorProducts.flatMap(p =>
   p.competitors
-    .filter(c => c.channel === 'b2b')
-    .reduce((lo, c) => (c.priceSek < lo.priceSek ? c : lo), p.competitors.filter(c => c.channel === 'b2b')[0]);
+    .filter((c): c is Competitor & { watch: WatchSpec } => Boolean(c.watch))
+    .map(c => ({
+      id: `${p.skuPrefix}::${c.vendor}::${c.product}::${c.size}`,
+      skuPrefix: p.skuPrefix,
+      vendor: c.vendor,
+      product: c.product,
+      size: c.size,
+      baselineSek: c.priceSek,
+      watch: c.watch,
+    }))
+);

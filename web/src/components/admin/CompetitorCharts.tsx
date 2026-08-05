@@ -143,9 +143,9 @@ export default function CompetitorCharts() {
             Sortimentet delar sig i två. <b>På dun är marknaden dyr och trög</b> — 825–1 427 kr, allt är
             50/50 dun och fjäder, och våra 90/10 är helt enkelt en bättre produkt. Där kan vi ta premiumpris
             och ändå underskrida alla.{' '}
-            <b>På fiber och skydd är den brutal.</b> Mandales säljer ett 800-grams fibertäcke för 190 kr och
-            Tingstad en 50 × 70-kudde för 85 kr. De prispunkterna ligger nära vår egen landade kostnad, och
-            de går inte att möta — bara att förklara sig ifrån.
+            <b>På fiber och skydd är den brutal.</b> Mandales säljer ett 800-grams fibertäcke för 190 kr,
+            Livv en kudde för 95 kr och ett kuddskydd i exakt vår storlek för 45 kr. De prispunkterna
+            ligger nära vår egen landade kostnad, och de går inte att möta — bara att förklara sig ifrån.
           </>
         }
       >
@@ -264,13 +264,12 @@ export default function CompetitorCharts() {
         flag
         note={
           <>
-            Mot närmaste motsvarighet ser allt bra ut. Mot golvet gör det inte det.{' '}
-            <b>Kudde Eric ligger på {sek(floorPct(competitorProducts.find(p => p.skuPrefix === 'KUD-ERI')!, priceOf(competitorProducts.find(p => p.skuPrefix === 'KUD-ERI')!)), 0)} % av Tingstads
-            bollfiberkudde i exakt vår storlek (85 kr)</b>, och Täcke Daniel på{' '}
-            {sek(floorPct(competitorProducts.find(p => p.skuPrefix === 'TAC-DAN')!, priceOf(competitorProducts.find(p => p.skuPrefix === 'TAC-DAN')!)), 0)} % av Mandales fibertäcke (190 kr). Det är
-            de två produkter som binder mest kapital i sändningen. Skillnaden är inte inbillad — den är
-            produktkvalitet, och den måste gå att sälja in i ett anbud, annars är den inte värd något.
-            Dunprodukterna är det motsatta: där är golvet högt och vår produkt bättre än allt vi jämför mot.
+            Mot närmaste motsvarighet ser allt bra ut. Mot golvet gör det inte det. <b>Täcke Daniel och
+            Kudde Eric ligger båda kring 170 % av det billigaste alternativet</b> — Mandales fibertäcke på
+            190 kr och Livvs bollfiberkudde på 95 kr. Det är de två produkter som binder mest kapital i
+            sändningen. Skillnaden är inte inbillad, den är produktkvalitet, men den måste gå att sälja in i
+            ett anbud, annars är den inte värd något. Dunprodukterna är det motsatta: där ligger golvet på
+            1 199 respektive 825 kr och vår produkt är bättre än allt vi jämför mot.
           </>
         }
       >
