@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import { landedPerPcs, products as landedProducts } from '@/data/landedCost';
 import {
   collectedAt,
@@ -14,7 +15,7 @@ import { Axis, Card, Legend, sek, Tooltip, useTip } from './VizPrimitives';
 
 const SERIES = {
   landed: { label: 'Landad kostnad', varName: '--viz-s3' },
-  suggested: { label: 'Vårt föreslagna pris', varName: '--viz-s1' },
+  suggested: { label: 'Vårt pris (dra för att ändra)', varName: '--viz-s1' },
   b2b: { label: 'B2B-konkurrent', varName: '--viz-s2' },
   b2c: { label: 'B2C-referens', varName: '--viz-ink-3' },
 } as const;
@@ -27,10 +28,32 @@ const landedOf = (skuPrefix: string) => {
   return p ? landedPerPcs(p) : 0;
 };
 
-const marginPct = (p: CompetitorProduct) =>
-  ((p.suggestedSek - landedOf(p.skuPrefix)) / p.suggestedSek) * 100;
+const marginPct = (p: CompetitorProduct, price: number) =>
+  price <= 0 ? 0 : ((price - landedOf(p.skuPrefix)) / price) * 100;
 
-const indexPct = (p: CompetitorProduct) => (p.suggestedSek / primaryOf(p).priceSek) * 100;
+const indexPct = (p: CompetitorProduct, price: number) => (price / primaryOf(p).priceSek) * 100;
+
+/**
+ * Skalans tak är låst till underlaget, inte till det pris som dras. Annars skulle
+ * alla staplar hoppa i sidled så fort man rör reglaget.
+ */
+const scaleMaxOf = (p: CompetitorProduct) => {
+  const raw = Math.max(landedOf(p.skuPrefix), p.suggestedSek, ...p.competitors.map(c => c.priceSek)) * 1.25;
+  const step = raw > 400 ? 100 : raw > 100 ? 25 : 5;
+  return Math.ceil(raw / step) * step;
+};
+
+/** 1 kr känns rätt på ett kuddskydd, 5 kr på ett duntäcke. */
+const stepOf = (p: CompetitorProduct) => (scaleMaxOf(p) > 400 ? 5 : 1);
+
+// Ordningen i marginal- och indexgraferna låses vid ursprungsförslagen, så att
+// raderna inte byter plats medan man drar.
+const byInitialMargin = [...competitorProducts].sort(
+  (a, b) => marginPct(b, b.suggestedSek) - marginPct(a, a.suggestedSek)
+);
+const byInitialIndex = [...competitorProducts].sort(
+  (a, b) => indexPct(b, b.suggestedSek) - indexPct(a, a.suggestedSek)
+);
 
 type BarSpec = {
   id: string;
@@ -45,6 +68,16 @@ type BarSpec = {
 
 export default function CompetitorCharts() {
   const { tip, showTip, hideTip } = useTip();
+  const [prices, setPrices] = useState<Record<string, number>>(() =>
+    Object.fromEntries(competitorProducts.map(p => [p.skuPrefix, p.suggestedSek]))
+  );
+  const [dragging, setDragging] = useState<string | null>(null);
+
+  const priceOf = (p: CompetitorProduct) => prices[p.skuPrefix] ?? p.suggestedSek;
+  const setPrice = (p: CompetitorProduct, next: number) =>
+    setPrices(prev => ({ ...prev, [p.skuPrefix]: Math.max(0, Math.min(scaleMaxOf(p), Math.round(next))) }));
+  const isEdited = (p: CompetitorProduct) => Math.round(priceOf(p)) !== Math.round(p.suggestedSek);
+  const anyEdited = competitorProducts.some(isEdited);
 
   const bar = (b: BarSpec, max: number, suffix: string) => (
     <div
@@ -99,7 +132,7 @@ export default function CompetitorCharts() {
     <>
       <Card
         title="Vad marknaden tar för motsvarande produkt"
-        sub="Per produkt: vår landade kostnad, vårt föreslagna listpris och de närmast likvärdiga produkterna hos svenska och nordiska hotelltextilleverantörer. Varje block har sin egen skala — priserna spänner från 13 kr till 1 427 kr och går inte att lägga på samma axel."
+        sub="Per produkt: vår landade kostnad, vårt föreslagna listpris och de närmast likvärdiga produkterna hos svenska och nordiska hotelltextilleverantörer. Den blå stapeln går att dra — konkurrenternas står still. Marginalen och indexet i graferna nedanför följer med."
         note={
           <>
             Bilden är densamma för fem av sex produkter: <b>marknaden tar mellan tre och fyra gånger vår
@@ -109,11 +142,26 @@ export default function CompetitorCharts() {
           </>
         }
       >
-        <Legend items={[SERIES.landed, SERIES.suggested, SERIES.b2b, SERIES.b2c]} />
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <Legend items={[SERIES.landed, SERIES.suggested, SERIES.b2b, SERIES.b2c]} />
+          <button
+            type="button"
+            disabled={!anyEdited}
+            onClick={() =>
+              setPrices(Object.fromEntries(competitorProducts.map(p => [p.skuPrefix, p.suggestedSek])))
+            }
+            className="rounded-sm border px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.06em] transition-opacity disabled:opacity-35"
+            style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-2)' }}
+          >
+            Återställ förslagen
+          </button>
+        </div>
+
         <div className="flex flex-col gap-6">
           {competitorProducts.map(p => {
             const landed = landedOf(p.skuPrefix);
-            const bars: BarSpec[] = [
+            const max = scaleMaxOf(p);
+            const staticBars: BarSpec[] = [
               {
                 id: `${p.skuPrefix}-landed`,
                 label: 'Landad kostnad',
@@ -123,23 +171,8 @@ export default function CompetitorCharts() {
                 tipRows: [`${sek(landed)} SEK/st landad kostnad`, `${p.ourSpec}`],
                 tipNote: 'Vara, frakt och tull fram till lagret i Uppsala.',
               },
-              {
-                id: `${p.skuPrefix}-suggested`,
-                label: 'Vårt föreslagna pris',
-                value: p.suggestedSek,
-                varName: SERIES.suggested.varName,
-                emphasis: true,
-                tipTitle: titleOf(p.skuPrefix),
-                tipRows: [
-                  `${sek(p.suggestedSek, 0)} SEK/st exkl. moms`,
-                  `${sek(marginPct(p), 0)} % bruttomarginal`,
-                  `${sek(indexPct(p), 0)} % av närmaste motsvarighet`,
-                ],
-                tipNote: p.rationale,
-              },
               ...p.competitors.map(c => competitorBar(p, c)),
             ];
-            const max = Math.max(...bars.map(b => b.value));
 
             return (
               <div key={p.skuPrefix} className="flex flex-col gap-[9px]">
@@ -154,7 +187,23 @@ export default function CompetitorCharts() {
                     {p.ourSpec} · {p.ourSize} cm
                   </span>
                 </div>
-                {bars.map(b => bar(b, max, ' kr'))}
+
+                {bar(staticBars[0], max, ' kr')}
+
+                <PriceSlider
+                  product={p}
+                  price={priceOf(p)}
+                  max={max}
+                  step={stepOf(p)}
+                  landed={landed}
+                  edited={isEdited(p)}
+                  dragging={dragging === p.skuPrefix}
+                  onDragChange={active => setDragging(active ? p.skuPrefix : null)}
+                  onChange={next => setPrice(p, next)}
+                  onReset={() => setPrice(p, p.suggestedSek)}
+                />
+
+                {staticBars.slice(1).map(b => bar(b, max, ' kr'))}
               </div>
             );
           })}
@@ -162,81 +211,83 @@ export default function CompetitorCharts() {
       </Card>
 
       <Card
-        title="Bruttomarginal vid föreslaget pris"
-        sub="Föreslaget pris minus landad kostnad, som andel av priset. Delad skala 0–100 %, så raderna går att jämföra rakt av."
+        title="Bruttomarginal vid satt pris"
+        sub="Priset minus landad kostnad, som andel av priset. Delad skala 0–100 %, så raderna går att jämföra rakt av. Ändras direkt när du drar i reglaget ovanför."
         note={
           <>
-            Marginalen ligger mellan 54 och 66 % över hela sortimentet, vilket är avsiktligt: förslagen är
-            satta mot marknaden, inte mot ett fast pålägg. <b>Kudde Sigrid har lägst marginal och Kuddskydd
-            högst</b> — men Sigrid är 16 sålda enheter och Kuddskydd 300, så det är Kuddskyddet som avgör
-            om sortimentet bär sig.
+            Vid de ursprungliga förslagen ligger marginalen mellan{' '}
+            {sek(Math.min(...competitorProducts.map(p => marginPct(p, p.suggestedSek))), 0)} och{' '}
+            {sek(Math.max(...competitorProducts.map(p => marginPct(p, p.suggestedSek))), 0)} % över hela
+            sortimentet, vilket är avsiktligt: förslagen är satta mot marknaden, inte mot ett fast pålägg.{' '}
+            <b>Väg marginalen mot volymen</b> — Kudde Sigrid är 16 sålda enheter och Kuddskydd 300, så det
+            är Kuddskyddet som avgör om sortimentet bär sig.
           </>
         }
       >
         <div className="flex flex-col gap-[9px]">
-          {[...competitorProducts]
-            .sort((a, b) => marginPct(b) - marginPct(a))
-            .map(p =>
-              bar(
-                {
-                  id: `${p.skuPrefix}-margin`,
-                  label: titleOf(p.skuPrefix),
-                  value: marginPct(p),
-                  varName: SERIES.suggested.varName,
-                  tipTitle: titleOf(p.skuPrefix),
-                  tipRows: [
-                    `${sek(marginPct(p), 1)} % bruttomarginal`,
-                    `${sek(p.suggestedSek, 0)} kr pris − ${sek(landedOf(p.skuPrefix))} kr landad kostnad`,
-                    `${sek(p.suggestedSek - landedOf(p.skuPrefix), 0)} kr täckningsbidrag per styck`,
-                  ],
-                  tipNote: p.rationale,
-                },
-                100,
-                ' %'
-              )
-            )}
+          {byInitialMargin.map(p => {
+            const price = priceOf(p);
+            const m = marginPct(p, price);
+            return bar(
+              {
+                id: `${p.skuPrefix}-margin`,
+                label: titleOf(p.skuPrefix),
+                value: Math.max(0, m),
+                varName: m < 0 ? '--viz-flag' : SERIES.suggested.varName,
+                tipTitle: titleOf(p.skuPrefix),
+                tipRows: [
+                  `${sek(m, 1)} % bruttomarginal`,
+                  `${sek(price, 0)} kr pris − ${sek(landedOf(p.skuPrefix))} kr landad kostnad`,
+                  `${sek(price - landedOf(p.skuPrefix), 0)} kr täckningsbidrag per styck`,
+                ],
+                tipNote: isEdited(p) ? `Ändrat från förslaget ${sek(p.suggestedSek, 0)} kr.` : p.rationale,
+              },
+              100,
+              ' %'
+            );
+          })}
         </div>
         <Axis ticks={[0, 25, 50, 75, 100]} max={100} unit="bruttomarginal" format={t => `${t} %`} />
       </Card>
 
       <Card
-        title="Vårt förslag mot närmaste motsvarighet"
-        sub="Föreslaget pris som andel av den B2B-produkt vi bedömt vara närmast likvärdig. Under 100 % betyder att vi underskrider den. Delad skala."
+        title="Vårt pris mot närmaste motsvarighet"
+        sub="Satt pris som andel av den B2B-produkt vi bedömt vara närmast likvärdig. Under 100 % betyder att vi underskrider den. Delad skala."
         flag
         note={
           <>
-            Fyra produkter landar på 64–85 % av närmaste motsvarighet — vi är billigare utan att vara
-            misstänkt billiga. Två sticker ut. Madrasskyddet ligger strax över, vilket är hanterbart.{' '}
-            <b>Kuddskyddet ligger på 170 % och är det svagaste förslaget i hela analysen.</b> Den svenska
-            B2B-referensen (23 kr) är en vattentät PU-jersey, vår produkt är stretchfrotté — samma funktion,
-            annat material, och vi har ingen prispunkt på just stretchfrotté i underlaget. Priset bör
-            verifieras mot en riktig offert innan det sätts.
+            Vid de ursprungliga förslagen landar fyra produkter på 64–85 % av närmaste motsvarighet — vi är
+            billigare utan att vara misstänkt billiga. Två sticker ut. Madrasskyddet ligger strax över,
+            vilket är hanterbart. <b>Kuddskyddet ligger på 170 % och är det svagaste förslaget i hela
+            analysen.</b> Den svenska B2B-referensen (23 kr) är en vattentät PU-jersey, vår produkt är
+            stretchfrotté — samma funktion, annat material, och vi har ingen prispunkt på just stretchfrotté
+            i underlaget. Priset bör verifieras mot en riktig offert innan det sätts.
           </>
         }
       >
         <div className="flex flex-col gap-[9px]">
-          {[...competitorProducts]
-            .sort((a, b) => indexPct(b) - indexPct(a))
-            .map(p => {
-              const c = primaryOf(p);
-              return bar(
-                {
-                  id: `${p.skuPrefix}-index`,
-                  label: titleOf(p.skuPrefix),
-                  value: indexPct(p),
-                  varName: indexPct(p) > 100 ? '--viz-flag' : SERIES.suggested.varName,
-                  tipTitle: titleOf(p.skuPrefix),
-                  tipRows: [
-                    `${sek(indexPct(p), 0)} % av ${c.vendor}`,
-                    `${sek(p.suggestedSek, 0)} kr mot ${sek(c.priceSek, 0)} kr`,
-                    `${c.product} · ${c.size} cm`,
-                  ],
-                  tipNote: c.caveat ?? 'Närmaste motsvarighet i underlaget.',
-                },
-                200,
-                ' %'
-              );
-            })}
+          {byInitialIndex.map(p => {
+            const c = primaryOf(p);
+            const price = priceOf(p);
+            const idx = indexPct(p, price);
+            return bar(
+              {
+                id: `${p.skuPrefix}-index`,
+                label: titleOf(p.skuPrefix),
+                value: idx,
+                varName: idx > 100 ? '--viz-flag' : SERIES.suggested.varName,
+                tipTitle: titleOf(p.skuPrefix),
+                tipRows: [
+                  `${sek(idx, 0)} % av ${c.vendor}`,
+                  `${sek(price, 0)} kr mot ${sek(c.priceSek, 0)} kr`,
+                  `${c.product} · ${c.size} cm`,
+                ],
+                tipNote: c.caveat ?? 'Närmaste motsvarighet i underlaget.',
+              },
+              200,
+              ' %'
+            );
+          })}
         </div>
         <Axis ticks={[0, 50, 100, 150, 200]} max={200} unit="av motsvarigheten" format={t => `${t} %`} />
       </Card>
@@ -341,7 +392,163 @@ export default function CompetitorCharts() {
         </div>
       </section>
 
-      <Tooltip tip={tip} />
+      <Tooltip tip={dragging ? null : tip} />
     </>
+  );
+}
+
+/**
+ * Vår prisstapel som reglage. Hela spåret är dragbart, och stapeln fungerar som
+ * en ARIA-slider så att den går att styra med piltangenter också.
+ */
+function PriceSlider({
+  product,
+  price,
+  max,
+  step,
+  landed,
+  edited,
+  dragging,
+  onChange,
+  onDragChange,
+  onReset,
+}: {
+  product: CompetitorProduct;
+  price: number;
+  max: number;
+  step: number;
+  landed: number;
+  edited: boolean;
+  dragging: boolean;
+  onChange: (next: number) => void;
+  onDragChange: (active: boolean) => void;
+  onReset: () => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const valueFromEvent = (clientX: number) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return price;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.round((ratio * max) / step) * step;
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onDragChange(true);
+    onChange(valueFromEvent(e.clientX));
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+    onChange(valueFromEvent(e.clientX));
+  };
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    onDragChange(false);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const big = e.shiftKey ? 10 : 1;
+    const keys: Record<string, number | undefined> = {
+      ArrowRight: price + step * big,
+      ArrowUp: price + step * big,
+      ArrowLeft: price - step * big,
+      ArrowDown: price - step * big,
+      PageUp: price + step * 10,
+      PageDown: price - step * 10,
+      Home: 0,
+      End: max,
+    };
+    const next = keys[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    onChange(next);
+  };
+
+  const pct = Math.min(100, (price / max) * 100);
+  const suggestedPct = Math.min(100, (product.suggestedSek / max) * 100);
+  const marginNow = marginPct(product, price);
+  const belowCost = price < landed;
+
+  return (
+    <div className="grid grid-cols-[178px_1fr_92px] items-center gap-3 max-[620px]:grid-cols-[1fr_auto] max-[620px]:gap-x-2.5 max-[620px]:gap-y-1">
+      <div
+        className="flex items-center justify-end gap-2 text-right text-[12.5px] font-semibold leading-tight max-[620px]:col-span-full max-[620px]:justify-start max-[620px]:text-left"
+        style={{ color: 'var(--viz-ink)' }}
+      >
+        {edited && (
+          <button
+            type="button"
+            onClick={onReset}
+            title={`Återställ till förslaget ${sek(product.suggestedSek, 0)} kr`}
+            className="rounded-sm border px-[5px] py-px font-mono text-[9.5px] font-normal uppercase tracking-[0.06em]"
+            style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+          >
+            ↺
+          </button>
+        )}
+        <span>Vårt pris</span>
+      </div>
+
+      <div
+        ref={trackRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        className="relative h-[26px] touch-none select-none rounded-[3px]"
+        style={{ background: 'var(--viz-grid)', cursor: dragging ? 'grabbing' : 'ew-resize' }}
+      >
+        {/* Var förslaget låg, så avvikelsen syns medan man drar. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 top-0 w-px"
+          style={{ left: `${suggestedPct}%`, background: 'var(--viz-ink-3)', opacity: edited ? 0.65 : 0 }}
+        />
+        {/* Landad kostnad — under den här linjen säljer vi med förlust. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 top-0 w-px"
+          style={{ left: `${(landed / max) * 100}%`, background: 'var(--viz-s3)', opacity: 0.9 }}
+        />
+        <div
+          role="slider"
+          tabIndex={0}
+          aria-label={`Pris för ${titleOf(product.skuPrefix)}`}
+          aria-valuemin={0}
+          aria-valuemax={max}
+          aria-valuenow={Math.round(price)}
+          aria-valuetext={`${sek(price, 0)} kronor per styck, ${sek(marginNow, 0)} procent bruttomarginal`}
+          onKeyDown={onKeyDown}
+          className="absolute bottom-[4px] top-[4px] left-0 rounded-[3px_4px_4px_3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          style={{
+            width: `${pct}%`,
+            minWidth: 2,
+            background: belowCost ? 'var(--viz-flag)' : 'var(--viz-s1)',
+            outlineColor: 'var(--viz-ink)',
+          }}
+        >
+          <span
+            aria-hidden
+            className="absolute -right-px bottom-[-4px] top-[-4px] w-[3px] rounded-[2px]"
+            style={{ background: 'var(--viz-ink)', opacity: dragging ? 1 : 0.55 }}
+          />
+        </div>
+      </div>
+
+      <span
+        className="whitespace-nowrap font-mono text-[11px] tabular-nums"
+        style={{ color: belowCost ? 'var(--viz-flag)' : 'var(--viz-ink)' }}
+      >
+        {sek(price, 0)} kr
+        <span className="block text-[10px]" style={{ color: 'var(--viz-ink-3)' }}>
+          {sek(marginNow, 0)} % marg.
+        </span>
+      </span>
+    </div>
   );
 }

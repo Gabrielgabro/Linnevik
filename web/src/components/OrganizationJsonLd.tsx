@@ -14,6 +14,7 @@ export default function OrganizationJsonLd({ locale }: Props) {
     '@type': 'Organization',
     '@id': `${SITE_URL}/#organization`,
     name: SITE_NAME,
+    legalName: 'Linneviken AB',
     url: SITE_URL,
     logo: SITE_LOGO_URL,
     description,

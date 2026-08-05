@@ -20,14 +20,14 @@ The following audit findings have been implemented:
 - Added server-rendered `lang="sv"` and `lang="en"` values using locale-aware request headers.
 - Corrected code-owned English metadata and UI text, including the English About description, contact phone number, product lead-time label and product-information heading.
 - Added Organization JSON-LD on the homepages and connected product schema to the Linnevik brand and organization entity.
-- Corrected the Terms pages from the irrelevant Galil Textile AB to Södra Vanadistvätten AB, Linnevik's parent company, and aligned the terms contact address with the published contact information.
+- Corrected the Terms pages from the irrelevant Galil Textile AB to Linneviken AB, Linnevik's legal daughter company, while preserving Södra Vanadistvätten AB as the prominently stated parent company.
 - Corrected product missing-resource handling to return a real 404 and backend collection failures to surface as failures rather than indexable HTTP-200 error pages.
 - Normalized product meta-description whitespace before truncation.
 
 Still required outside this repository:
 
 - Translate Shopify-owned English product titles, descriptions, options and collection descriptions.
-- Add Södra Vanadistvätten AB's verified organization number to the Terms and Organization schema when available.
+- Add Linneviken AB's verified organization number to the Terms and Organization schema when available.
 - Deploy the changes, then resubmit the sitemap and request recrawls in Google Search Console and Bing Webmaster Tools.
 
 ## Executive summary
@@ -412,12 +412,13 @@ Source: [Google Organization schema guidance](https://developers.google.com/sear
 
 ### 2. Conflicting business facts weaken trust
 
-Before the correction implemented on 5 August 2026, the site presented conflicting business details. The Terms pages incorrectly named Galil Textile AB, while the footer and contact pages named Södra Vanadistvätten AB. The repository now consistently identifies Södra Vanadistvätten AB as Linnevik's parent company and removes Galil Textile AB.
+Before the correction implemented on 5 August 2026, the site presented conflicting business details. The Terms pages incorrectly named Galil Textile AB, while the footer and contact pages named Södra Vanadistvätten AB. The repository now identifies Linneviken AB as Linnevik's legal daughter company and Södra Vanadistvätten AB as its parent company, while removing Galil Textile AB.
 
 The remaining entity information presented on the site is:
 
 - Footer copyright: Södra Vanadistvätten AB
-- Parent company and Terms entity: Södra Vanadistvätten AB
+- Legal Terms entity: Linneviken AB
+- Parent company shown on the site and in schema: Södra Vanadistvätten AB
 - Swedish contact phone: `+46 73 897 02 39`
 - English contact phone: `+46 8 123 456 78`
 - Contact visiting address: Tumba
