@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from './src/lib/languageConfig';
+import { ADMIN_COOKIE, verifySessionValue } from './src/lib/adminAuth';
 
 const locales = SUPPORTED_LANGUAGES.map(l => l.code);
 
@@ -14,8 +15,35 @@ const excludedPaths = [
   '/Supporting_visuals',
 ];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // The admin area has no locale prefix. Bounce /sv/admin and /en/admin back to
+  // /admin so a stale bookmark or an autocompleted URL doesn't dead-end in a 404.
+  const localisedAdmin = locales
+    .map(locale => `/${locale}/admin`)
+    .find(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  if (localisedAdmin) {
+    const target = new URL(pathname.slice(localisedAdmin.length - '/admin'.length), request.url);
+    target.search = request.nextUrl.search;
+    return NextResponse.redirect(target);
+  }
+
+  // The admin area is internal: no locale prefix, and gated on its own session.
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    if (pathname === '/admin/login') {
+      return NextResponse.next();
+    }
+    const session = request.cookies.get(ADMIN_COOKIE)?.value;
+    if (await verifySessionValue(session)) {
+      return NextResponse.next();
+    }
+    const login = new URL('/admin/login', request.url);
+    if (pathname !== '/admin') {
+      login.searchParams.set('next', pathname);
+    }
+    return NextResponse.redirect(login);
+  }
 
   // Skip middleware for excluded paths
   if (excludedPaths.some(path => pathname.startsWith(path))) {

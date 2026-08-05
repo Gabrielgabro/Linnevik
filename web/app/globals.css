@@ -451,3 +451,37 @@ pre {
 .animate-cart-badge {
   animation: cart-badge 0.5s ease-out;
 }
+/* ---------------------------------------------------------------------------
+   Adminvyn (/admin). Diagramfärgerna är en validerad kategorisk palett —
+   blå / orange / grön klarar färgblindhetskontroll i både ljust och mörkt läge.
+   Håll dem åtskilda från varumärkesfärgerna: de kodar identitet, inte ton.
+   --------------------------------------------------------------------------- */
+.admin-viz {
+  --viz-surface: #fcfcfb;
+  --viz-plane: #f2f5f8;
+  --viz-ink: #0b0b0b;
+  --viz-ink-2: #4c5157;
+  --viz-ink-3: #858c93;
+  --viz-rule: #dfe4e9;
+  --viz-grid: #e6eaee;
+  --viz-s1: #2a78d6;
+  --viz-s2: #eb6834;
+  --viz-s3: #1baf7a;
+  --viz-flag: #d03b3b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .admin-viz {
+    --viz-surface: #1a1a19;
+    --viz-plane: #0c0d0f;
+    --viz-ink: #ffffff;
+    --viz-ink-2: #c3c2b7;
+    --viz-ink-3: #898781;
+    --viz-rule: #2b2d30;
+    --viz-grid: #2c2c2a;
+    --viz-s1: #3987e5;
+    --viz-s2: #d95926;
+    --viz-s3: #199e70;
+    --viz-flag: #e66767;
+  }
+}
