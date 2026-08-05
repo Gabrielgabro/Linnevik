@@ -3,7 +3,13 @@
 import Image from 'next/image';
 import { useState } from 'react';
 
-export default function ProductGallery({ images }: { images: { url: string; altText?: string | null }[] }) {
+export default function ProductGallery({
+    images,
+    productTitle,
+}: {
+    images: { url: string; altText?: string | null }[];
+    productTitle: string;
+}) {
     const [selectedImage, setSelectedImage] = useState(0);
 
     if (!images || images.length === 0) return null;
@@ -14,7 +20,7 @@ export default function ProductGallery({ images }: { images: { url: string; altT
             <div className="relative aspect-square bg-[#F9FAFB] dark:bg-[#1f2937] rounded-2xl overflow-hidden border border-[#E7EDF1] dark:border-[#374151]">
                 <Image
                     src={images[selectedImage].url}
-                    alt={images[selectedImage].altText ?? ''}
+                    alt={images[selectedImage].altText || productTitle}
                     fill
                     className="object-cover transition-opacity duration-300"
                     priority
@@ -35,7 +41,7 @@ export default function ProductGallery({ images }: { images: { url: string; altT
                         >
                             <Image
                                 src={img.url}
-                                alt={img.altText ?? ''}
+                                alt={img.altText || `${productTitle} image ${i + 1}`}
                                 fill
                                 className="object-cover"
                             />

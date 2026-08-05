@@ -20,6 +20,10 @@ The following audit findings have been implemented:
 - Added server-rendered `lang="sv"` and `lang="en"` values using locale-aware request headers.
 - Corrected code-owned English metadata and UI text, including the English About description, contact phone number, product lead-time label and product-information heading.
 - Added Organization JSON-LD on the homepages and connected product schema to the Linnevik brand and organization entity.
+- Stamped 5 August 2026: stopped setting the locale cookie on already-localized public responses; the cookie is now persisted only on explicit language-switcher clicks.
+- Stamped 5 August 2026: added schema-only `BreadcrumbList` JSON-LD on product and collection pages.
+- Stamped 5 August 2026: expanded product JSON-LD with variant, MOQ, pack-size, VAT-excluded B2B price basis and seller data using existing product data only.
+- Stamped 5 August 2026: added `npm run check:localization` for Swedish/English translation key parity and common language-leak checks.
 - Corrected the Terms pages from the irrelevant Galil Textile AB to Linneviken AB, Linnevik's legal daughter company, while preserving Södra Vanadistvätten AB as the prominently stated parent company.
 - Corrected product missing-resource handling to return a real 404 and backend collection failures to surface as failures rather than indexable HTTP-200 error pages.
 - Normalized product meta-description whitespace before truncation.

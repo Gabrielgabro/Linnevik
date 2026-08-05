@@ -63,16 +63,11 @@ export async function middleware(request: NextRequest) {
 
   if (pathnameLocale) {
     // Pass locale to the root layout so the server-rendered document can declare
-    // the correct html lang value. Keep the cookie for URL-independent actions.
+    // the correct html lang value without making cacheable public pages vary on
+    // a Set-Cookie header.
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-linnevik-locale', pathnameLocale);
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
-    response.cookies.set('NEXT_LOCALE', pathnameLocale, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      sameSite: 'lax',
-    });
-    return response;
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // Redirect to default locale if no locale in URL

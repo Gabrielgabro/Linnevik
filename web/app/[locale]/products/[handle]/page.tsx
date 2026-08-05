@@ -9,6 +9,7 @@ import { SITE_URL, getSiteUrl } from '@/lib/site';
 import { toShopifyLanguage } from '@/lib/languageConfig';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
 import JsonLd from '@/components/JsonLd';
+import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 import { notFound } from 'next/navigation';
 
 // export const dynamic = 'force-dynamic';
@@ -110,8 +111,16 @@ export default async function ProductPage({ params }: Props) {
                     title: product.title,
                     description: product.descriptionHtml?.replace(/<[^>]*>/g, '') || undefined,
                     images: product.images,
-                    variants: product.variants
+                    options: product.options,
+                    variants: product.variants,
+                    moq,
+                    packSize,
                 }} url={getSiteUrl(`${locale}/products/${handle}`)} />
+                <BreadcrumbJsonLd
+                    locale={locale}
+                    items={breadcrumbItems}
+                    homeLabel={t.breadcrumb.home}
+                />
                 <Breadcrumbs
                     items={breadcrumbItems}
                     homeLabel={t.breadcrumb.home}
@@ -121,7 +130,7 @@ export default async function ProductPage({ params }: Props) {
                 {/* Product grid */}
                 <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 mt-8">
                     {/* Gallery */}
-                    <ProductGallery images={images} />
+                    <ProductGallery images={images} productTitle={product.title} />
 
                     {/* Product info */}
                     <div className="space-y-8">

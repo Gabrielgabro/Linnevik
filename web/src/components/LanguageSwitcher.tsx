@@ -56,6 +56,10 @@ export default function LanguageSwitcher({ variant = 'header' }: LanguageSwitche
     return `/${newLocale}${pathWithoutLocale}${query}`;
   };
 
+  const persistLocaleChoice = (newLocale: Language) => {
+    document.cookie = `NEXT_LOCALE=${newLocale}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  };
+
   const currentLanguage = languages.find(lang => lang.code === currentLang);
 
   if (variant === 'footer') {
@@ -65,6 +69,7 @@ export default function LanguageSwitcher({ variant = 'header' }: LanguageSwitche
           <Link
             key={lang.code}
             href={getLocalizedPath(lang.code)}
+            onClick={() => persistLocaleChoice(lang.code)}
             className={`text-sm transition-all ${
               currentLang === lang.code
                 ? 'text-primary font-medium'
@@ -99,6 +104,7 @@ export default function LanguageSwitcher({ variant = 'header' }: LanguageSwitche
             <Link
               key={lang.code}
               href={getLocalizedPath(lang.code)}
+              onClick={() => persistLocaleChoice(lang.code)}
               className={`w-full text-left px-4 py-2 text-sm flex items-center gap-3 transition-colors ${
                 currentLang === lang.code
                   ? 'bg-gray-50 dark:bg-gray-700 text-primary font-medium'

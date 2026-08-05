@@ -3,6 +3,7 @@ import { getHreflang } from '@/lib/metadata';
 import { SITE_URL, getSiteUrl } from '@/lib/site';
 import ProductCard from "@/components/ProductCard";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import BreadcrumbJsonLd from "@/components/BreadcrumbJsonLd";
 import { LocaleLink } from "@/components/LocaleLink";
 import { notFound } from "next/navigation";
 import { toShopifyLanguage } from "@/lib/languageConfig";
@@ -90,10 +91,19 @@ export default async function CollectionPage({ params, searchParams }: Props) {
 
     const products = col.products.edges.map(e => e.node);
     const pageInfo = col.products.pageInfo;
+    const breadcrumbItems = [
+        { href: "/collections", label: t.collections.detail.breadcrumbLabel },
+        { href: `/collections/${handle}`, label: col.title },
+    ];
 
     return (
         <main className="max-w-6xl mx-auto px-6 pt-32 pb-10 space-y-6">
-            <Breadcrumbs items={[{ href: "/collections", label: t.collections.detail.breadcrumbLabel }, { href: `/collections/${handle}`, label: col.title }]} />
+            <BreadcrumbJsonLd
+                locale={locale}
+                items={breadcrumbItems}
+                homeLabel={t.breadcrumb.home}
+            />
+            <Breadcrumbs items={breadcrumbItems} />
 
             <header className="flex items-end justify-between gap-4 border-b border-light pb-6">
                 <div>
