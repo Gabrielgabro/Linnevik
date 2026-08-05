@@ -3,9 +3,11 @@
 import { useRef, useState } from 'react';
 import { landedPerPcs, products as landedProducts } from '@/data/landedCost';
 import {
+  BASIS_LABEL,
   collectedAt,
   competitorProducts,
   eurSek,
+  floorOf,
   primaryOf,
   type Channel,
   type Competitor,
@@ -32,6 +34,9 @@ const marginPct = (p: CompetitorProduct, price: number) =>
   price <= 0 ? 0 : ((price - landedOf(p.skuPrefix)) / price) * 100;
 
 const indexPct = (p: CompetitorProduct, price: number) => (price / primaryOf(p).priceSek) * 100;
+const floorPct = (p: CompetitorProduct, price: number) => (price / floorOf(p).priceSek) * 100;
+
+const INDEX_MAX = 250;
 
 /**
  * Skalans tak är låst till underlaget, inte till det pris som dras. Annars skulle
@@ -51,8 +56,8 @@ const stepOf = (p: CompetitorProduct) => (scaleMaxOf(p) > 400 ? 5 : 1);
 const byInitialMargin = [...competitorProducts].sort(
   (a, b) => marginPct(b, b.suggestedSek) - marginPct(a, a.suggestedSek)
 );
-const byInitialIndex = [...competitorProducts].sort(
-  (a, b) => indexPct(b, b.suggestedSek) - indexPct(a, a.suggestedSek)
+const byInitialFloor = [...competitorProducts].sort(
+  (a, b) => floorPct(b, b.suggestedSek) - floorPct(a, a.suggestedSek)
 );
 
 type BarSpec = {
@@ -135,10 +140,12 @@ export default function CompetitorCharts() {
         sub="Per produkt: vår landade kostnad, vårt föreslagna listpris och de närmast likvärdiga produkterna hos svenska och nordiska hotelltextilleverantörer. Den blå stapeln går att dra — konkurrenternas står still. Marginalen och indexet i graferna nedanför följer med."
         note={
           <>
-            Bilden är densamma för fem av sex produkter: <b>marknaden tar mellan tre och fyra gånger vår
-            landade kostnad</b>, och vi kan lägga oss under närmaste motsvarighet och ändå behålla drygt
-            60 % bruttomarginal. Duntäcket och dunkudden är dessutom bättre produkter än det vi jämför mot
-            — konkurrenternas &rdquo;dun&rdquo; är 50/50 dun och fjäder, våra är 90/10.
+            Sortimentet delar sig i två. <b>På dun är marknaden dyr och trög</b> — 825–1 427 kr, allt är
+            50/50 dun och fjäder, och våra 90/10 är helt enkelt en bättre produkt. Där kan vi ta premiumpris
+            och ändå underskrida alla.{' '}
+            <b>På fiber och skydd är den brutal.</b> Mandales säljer ett 800-grams fibertäcke för 190 kr och
+            Tingstad en 50 × 70-kudde för 85 kr. De prispunkterna ligger nära vår egen landade kostnad, och
+            de går inte att möta — bara att förklara sig ifrån.
           </>
         }
       >
@@ -218,7 +225,8 @@ export default function CompetitorCharts() {
             Vid de ursprungliga förslagen ligger marginalen mellan{' '}
             {sek(Math.min(...competitorProducts.map(p => marginPct(p, p.suggestedSek))), 0)} och{' '}
             {sek(Math.max(...competitorProducts.map(p => marginPct(p, p.suggestedSek))), 0)} % över hela
-            sortimentet, vilket är avsiktligt: förslagen är satta mot marknaden, inte mot ett fast pålägg.{' '}
+            sortimentet, vilket är avsiktligt: förslagen är satta mot marknaden, inte mot ett fast pålägg.
+            Marginalen är lägst där konkurrensen är hårdast, inte där produkten är billigast.{' '}
             <b>Väg marginalen mot volymen</b> — Kudde Sigrid är 16 sålda enheter och Kuddskydd 300, så det
             är Kuddskyddet som avgör om sortimentet bär sig.
           </>
@@ -251,45 +259,83 @@ export default function CompetitorCharts() {
       </Card>
 
       <Card
-        title="Vårt pris mot närmaste motsvarighet"
-        sub="Satt pris som andel av den B2B-produkt vi bedömt vara närmast likvärdig. Under 100 % betyder att vi underskrider den. Delad skala."
+        title="Vårt pris mot marknaden"
+        sub="Två mått per produkt. Den övre stapeln jämför mot den B2B-produkt vi bedömt vara närmast likvärdig. Den undre jämför mot det billigaste B2B-alternativ vi hittat över huvud taget — den prispunkt en inköpare faktiskt kan välja i stället för oss. Under 100 % betyder att vi underskrider. Delad skala."
         flag
         note={
           <>
-            Vid de ursprungliga förslagen landar fyra produkter på 64–85 % av närmaste motsvarighet — vi är
-            billigare utan att vara misstänkt billiga. Två sticker ut. Madrasskyddet ligger strax över,
-            vilket är hanterbart. <b>Kuddskyddet ligger på 170 % och är det svagaste förslaget i hela
-            analysen.</b> Den svenska B2B-referensen (23 kr) är en vattentät PU-jersey, vår produkt är
-            stretchfrotté — samma funktion, annat material, och vi har ingen prispunkt på just stretchfrotté
-            i underlaget. Priset bör verifieras mot en riktig offert innan det sätts.
+            Mot närmaste motsvarighet ser allt bra ut. Mot golvet gör det inte det.{' '}
+            <b>Kudde Eric ligger på {sek(floorPct(competitorProducts.find(p => p.skuPrefix === 'KUD-ERI')!, priceOf(competitorProducts.find(p => p.skuPrefix === 'KUD-ERI')!)), 0)} % av Tingstads
+            bollfiberkudde i exakt vår storlek (85 kr)</b>, och Täcke Daniel på{' '}
+            {sek(floorPct(competitorProducts.find(p => p.skuPrefix === 'TAC-DAN')!, priceOf(competitorProducts.find(p => p.skuPrefix === 'TAC-DAN')!)), 0)} % av Mandales fibertäcke (190 kr). Det är
+            de två produkter som binder mest kapital i sändningen. Skillnaden är inte inbillad — den är
+            produktkvalitet, och den måste gå att sälja in i ett anbud, annars är den inte värd något.
+            Dunprodukterna är det motsatta: där är golvet högt och vår produkt bättre än allt vi jämför mot.
           </>
         }
       >
-        <div className="flex flex-col gap-[9px]">
-          {byInitialIndex.map(p => {
-            const c = primaryOf(p);
+        <Legend
+          items={[
+            { label: 'Mot närmaste motsvarighet', varName: SERIES.suggested.varName },
+            { label: 'Mot billigaste B2B-alternativ', varName: '--viz-s2' },
+          ]}
+        />
+        <div className="flex flex-col gap-4">
+          {byInitialFloor.map(p => {
             const price = priceOf(p);
+            const near = primaryOf(p);
+            const floor = floorOf(p);
             const idx = indexPct(p, price);
-            return bar(
-              {
-                id: `${p.skuPrefix}-index`,
-                label: titleOf(p.skuPrefix),
-                value: idx,
-                varName: idx > 100 ? '--viz-flag' : SERIES.suggested.varName,
-                tipTitle: titleOf(p.skuPrefix),
-                tipRows: [
-                  `${sek(idx, 0)} % av ${c.vendor}`,
-                  `${sek(price, 0)} kr mot ${sek(c.priceSek, 0)} kr`,
-                  `${c.product} · ${c.size} cm`,
-                ],
-                tipNote: c.caveat ?? 'Närmaste motsvarighet i underlaget.',
-              },
-              200,
-              ' %'
+            const flr = floorPct(p, price);
+            return (
+              <div key={p.skuPrefix} className="flex flex-col gap-[5px]">
+                <span className="text-[12.5px] font-semibold" style={{ color: 'var(--viz-ink)' }}>
+                  {titleOf(p.skuPrefix)}
+                </span>
+                {bar(
+                  {
+                    id: `${p.skuPrefix}-index`,
+                    label: `${near.vendor} · ${sek(near.priceSek, 0)} kr`,
+                    value: idx,
+                    varName: idx > 100 ? '--viz-flag' : SERIES.suggested.varName,
+                    tipTitle: `${titleOf(p.skuPrefix)} mot närmaste motsvarighet`,
+                    tipRows: [
+                      `${sek(idx, 0)} % av ${near.vendor}`,
+                      `${sek(price, 0)} kr mot ${sek(near.priceSek, 0)} kr`,
+                      `${near.product} · ${near.size} cm`,
+                    ],
+                    tipNote: near.caveat ?? 'Närmaste motsvarighet i underlaget.',
+                  },
+                  INDEX_MAX,
+                  ' %'
+                )}
+                {bar(
+                  {
+                    id: `${p.skuPrefix}-floor`,
+                    label: `${floor.vendor} · ${sek(floor.priceSek, 0)} kr`,
+                    value: flr,
+                    varName: flr > 100 ? '--viz-flag' : '--viz-s2',
+                    tipTitle: `${titleOf(p.skuPrefix)} mot marknadens golv`,
+                    tipRows: [
+                      `${sek(flr, 0)} % av ${floor.vendor}`,
+                      `${sek(price, 0)} kr mot ${sek(floor.priceSek, 0)} kr`,
+                      `${floor.product} · ${floor.size} cm`,
+                    ],
+                    tipNote: floor.caveat ?? 'Billigaste B2B-alternativet i underlaget.',
+                  },
+                  INDEX_MAX,
+                  ' %'
+                )}
+              </div>
             );
           })}
         </div>
-        <Axis ticks={[0, 50, 100, 150, 200]} max={200} unit="av motsvarigheten" format={t => `${t} %`} />
+        <Axis
+          ticks={[0, 50, 100, 150, 200, 250]}
+          max={INDEX_MAX}
+          unit="av jämförelsen"
+          format={t => `${t} %`}
+        />
       </Card>
 
       <section
@@ -302,17 +348,18 @@ export default function CompetitorCharts() {
               className="pb-2.5 text-left font-mono text-[10.5px] uppercase tracking-[0.1em]"
               style={{ color: 'var(--viz-ink-3)' }}
             >
-              Källor · SEK exkl. moms per styck · insamlat {collectedAt} · EUR omräknat till {sek(eurSek, 3)}
+              Källor · SEK per styck · insamlat {collectedAt} · EUR omräknat till {sek(eurSek, 3)} ·
+              &rdquo;exkl.?&rdquo; = leverantören anger inte momsstatus, priset är antaget exkl. moms
             </caption>
             <thead>
               <tr>
-                {['Vår produkt', 'Leverantör', 'Produkt', 'Specifikation', 'Storlek', 'Kanal', 'Pris'].map(
+                {['Vår produkt', 'Leverantör', 'Produkt', 'Specifikation', 'Storlek', 'Kanal', 'Prisbas', 'Pris'].map(
                   (h, i) => (
                     <th
                       key={h}
                       scope="col"
                       className={`whitespace-nowrap border-b px-2.5 py-2 font-mono text-[10.5px] font-normal uppercase tracking-[0.06em] ${
-                        i === 6 ? 'text-right' : 'text-left'
+                        i === 7 ? 'text-right' : 'text-left'
                       }`}
                       style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
                     >
@@ -377,6 +424,16 @@ export default function CompetitorCharts() {
                       style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
                     >
                       {c.channel}
+                    </td>
+                    <td
+                      className="whitespace-nowrap border-b px-2.5 py-2 font-mono text-[10.5px]"
+                      style={{
+                        borderColor: 'var(--viz-rule)',
+                        color: c.basis === 'ex-antag' ? 'var(--viz-flag)' : 'var(--viz-ink-3)',
+                      }}
+                      title={BASIS_LABEL[c.basis]}
+                    >
+                      {c.basis === 'ex' ? 'exkl.' : c.basis === 'ex-antag' ? 'exkl.?' : 'omräknat'}
                     </td>
                     <td
                       className="whitespace-nowrap border-b px-2.5 py-2 text-right tabular-nums"
