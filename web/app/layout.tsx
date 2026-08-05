@@ -6,6 +6,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next"
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import VisitLogger from "@/components/VisitLogger";
+import { headers } from 'next/headers';
+import { SITE_URL } from '@/lib/site';
 
 // Serif font for headings - elegant and refined
 const libreBaskerville = Libre_Baskerville({
@@ -30,7 +32,7 @@ const faviconSize = "256x256";
 export const metadata: Metadata = {
     title: "Linnevik",
     description: "Linnevik supplies durable textiles for hotels and hospitality spaces.",
-    metadataBase: new URL('https://linnevik.se'),
+    metadataBase: new URL(SITE_URL),
     icons: {
         icon: [
             { url: lightFavicon, type: "image/png", sizes: faviconSize, media: "(prefers-color-scheme: light)" },
@@ -47,13 +49,16 @@ export const metadata: Metadata = {
     },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const requestHeaders = await headers();
+    const locale = requestHeaders.get('x-linnevik-locale') === 'en' ? 'en' : 'sv';
+
     return (
-        <html dir="ltr" suppressHydrationWarning>
+        <html lang={locale} dir="ltr" suppressHydrationWarning>
             <body className={`${libreBaskerville.variable} ${inter.variable}`}>
                 <CartProvider>
                     {children}

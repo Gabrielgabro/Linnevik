@@ -18,6 +18,12 @@ const excludedPaths = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (request.nextUrl.hostname === 'linnevik.se') {
+    const destination = new URL(request.url);
+    destination.hostname = 'www.linnevik.se';
+    return NextResponse.redirect(destination, 308);
+  }
+
   // The admin area has no locale prefix. Bounce /sv/admin and /en/admin back to
   // /admin so a stale bookmark or an autocompleted URL doesn't dead-end in a 404.
   const localisedAdmin = locales
@@ -56,8 +62,11 @@ export async function middleware(request: NextRequest) {
   );
 
   if (pathnameLocale) {
-    // Set the NEXT_LOCALE cookie to match the URL locale for server actions
-    const response = NextResponse.next();
+    // Pass locale to the root layout so the server-rendered document can declare
+    // the correct html lang value. Keep the cookie for URL-independent actions.
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-linnevik-locale', pathnameLocale);
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.cookies.set('NEXT_LOCALE', pathnameLocale, {
       path: '/',
       maxAge: 60 * 60 * 24 * 365, // 1 year
@@ -70,7 +79,7 @@ export async function middleware(request: NextRequest) {
   const locale = DEFAULT_LANGUAGE;
   const response = NextResponse.redirect(
     new URL(`/${locale}${pathname}`, request.url)
-  );
+  , 308);
   response.cookies.set('NEXT_LOCALE', locale, {
     path: '/',
     maxAge: 60 * 60 * 24 * 365, // 1 year
@@ -87,4 +96,3 @@ export const config = {
     '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
 };
-

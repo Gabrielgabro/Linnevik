@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import VerifyEmailClient from './VerifyEmailClient';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
-import { getHreflang } from '@/lib/metadata';
+import { getHreflang, noIndexMetadata } from '@/lib/metadata';
 
 
 type Props = {
@@ -17,6 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: t.verifyEmail.metadata.title,
         description: t.verifyEmail.metadata.description,
         alternates: getHreflang('/login/verify-email', locale),
+        ...noIndexMetadata,
     };
 }
 

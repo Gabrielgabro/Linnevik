@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
 import { getHreflang } from '@/lib/metadata';
-import { getCanonicalUrl } from '@/lib/metadata';
 import ContactClient from './ContactClient';
 import { getStaticLocaleParams } from '@/lib/staticParams';
 

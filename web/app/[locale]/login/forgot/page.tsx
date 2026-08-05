@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import ForgotPasswordClient from './ForgotPasswordClient';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
-import { getHreflang } from '@/lib/metadata';
+import { getHreflang, noIndexMetadata } from '@/lib/metadata';
 import { getStaticLocaleParams } from '@/lib/staticParams';
 
 export async function generateStaticParams() {
@@ -21,6 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: t.forgot.metadata.title + ' | Linnevik',
         description: t.forgot.metadata.description,
         alternates: getHreflang('/login/forgot', locale),
+        ...noIndexMetadata,
     };
 }
 

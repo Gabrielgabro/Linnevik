@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import LoginClient from './LoginClient';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
 import { isAuthenticated } from '@/lib/auth-helpers';
-import { getHreflang } from '@/lib/metadata';
+import { getHreflang, noIndexMetadata } from '@/lib/metadata';
 
 
 import { getStaticLocaleParams } from '@/lib/staticParams';
@@ -25,6 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: t.login.metadata.title,
         description: t.login.metadata.description,
         alternates: getHreflang('/login', locale),
+        ...noIndexMetadata,
     };
 }
 
@@ -39,4 +40,3 @@ export default async function LoginPage({ params }: Props) {
 
     return <LoginClient />;
 }
-

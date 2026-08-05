@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
-import { getHreflang, getCanonicalUrl } from '@/lib/metadata';
+import { getHreflang } from '@/lib/metadata';
+import { SITE_URL } from '@/lib/site';
 import AboutClient from './AboutClient';
 
 import { getStaticLocaleParams } from '@/lib/staticParams';
@@ -19,8 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     return {
         title: t.about.hero.heading + " | Linnevik",
-        description: "Läs mer om Linnevik och våra hållbara textilier för hotell och offentlig miljö.",
-        metadataBase: new URL('https://linnevik.se'),
+        description: t.about.metadata.description,
+        metadataBase: new URL(SITE_URL),
         alternates: getHreflang('/about', locale),
     };
 }

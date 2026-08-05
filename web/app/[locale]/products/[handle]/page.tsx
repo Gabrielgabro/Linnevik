@@ -4,10 +4,12 @@ import Breadcrumbs from '@/components/Breadcrumbs';
 import { Metadata } from 'next';
 
 import { getProductByHandle } from '@/lib/shopify';
-import { getHreflang, getCanonicalUrl } from '@/lib/metadata';
+import { getHreflang } from '@/lib/metadata';
+import { SITE_URL, getSiteUrl } from '@/lib/site';
 import { toShopifyLanguage } from '@/lib/languageConfig';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
 import JsonLd from '@/components/JsonLd';
+import { notFound } from 'next/navigation';
 
 // export const dynamic = 'force-dynamic';
 
@@ -41,17 +43,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         // Strip HTML from description for meta description
         const plainDescription = product.descriptionHtml
             ?.replace(/<[^>]*>/g, '')
-            .substring(0, 160) || product.title;
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 155) || product.title;
 
         return {
             title: `${product.title} | Linnevik`,
             description: plainDescription,
-            metadataBase: new URL('https://linnevik.se'),
+            metadataBase: new URL(SITE_URL),
             alternates: getHreflang(`/products/${handle}`, locale),
             openGraph: {
                 title: `${product.title} | Linnevik`,
                 description: plainDescription,
-                url: `https://linnevik.se/${locale}/products/${handle}`,
+                url: getSiteUrl(`${locale}/products/${handle}`),
                 siteName: 'Linnevik',
                 locale: locale === 'sv' ? 'sv_SE' : 'en_US',
                 type: 'website',
@@ -76,7 +80,7 @@ export default async function ProductPage({ params }: Props) {
     const shopifyLang = toShopifyLanguage(locale);
     const t = getTranslations(locale);
     const product = await getProductByHandle(handle, shopifyLang);
-    if (!product) return <div className="p-8">{t.breadcrumb.products}</div>;
+    if (!product) notFound();
 
     const images = product.images.edges.map(e => e.node);
     const variants = product.variants.edges.map(e => e.node);
@@ -107,7 +111,7 @@ export default async function ProductPage({ params }: Props) {
                     description: product.descriptionHtml?.replace(/<[^>]*>/g, '') || undefined,
                     images: product.images,
                     variants: product.variants
-                }} url={`https://linnevik.se/${locale}/products/${handle}`} />
+                }} url={getSiteUrl(`${locale}/products/${handle}`)} />
                 <Breadcrumbs
                     items={breadcrumbItems}
                     homeLabel={t.breadcrumb.home}
@@ -145,7 +149,7 @@ export default async function ProductPage({ params }: Props) {
                                 <svg className="w-5 h-5 text-[#0B3D2E] dark:text-[#379E7D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span className="text-sm font-medium text-primary">Leveranstid: {product.leadTime.value}</span>
+                                <span className="text-sm font-medium text-primary">{t.product.leadTime}: {product.leadTime.value}</span>
                             </div>
                         )}
                     </div>
@@ -154,7 +158,7 @@ export default async function ProductPage({ params }: Props) {
                 {/* Product description */}
                 {product.descriptionHtml && (
                     <div className="mt-16 pt-16 border-t border-[#E7EDF1] dark:border-[#374151]">
-                        <h2 className="text-2xl font-bold text-primary mb-6">Produktinformation</h2>
+                        <h2 className="text-2xl font-bold text-primary mb-6">{t.product.informationHeading}</h2>
                         <div
                             className="prose prose-lg prose-neutral dark:prose-invert max-w-none prose-headings:text-primary prose-p:text-secondary prose-li:text-secondary prose-strong:text-primary"
                             dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}

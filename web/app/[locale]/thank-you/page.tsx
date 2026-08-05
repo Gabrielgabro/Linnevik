@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
-import { getHreflang } from '@/lib/metadata';
+import { getHreflang, noIndexMetadata } from '@/lib/metadata';
 import ThankYouClient from './ThankYouClient';
 
 
@@ -23,6 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: t.thankYou.title + " | Linnevik",
         description: t.thankYou.message,
         alternates: getHreflang('/thank-you', locale),
+        ...noIndexMetadata,
     };
 }
 

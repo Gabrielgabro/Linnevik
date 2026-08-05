@@ -1,5 +1,6 @@
 
 import { Product } from 'schema-dts';
+import { SITE_NAME, SITE_URL } from '@/lib/site';
 
 type ValidUrl = string;
 
@@ -35,6 +36,10 @@ export default function JsonLd({ product, url }: Props) {
         description: product.description,
         image: image,
         sku: variant.sku || undefined,
+        brand: {
+            '@type': 'Brand',
+            name: SITE_NAME,
+        },
         offers: {
             '@type': 'Offer',
             price: price,
@@ -43,6 +48,9 @@ export default function JsonLd({ product, url }: Props) {
                 ? 'https://schema.org/InStock'
                 : 'https://schema.org/OutOfStock',
             url: url,
+            seller: {
+                '@id': `${SITE_URL}/#organization`,
+            },
         },
     };
 

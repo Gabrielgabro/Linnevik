@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import ResetPasswordClient from './ResetPasswordClient';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
+import { noIndexMetadata } from '@/lib/metadata';
 
 // This page must be dynamic - we can't pre-generate all possible reset tokens
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.reset.metadata.title + ' | Linnevik',
         description: t.reset.metadata.description,
+        ...noIndexMetadata,
     };
 }
 

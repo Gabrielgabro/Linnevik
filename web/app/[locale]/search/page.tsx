@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
-import { getHreflang } from '@/lib/metadata';
+import { getHreflang, noIndexMetadata } from '@/lib/metadata';
 import { getProductsBasic } from '@/lib/shopify';
 import LiveSearch from '@/components/LiveSearch';
 import SearchPageClient from '@/components/SearchPageClient';
@@ -28,6 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: t.search.metadata.title + " | Linnevik",
         description: t.search.metadata.description,
         alternates: getHreflang('/search', locale),
+        ...noIndexMetadata,
     };
 }
 

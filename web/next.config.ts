@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
             {
                 source: '/',
                 destination: '/sv',
-                permanent: false,
+                permanent: true,
             },
             // Redirect Shopify activation links (no locale) to Swedish default
             {

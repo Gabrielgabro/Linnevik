@@ -1,12 +1,11 @@
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://linnevik.se';
+import { SITE_URL, getSiteUrl } from './site';
 
 /**
  * Get hreflang alternates including canonical for SEO
  * When locale is provided, includes the canonical URL (self-referential link)
  */
 export function getHreflang(path: string, locale?: string) {
-    // Ensure path starts with /
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const cleanPath = path === '/' ? '' : `/${path.replace(/^\/+/, '')}`;
 
     const alternates: {
         canonical?: string;
@@ -15,7 +14,7 @@ export function getHreflang(path: string, locale?: string) {
         languages: {
             sv: `${SITE_URL}/sv${cleanPath}`,
             en: `${SITE_URL}/en${cleanPath}`,
-            'x-default': `${SITE_URL}/sv${cleanPath}`, // Default to Swedish
+            'x-default': `${SITE_URL}/sv${cleanPath}`,
         },
     };
 
@@ -28,13 +27,12 @@ export function getHreflang(path: string, locale?: string) {
 }
 
 export function getCanonicalUrl(locale: string, path: string) {
-    // Ensure path starts with /
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const cleanPath = path === '/' ? '' : `/${path.replace(/^\/+/, '')}`;
     return `${SITE_URL}/${locale}${cleanPath}`;
 }
 
 export function getPageMetadata(locale: string, path: string, title: string, description: string) {
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const cleanPath = path === '/' ? '' : `/${path.replace(/^\/+/, '')}`;
 
     return {
         title,
@@ -50,3 +48,12 @@ export function getPageMetadata(locale: string, path: string, title: string, des
         },
     };
 }
+
+export const noIndexMetadata = {
+    robots: {
+        index: false,
+        follow: true,
+    },
+};
+
+export { SITE_URL, getSiteUrl };

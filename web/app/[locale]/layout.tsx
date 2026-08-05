@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { normalizeLocale } from "@/lib/i18n";
-import { SUPPORTED_LANGUAGES } from "@/lib/languageConfig";
+import { isSupportedLanguage, SUPPORTED_LANGUAGES } from "@/lib/languageConfig";
+import { notFound } from 'next/navigation';
+import { SITE_URL } from '@/lib/site';
 import { LocaleProvider } from "@/contexts/LocaleContext";
 import Header from "@/sections/Header";
 import Footer from "@/sections/Footer";
@@ -18,19 +20,21 @@ export async function generateStaticParams() {
   }));
 }
 
+export const dynamicParams = false;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale: localeParam } = await params;
+  if (!isSupportedLanguage(localeParam)) notFound();
   const locale = normalizeLocale(localeParam);
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://linnevik.se';
-
   return {
-    metadataBase: new URL(baseUrl),
+    metadataBase: new URL(SITE_URL),
     alternates: {
-      canonical: `${baseUrl}/${locale}`,
+      canonical: `${SITE_URL}/${locale}`,
       languages: {
-        sv: `${baseUrl}/sv`,
-        en: `${baseUrl}/en`,
+        sv: `${SITE_URL}/sv`,
+        en: `${SITE_URL}/en`,
+        'x-default': `${SITE_URL}/sv`,
       },
     },
   };
@@ -38,6 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function LocaleLayout({ children, params }: Props) {
   const { locale: localeParam } = await params;
+  if (!isSupportedLanguage(localeParam)) notFound();
   const locale = normalizeLocale(localeParam);
 
   return (
@@ -50,4 +55,3 @@ export default async function LocaleLayout({ children, params }: Props) {
     </LocaleProvider>
   );
 }
-

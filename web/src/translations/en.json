@@ -77,7 +77,9 @@
     "finalPriceNote": "Excl. VAT. Final price confirmed in quote.",
     "from": "from",
     "noImage": "No image",
-    "notFound": "Product not found."
+    "notFound": "Product not found.",
+    "leadTime": "Lead time",
+    "informationHeading": "Product information"
   },
   "mto": {
     "priceEstimate": {
@@ -451,7 +453,7 @@
       "postalCity": "147 39 Tumba",
       "contactHeading": "Contact details",
       "emailLabel": "info@linnevik.se",
-      "phoneLabel": "+46 8 123 456 78",
+      "phoneLabel": "+46 73 897 02 39",
       "openingHoursHeading": "Opening hours",
       "weekdaysLabel": "Monday – Friday",
       "weekdaysHours": "09:00 – 17:00",
@@ -719,12 +721,12 @@
   "terms": {
     "pageTitle": "Terms & Conditions",
     "introTitle": "Terms & Conditions – Linnevik",
-    "introSubtitle": "Applies to customers of Galil Textile AB (reg. no. 559307-2951)",
-    "lastUpdated": "Last updated: 12/12/2025",
-    "companyName": "Galil Textile AB",
+    "introSubtitle": "Applies to customers of Södra Vanadistvätten AB",
+    "lastUpdated": "Last updated: 05/08/2026",
+    "companyName": "Södra Vanadistvätten AB",
     "companyEmail": "info@linnevik.se",
     "section1Title": "1. General",
-    "section1Text1": "These terms and conditions apply to all purchases of products from Linnevik made by business customers (B2B) from Galil Textile AB (\"we\", \"us\").",
+    "section1Text1": "These terms and conditions apply to all purchases of products from Linnevik made by business customers (B2B) from Södra Vanadistvätten AB (\"we\", \"us\").",
     "section1Text2": "By placing an order, you accept these terms and conditions.",
     "section1Text3": "These terms take precedence over any general purchasing terms of your own, unless otherwise agreed in writing.",
     "section2Title": "2. Orders and contract",
@@ -771,7 +773,7 @@
     "section11Text2": "In the event of force majeure, delivery and performance times are extended by the duration of the impediment.",
     "section11Text3": "If the impediment lasts longer than [3] months, both parties are entitled to terminate the affected part of the agreement without liability for damages.",
     "section12Title": "12. Intellectual property rights",
-    "section12Text1": "All intellectual property rights related to our patterns, designs, texts, images and trademarks belong to Galil Textile AB or our licensors.",
+    "section12Text1": "All intellectual property rights related to our patterns, designs, texts, images and trademarks belong to Södra Vanadistvätten AB or our licensors.",
     "section12Text2": "No transfer or licence is granted other than what is expressly agreed in writing.",
     "section12Text3": "If you provide your own material, such as a logo for embroidery, you are responsible for ensuring that the material does not infringe any third-party rights.",
     "section13Title": "13. Personal data",
@@ -782,9 +784,9 @@
     "section14Text1": "The agreement and these terms and conditions are governed by the substantive laws of Sweden.",
     "section14Text2": "Any disputes that cannot be resolved through negotiation shall be finally settled by the general courts of Sweden, with [e.g. Stockholm District Court] as the court of first instance.",
     "section15Title": "15. Contact",
-    "section15Text1": "Galil Textile AB",
-    "section15Text2": "Ranhammarsvägen 20",
-    "section15Text3": "168 67 Bromma",
+    "section15Text1": "Södra Vanadistvätten AB",
+    "section15Text2": "Himmelsbodavägen 15",
+    "section15Text3": "147 39 Tumba",
     "section15Text4": "Sweden",
     "section15Text5": "E-mail: info@linnevik.se"
   },

@@ -1,24 +1,28 @@
 import { MetadataRoute } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export default function robots(): MetadataRoute.Robots {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://linnevik.se';
-
     return {
-        rules: {
-            userAgent: '*',
-            allow: '/',
-            disallow: [
-                '/admin',
-                '/account/',
-                '/sv/account/',
-                '/en/account/',
-                '/api/',
-                '/_next/',
-                '/Econa/',
-                '/sv/Econa/',
-                '/en/Econa/',
-            ],
-        },
-        sitemap: `${baseUrl}/sitemap.xml`,
+        rules: [
+            {
+                userAgent: '*',
+                allow: '/',
+                disallow: [
+                    '/admin',
+                    '/account/',
+                    '/sv/account/',
+                    '/en/account/',
+                    '/api/',
+                    '/Econa/',
+                    '/sv/Econa/',
+                    '/en/Econa/',
+                ],
+            },
+            { userAgent: 'OAI-SearchBot', allow: '/' },
+            { userAgent: 'ChatGPT-User', allow: '/' },
+            { userAgent: 'Claude-SearchBot', allow: '/' },
+            { userAgent: 'PerplexityBot', allow: '/' },
+        ],
+        sitemap: `${SITE_URL}/sitemap.xml`,
     };
 }

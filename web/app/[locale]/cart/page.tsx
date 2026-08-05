@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
-import { getHreflang } from '@/lib/metadata';
+import { getHreflang, noIndexMetadata } from '@/lib/metadata';
 import CartClient from './CartClient';
 
 type Props = {
@@ -16,6 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: t.cart.title + " | Linnevik",
         description: t.cart.metadata.description,
         alternates: getHreflang('/cart', locale),
+        ...noIndexMetadata,
     };
 }
 

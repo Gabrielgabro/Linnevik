@@ -1,5 +1,6 @@
 import { getCollectionByHandle } from '@/lib/shopify';
-import { getHreflang, getCanonicalUrl } from '@/lib/metadata';
+import { getHreflang } from '@/lib/metadata';
+import { SITE_URL, getSiteUrl } from '@/lib/site';
 import ProductCard from "@/components/ProductCard";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { LocaleLink } from "@/components/LocaleLink";
@@ -36,13 +37,17 @@ export async function generateMetadata({ params }: Props) {
 
         return {
             title: `${col.title} – Linnevik`,
-            description: col.description || `Browse ${col.title} at Linnevik`,
-            metadataBase: new URL('https://linnevik.se'),
+            description: col.description || (locale === 'sv'
+                ? `Utforska ${col.title} för hotell hos Linnevik.`
+                : `Browse ${col.title} for hotels at Linnevik.`),
+            metadataBase: new URL(SITE_URL),
             alternates: getHreflang(`/collections/${handle}`, locale),
             openGraph: {
                 title: `${col.title} – Linnevik`,
-                description: col.description || `Browse ${col.title} at Linnevik`,
-                url: `https://linnevik.se/${locale}/collections/${handle}`,
+                description: col.description || (locale === 'sv'
+                    ? `Utforska ${col.title} för hotell hos Linnevik.`
+                    : `Browse ${col.title} for hotels at Linnevik.`),
+                url: getSiteUrl(`${locale}/collections/${handle}`),
                 siteName: 'Linnevik',
                 locale: locale === 'sv' ? 'sv_SE' : 'en_US',
                 type: 'website',
@@ -74,14 +79,8 @@ export default async function CollectionPage({ params, searchParams }: Props) {
     try {
         col = await getCollectionByHandle(handle, first, after, shopifyLang);
     } catch (error) {
-        console.error(`Fel vid hämtning av kategori '${handle}':`, error);
-        // Visa ett generellt felmeddelande istället för att krascha
-        return (
-            <main className="max-w-6xl mx-auto px-6 py-10 text-center">
-                <h1 className="text-2xl font-semibold mb-4">{t.collections.detail.errorTitle}</h1>
-                <p>{t.collections.detail.errorBody}</p>
-            </main>
-        );
+        console.error(`Unable to fetch collection '${handle}':`, error);
+        throw error;
     }
 
     // Om kategorin inte hittas alls, rendera Next.js 404-sida

@@ -2,6 +2,7 @@
 import { Metadata } from 'next';
 import ActivateAccountClient from './ActivateAccountClient';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
+import { noIndexMetadata } from '@/lib/metadata';
 
 // This page must be dynamic - we can't pre-generate all possible activation tokens
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
         title: t.activation.metadata.title + ' | Linnevik',
         description: t.activation.metadata.description,
+        ...noIndexMetadata,
     };
 }
 

@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { getTranslations, normalizeLocale } from '@/lib/i18n';
-import { getHreflang } from '@/lib/metadata';
+import { getHreflang, noIndexMetadata } from '@/lib/metadata';
 import CheckoutClient from './CheckoutClient';
 
 
@@ -17,6 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: t.samplesCheckout.header.title + " | Linnevik",
         description: t.samplesCheckout.metadata.description,
         alternates: getHreflang('/samples/checkout', locale),
+        ...noIndexMetadata,
     };
 }
 
