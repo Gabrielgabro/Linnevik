@@ -1,7 +1,12 @@
+import { cookies } from 'next/headers';
 import Link from 'next/link';
+import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
 import LogoutButton from './LogoutButton';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const session = (await cookies()).get(ADMIN_COOKIE)?.value;
+  const user = await readSessionValue(session);
+
   return (
     <>
       <header
@@ -20,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="font-mono text-[10.5px] uppercase tracking-[0.14em]"
             style={{ color: 'var(--viz-ink-3)' }}
           >
-            Admin
+            Admin{user ? ` · ${user}` : ''}
           </span>
           <nav className="ml-auto flex items-center gap-5 text-[13px]">
             <Link href="/admin" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>

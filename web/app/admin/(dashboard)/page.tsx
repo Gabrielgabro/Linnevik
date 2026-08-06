@@ -1,5 +1,7 @@
+import { cookies } from 'next/headers';
 import CompetitorCharts from '@/components/admin/CompetitorCharts';
 import CostCharts from '@/components/admin/CostCharts';
+import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
 import { collectedAt } from '@/data/competitorPrices';
 import { landedPerPcs, products, shipment } from '@/data/landedCost';
 
@@ -58,7 +60,9 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function AdminPricingPage() {
+export default async function AdminPricingPage() {
+  const user = await readSessionValue((await cookies()).get(ADMIN_COOKIE)?.value);
+
   return (
     <>
       <header
@@ -152,7 +156,7 @@ export default function AdminPricingPage() {
         </p>
       </header>
 
-      <CompetitorCharts />
+      <CompetitorCharts user={user} />
     </>
   );
 }

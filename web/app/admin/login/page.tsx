@@ -2,11 +2,13 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
+import { ADMIN_USERS, type AdminUser } from '@/lib/adminAuth';
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next');
+  const [user, setUser] = useState<AdminUser>(ADMIN_USERS[0]);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,7 +21,7 @@ function LoginForm() {
     const response = await fetch('/api/admin/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ user, password }),
     });
 
     if (response.ok) {
@@ -54,6 +56,29 @@ function LoginForm() {
           Adminvyn är intern och skild från kundinloggningen.
         </p>
       </div>
+
+      <label className="flex flex-col gap-2">
+        <span className="text-[13px]" style={{ color: 'var(--viz-ink-2)' }}>
+          Vem är du?
+        </span>
+        <select
+          name="user"
+          value={user}
+          onChange={e => setUser(e.target.value as AdminUser)}
+          className="rounded-[3px] border px-3 py-2 text-[14px] focus:outline focus:outline-2 focus:outline-offset-1"
+          style={{
+            background: 'var(--viz-plane)',
+            borderColor: 'var(--viz-rule)',
+            color: 'var(--viz-ink)',
+          }}
+        >
+          {ADMIN_USERS.map(name => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="flex flex-col gap-2">
         <span className="text-[13px]" style={{ color: 'var(--viz-ink-2)' }}>

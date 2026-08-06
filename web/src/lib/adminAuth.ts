@@ -17,6 +17,14 @@
 export const ADMIN_COOKIE = 'linnevik_admin';
 const SESSION_HOURS = 12;
 
+/** Delat lösenord, men var och en väljer sitt namn vid inloggning. */
+export const ADMIN_USERS = ['Gabriel', 'Johan', 'Ahron'] as const;
+export type AdminUser = (typeof ADMIN_USERS)[number];
+
+export function isAdminUser(value: unknown): value is AdminUser {
+  return typeof value === 'string' && (ADMIN_USERS as readonly string[]).includes(value);
+}
+
 const enc = new TextEncoder();
 
 function requireEnv(name: 'ADMIN_PASSWORD' | 'ADMIN_SESSION_SECRET'): string {
@@ -64,10 +72,12 @@ export async function verifyPassword(candidate: string): Promise<boolean> {
   return safeEqual(a, b);
 }
 
-export async function createSessionValue(): Promise<{ value: string; maxAge: number }> {
+export async function createSessionValue(user: AdminUser): Promise<{ value: string; maxAge: number }> {
   const secret = requireEnv('ADMIN_SESSION_SECRET');
   const expires = Date.now() + SESSION_HOURS * 60 * 60 * 1000;
-  const payload = String(expires);
+  // Namnet är inte hemligt, men signeras ändå så att kakan inte går att
+  // pilla i för att låtsas vara någon annan.
+  const payload = `${expires}.${user}`;
   return {
     value: `${payload}.${await sign(payload, secret)}`,
     maxAge: SESSION_HOURS * 60 * 60,
@@ -76,17 +86,25 @@ export async function createSessionValue(): Promise<{ value: string; maxAge: num
 
 /** Verifierar sessionskakan. Anropas från middleware och från serverkomponenter. */
 export async function verifySessionValue(value: string | undefined): Promise<boolean> {
-  if (!value) return false;
+  return Boolean(await readSessionValue(value));
+}
+
+/** Som verifySessionValue, men returnerar vem som är inloggad. */
+export async function readSessionValue(value: string | undefined): Promise<AdminUser | null> {
+  if (!value) return null;
   const secret = process.env.ADMIN_SESSION_SECRET;
-  if (!secret) return false;
+  if (!secret) return null;
 
-  const [payload, signature] = value.split('.');
-  if (!payload || !signature) return false;
+  const parts = value.split('.');
+  if (parts.length !== 3) return null;
+  const [expiresRaw, user, signature] = parts;
+  const payload = `${expiresRaw}.${user}`;
 
-  const expires = Number(payload);
-  if (!Number.isFinite(expires) || expires < Date.now()) return false;
+  const expires = Number(expiresRaw);
+  if (!Number.isFinite(expires) || expires < Date.now()) return null;
+  if (!isAdminUser(user)) return null;
 
-  return safeEqual(await sign(payload, secret), signature);
+  return safeEqual(await sign(payload, secret), signature) ? user : null;
 }
 
 export const sessionCookieOptions = {

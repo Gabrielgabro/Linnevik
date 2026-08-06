@@ -313,6 +313,43 @@ export async function getAllCollections(first = 30, language: ShopifyLanguage = 
   }
 }
 
+/**
+ * Handles plus their real Shopify modification dates, for the sitemap's lastmod.
+ * Deliberately a minimal query: the sitemap needs no titles, images or prices,
+ * and a truthful date is only useful if it is cheap enough to fetch every time.
+ */
+export async function getSitemapEntries(
+  resource: 'products' | 'collections',
+  first = 250,
+  language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)
+) {
+  const SITEMAP_QUERY = `
+    query SitemapEntries($first: Int!, $language: LanguageCode!, $country: CountryCode) @inContext(language: $language, country: $country) {
+      ${resource}(first: $first, sortKey: TITLE) {
+        edges {
+          node {
+            handle
+            updatedAt
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await storefrontFetch<Record<string, { edges: { node: { handle: string; updatedAt: string } }[] }>>({
+      query: SITEMAP_QUERY,
+      variables: { first },
+      language,
+    });
+
+    return data[resource].edges.map(edge => edge.node);
+  } catch (error) {
+    console.error(`getSitemapEntries(${resource}) failed:`, error);
+    return [];
+  }
+}
+
 export async function getCollectionByHandle(handle: string, first = 12, after?: string, language: ShopifyLanguage = toShopifyLanguage(DEFAULT_LANGUAGE)) {
   const COLLECTION_QUERY = `
     query Collection($handle: String!, $first: Int!, $after: String, $language: LanguageCode!, $country: CountryCode) @inContext(language: $language, country: $country) {

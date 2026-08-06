@@ -3,6 +3,7 @@ import {
   ADMIN_COOKIE,
   adminAuthConfigured,
   createSessionValue,
+  isAdminUser,
   sessionCookieOptions,
   verifyPassword,
 } from '@/lib/adminAuth';
@@ -19,11 +20,17 @@ export async function POST(request: NextRequest) {
   }
 
   let password = '';
+  let user: unknown;
   try {
     const body = await request.json();
     password = typeof body?.password === 'string' ? body.password : '';
+    user = body?.user;
   } catch {
     return NextResponse.json({ error: 'Kunde inte läsa förfrågan.' }, { status: 400 });
+  }
+
+  if (!isAdminUser(user)) {
+    return NextResponse.json({ error: 'Välj vem du är.' }, { status: 400 });
   }
 
   if (!password) {
@@ -36,7 +43,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Fel lösenord.' }, { status: 401 });
   }
 
-  const { value, maxAge } = await createSessionValue();
+  const { value, maxAge } = await createSessionValue(user);
   const response = NextResponse.json({ ok: true });
   response.cookies.set(ADMIN_COOKIE, value, { ...sessionCookieOptions, maxAge });
   return response;

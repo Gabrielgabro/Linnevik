@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { landedPerPcs, products as landedProducts } from '@/data/landedCost';
+import type { AdminUser } from '@/lib/adminAuth';
 import {
   BASIS_LABEL,
   collectedAt,
@@ -14,6 +15,14 @@ import {
   type CompetitorProduct,
 } from '@/data/competitorPrices';
 import { Axis, Card, Legend, sek, Tooltip, useTip } from './VizPrimitives';
+
+type StoredSuggestion = {
+  id: number;
+  user: string;
+  label: string | null;
+  prices: Record<string, number>;
+  createdAt: string;
+};
 
 const SERIES = {
   landed: { label: 'Landad kostnad', varName: '--viz-s3' },
@@ -71,18 +80,58 @@ type BarSpec = {
   tipNote: string;
 };
 
-export default function CompetitorCharts() {
+export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
   const { tip, showTip, hideTip } = useTip();
   const [prices, setPrices] = useState<Record<string, number>>(() =>
     Object.fromEntries(competitorProducts.map(p => [p.skuPrefix, p.suggestedSek]))
   );
   const [dragging, setDragging] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<StoredSuggestion[]>([]);
+  const [suggestionsLoaded, setSuggestionsLoaded] = useState(false);
+  const [label, setLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [compareId, setCompareId] = useState<number | null>(null);
 
   const priceOf = (p: CompetitorProduct) => prices[p.skuPrefix] ?? p.suggestedSek;
   const setPrice = (p: CompetitorProduct, next: number) =>
     setPrices(prev => ({ ...prev, [p.skuPrefix]: Math.max(0, Math.min(scaleMaxOf(p), Math.round(next))) }));
   const isEdited = (p: CompetitorProduct) => Math.round(priceOf(p)) !== Math.round(p.suggestedSek);
   const anyEdited = competitorProducts.some(isEdited);
+
+  const loadSuggestions = async () => {
+    const response = await fetch('/api/admin/suggestions');
+    if (!response.ok) return;
+    const body = await response.json();
+    setSuggestions(body.suggestions ?? []);
+    setSuggestionsLoaded(true);
+  };
+
+  useEffect(() => {
+    loadSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveSuggestion = async () => {
+    if (!user) return;
+    setSaving(true);
+    setSaveError(null);
+    const response = await fetch('/api/admin/suggestions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prices, label: label.trim() || null }),
+    });
+    if (response.ok) {
+      setLabel('');
+      await loadSuggestions();
+    } else {
+      const body = await response.json().catch(() => ({}));
+      setSaveError(body.error ?? 'Kunde inte spara förslaget.');
+    }
+    setSaving(false);
+  };
+
+  const compared = suggestions.find(s => s.id === compareId) ?? null;
 
   const bar = (b: BarSpec, max: number, suffix: string) => (
     <div
@@ -163,6 +212,26 @@ export default function CompetitorCharts() {
             Återställ förslagen
           </button>
         </div>
+
+        <SuggestionPanel
+          user={user}
+          anyEdited={anyEdited}
+          label={label}
+          setLabel={setLabel}
+          saving={saving}
+          saveError={saveError}
+          onSave={saveSuggestion}
+          suggestions={suggestions}
+          suggestionsLoaded={suggestionsLoaded}
+          compareId={compareId}
+          setCompareId={setCompareId}
+          compared={compared}
+          currentPrices={prices}
+          onUseCompared={() => {
+            if (!compared) return;
+            setPrices(prev => ({ ...prev, ...compared.prices }));
+          }}
+        />
 
         <div className="flex flex-col gap-6">
           {competitorProducts.map(p => {
@@ -605,6 +674,179 @@ function PriceSlider({
           {sek(marginNow, 0)} % marg.
         </span>
       </span>
+    </div>
+  );
+}
+
+const fmtTime = (iso: string) =>
+  new Date(iso).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+
+/**
+ * Spara den egna prisdragningen som ett namngivet förslag, och jämför mot
+ * andras sparade förslag. Personen loggar in som sig själv (adminvyns
+ * användarval), så vem som satte vilket pris kräver ingen extra inmatning.
+ */
+function SuggestionPanel({
+  user,
+  anyEdited,
+  label,
+  setLabel,
+  saving,
+  saveError,
+  onSave,
+  suggestions,
+  suggestionsLoaded,
+  compareId,
+  setCompareId,
+  compared,
+  currentPrices,
+  onUseCompared,
+}: {
+  user: AdminUser | null;
+  anyEdited: boolean;
+  label: string;
+  setLabel: (v: string) => void;
+  saving: boolean;
+  saveError: string | null;
+  onSave: () => void;
+  suggestions: StoredSuggestion[];
+  suggestionsLoaded: boolean;
+  compareId: number | null;
+  setCompareId: (id: number | null) => void;
+  compared: StoredSuggestion | null;
+  currentPrices: Record<string, number>;
+  onUseCompared: () => void;
+}) {
+  return (
+    <div
+      className="flex flex-col gap-3 rounded-[3px] border px-4 py-3.5"
+      style={{ borderColor: 'var(--viz-rule)', background: 'var(--viz-plane)' }}
+    >
+      <div className="flex flex-wrap items-center gap-2.5">
+        <input
+          type="text"
+          value={label}
+          onChange={e => setLabel(e.target.value)}
+          placeholder={user ? `${user}s förslag …` : 'Förslag …'}
+          maxLength={120}
+          className="min-w-[160px] flex-1 rounded-[3px] border px-2.5 py-1.5 text-[13px]"
+          style={{ background: 'var(--viz-surface)', borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
+        />
+        <button
+          type="button"
+          disabled={!user || !anyEdited || saving}
+          onClick={onSave}
+          className="rounded-sm border px-2.5 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.06em] transition-opacity disabled:opacity-35"
+          style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
+          title={
+            !user
+              ? 'Logga in för att spara ett förslag.'
+              : !anyEdited
+                ? 'Dra i minst ett pris innan du sparar.'
+                : undefined
+          }
+        >
+          {saving ? 'Sparar…' : `Spara som ${user ?? '…'}s förslag`}
+        </button>
+      </div>
+      {saveError && (
+        <p role="alert" className="text-[12.5px]" style={{ color: 'var(--viz-flag)' }}>
+          {saveError}
+        </p>
+      )}
+
+      {suggestionsLoaded && suggestions.length > 0 && (
+        <div className="flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: 'var(--viz-grid)' }}>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span
+              className="font-mono text-[10.5px] uppercase tracking-[0.1em]"
+              style={{ color: 'var(--viz-ink-3)' }}
+            >
+              Sparade förslag ({suggestions.length})
+            </span>
+            <select
+              value={compareId ?? ''}
+              onChange={e => setCompareId(e.target.value ? Number(e.target.value) : null)}
+              className="rounded-[3px] border px-2 py-1 text-[12.5px]"
+              style={{ background: 'var(--viz-surface)', borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
+            >
+              <option value="">Jämför med …</option>
+              {suggestions.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.user} · {s.label ?? 'utan namn'} · {fmtTime(s.createdAt)}
+                </option>
+              ))}
+            </select>
+            {compared && (
+              <button
+                type="button"
+                onClick={onUseCompared}
+                className="rounded-sm border px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.06em]"
+                style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
+              >
+                Använd dessa priser
+              </button>
+            )}
+          </div>
+
+          {compared && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] border-collapse text-[12.5px]">
+                <thead>
+                  <tr>
+                    {['Produkt', `${compared.user}`, 'Aktuellt', 'Skillnad'].map((h, i) => (
+                      <th
+                        key={h}
+                        className={`whitespace-nowrap border-b px-2 py-1.5 font-mono text-[10px] font-normal uppercase tracking-[0.06em] ${i === 0 ? 'text-left' : 'text-right'}`}
+                        style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody style={{ color: 'var(--viz-ink)' }}>
+                  {competitorProducts.map(p => {
+                    const theirs = compared.prices[p.skuPrefix];
+                    if (theirs === undefined) return null;
+                    const current = currentPrices[p.skuPrefix] ?? p.suggestedSek;
+                    const diff = current - theirs;
+                    return (
+                      <tr key={p.skuPrefix}>
+                        <td className="border-b px-2 py-1.5" style={{ borderColor: 'var(--viz-rule)' }}>
+                          {titleOf(p.skuPrefix)}
+                        </td>
+                        <td
+                          className="whitespace-nowrap border-b px-2 py-1.5 text-right font-mono tabular-nums"
+                          style={{ borderColor: 'var(--viz-rule)' }}
+                        >
+                          {sek(theirs, 0)} kr
+                        </td>
+                        <td
+                          className="whitespace-nowrap border-b px-2 py-1.5 text-right font-mono tabular-nums"
+                          style={{ borderColor: 'var(--viz-rule)' }}
+                        >
+                          {sek(current, 0)} kr
+                        </td>
+                        <td
+                          className="whitespace-nowrap border-b px-2 py-1.5 text-right font-mono tabular-nums"
+                          style={{
+                            borderColor: 'var(--viz-rule)',
+                            color: diff === 0 ? 'var(--viz-ink-3)' : diff > 0 ? 'var(--viz-s1)' : 'var(--viz-flag)',
+                          }}
+                        >
+                          {diff > 0 ? '+' : ''}
+                          {sek(diff, 0)} kr
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
