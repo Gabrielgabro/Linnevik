@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { record } from '@/lib/adminActivity';
 import { sendEmail } from '@/lib/mailer';
 import { collect } from '@/lib/priceWatch/scrape';
 import { compare, htmlFor, subjectFor, worthEmailing } from '@/lib/priceWatch/report';
@@ -50,6 +51,15 @@ export async function GET(request: NextRequest) {
       });
       emailed = result.success;
     }
+
+    // Torrkörningar loggas inte: de ändrar inget och är oftast manuella prov.
+    await record('prisbot', 'pricewatch.run', null, {
+      watched: observations.length,
+      failed: findings.failed,
+      drops: findings.drops.length,
+      undercuts: findings.undercuts.length,
+      emailed,
+    });
   }
 
   return NextResponse.json({

@@ -1,5 +1,6 @@
 import { desc } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
+import { record } from '@/lib/adminActivity';
 import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
 import { getDb } from '@/lib/db';
 import { priceSuggestions } from '@/lib/db/schema';
@@ -59,6 +60,11 @@ export async function POST(request: NextRequest) {
       prices: prices as Record<string, number>,
     })
     .returning();
+
+  await record(user, 'suggestion.saved', String(row.id), {
+    label: row.label,
+    products: Object.keys(row.prices).length,
+  });
 
   return NextResponse.json({ suggestion: row });
 }

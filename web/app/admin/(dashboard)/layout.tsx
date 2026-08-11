@@ -31,6 +31,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <Link href="/admin" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>
               Prisbild
             </Link>
+            <Link href="/admin/clients" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>
+              Kunder
+            </Link>
+            <Link
+              href="/admin/activity"
+              className="hover:underline"
+              style={{ color: 'var(--viz-ink-2)' }}
+            >
+              Aktivitet
+            </Link>
             <LogoutButton />
           </nav>
         </div>

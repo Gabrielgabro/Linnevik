@@ -1,0 +1,800 @@
+[
+  {
+    "customerNo": "1000",
+    "name": "Marriott",
+    "reminderFee": "350.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1001",
+    "name": "Arena Globen",
+    "reminderFee": "25.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1002",
+    "name": "Eatery",
+    "reminderFee": "25.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1003",
+    "name": "Aubergine",
+    "reminderFee": "30.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1004",
+    "name": "Babette",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1005",
+    "name": "Aveqia",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1006",
+    "name": "Belgobaren",
+    "reminderFee": "60.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1007",
+    "name": "Bentleys",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1008",
+    "name": "Blique Hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1009",
+    "name": "Bromma Hotel",
+    "reminderFee": "60.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1010",
+    "name": "munchen",
+    "reminderFee": "80.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1011",
+    "name": "108 Best Western",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1012",
+    "name": "Bålsta hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1013",
+    "name": "Chefens Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1014",
+    "name": "Miss Clara",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1015",
+    "name": "Combo",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1017",
+    "name": "Cultura Crew",
+    "reminderFee": "20.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1018",
+    "name": "Ekerö hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1019",
+    "name": "Fenix",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1020",
+    "name": "FH Fjäderholmen",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1021",
+    "name": "Freys hotel",
+    "reminderFee": "300.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1022",
+    "name": "Gamla Stan Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1023",
+    "name": "Giro",
+    "reminderFee": "10.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1024",
+    "name": "Gondolen",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1025",
+    "name": "Grow Hotel",
+    "reminderFee": "300.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1026",
+    "name": "Gyldene freden",
+    "reminderFee": "60.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1027",
+    "name": "Hemma Vasastan",
+    "reminderFee": "35.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1028",
+    "name": "Hornhuset",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1029",
+    "name": "J Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1030",
+    "name": "Skeppsholmen Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1031",
+    "name": "J Restaurang",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1032",
+    "name": "Balzac restaurang",
+    "reminderFee": "50.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1033",
+    "name": "Karlaplan Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1034",
+    "name": "Kista Hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1035",
+    "name": "Lilla Brunn",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1036",
+    "name": "Luzette",
+    "reminderFee": "100.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1037",
+    "name": "Musikaliska",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1038",
+    "name": "Nacka Profil",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1039",
+    "name": "Nobis Hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1040",
+    "name": "Opera",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1041",
+    "name": "Friends Arena",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1042",
+    "name": "Piatti restaurang",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1043",
+    "name": "PicPoc",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1044",
+    "name": "Queens Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1045",
+    "name": "Reimersholme Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1046",
+    "name": "Riche Restaurang",
+    "reminderFee": "250.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1047",
+    "name": "Rådmannen",
+    "reminderFee": "160.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1048",
+    "name": "Rökeriet",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1049",
+    "name": "Santo di Roma AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1050",
+    "name": "Sardin AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1051",
+    "name": "Scandinavian Hopitality",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1052",
+    "name": "Slagsta Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1053",
+    "name": "BBQ smokehouse",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1054",
+    "name": "Stallmästaregården ST",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1055",
+    "name": "Strandbryggan AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1056",
+    "name": "Strandvägen 1",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1057",
+    "name": "Svets Tech Sweden AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1058",
+    "name": "Sturehof",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1059",
+    "name": "Brillo",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1060",
+    "name": "Time Hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1061",
+    "name": "Tranan Restaurang",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1063",
+    "name": "Turinge Hotel AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1064",
+    "name": "Ulriksdals Wärdshus AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1065",
+    "name": "NP",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1066",
+    "name": "Waxholms Hotell Aktiebol",
+    "reminderFee": null,
+    "nameTruncated": true,
+    "notes": null
+  },
+  {
+    "customerNo": "1067",
+    "name": "LA NONNA",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1068",
+    "name": "With Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1069",
+    "name": "Wasa Park Hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1070",
+    "name": "Utbildningsförvaltningen",
+    "reminderFee": null,
+    "nameTruncated": true,
+    "notes": null
+  },
+  {
+    "customerNo": "1071",
+    "name": "Best Western Park City S",
+    "reminderFee": null,
+    "nameTruncated": true,
+    "notes": null
+  },
+  {
+    "customerNo": "1072",
+    "name": "ASPACE",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1073",
+    "name": "Comforta AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1074",
+    "name": "Motel L Älvsjö",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1075",
+    "name": "Motel L Hammarby",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1076",
+    "name": "Apartments By Ligula",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1077",
+    "name": "Central Hotel Profil",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1078",
+    "name": "Park City Hammarby Sjöst",
+    "reminderFee": null,
+    "nameTruncated": true,
+    "notes": "Namnslut från källfilen: \"...stern\" – mitten saknas"
+  },
+  {
+    "customerNo": "1079",
+    "name": "Stadshotell Älvsjö AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1080",
+    "name": "Riddargatan Profilhotels",
+    "reminderFee": null,
+    "nameTruncated": true,
+    "notes": null
+  },
+  {
+    "customerNo": "1081",
+    "name": "Restaurant Ergo",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1082",
+    "name": "Stockholm Live",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1083",
+    "name": "ProSolar i Stockholm AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1084",
+    "name": "Kastellets Bed & Breakfa",
+    "reminderFee": null,
+    "nameTruncated": true,
+    "notes": null
+  },
+  {
+    "customerNo": "1085",
+    "name": "Nykvarns fest & hotell A",
+    "reminderFee": null,
+    "nameTruncated": true,
+    "notes": null
+  },
+  {
+    "customerNo": "1086",
+    "name": "Fabrikören",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1087",
+    "name": "Kasten Bistro AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1088",
+    "name": "Copine",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1089",
+    "name": "NK Copine",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1090",
+    "name": "Skogshöjd",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1091",
+    "name": "Waxholms Hotell",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1092",
+    "name": "Almnäs Event",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1093",
+    "name": "Södra teatern",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1094",
+    "name": "Hallwylska",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1095",
+    "name": "Mr French",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1096",
+    "name": "Artipelag",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1097",
+    "name": "ASPACE NYA",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1098",
+    "name": "Svenska stortvätten AB",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1099",
+    "name": "Hagastrand",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1100",
+    "name": "Hötorget Hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1101",
+    "name": "Cafe Nizza",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1102",
+    "name": "Pizza",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1103",
+    "name": "italiano",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1104",
+    "name": "Rigoletto",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1105",
+    "name": "Bobergs Matsal",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1106",
+    "name": "Good Morning Sollentuna",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1107",
+    "name": "Sluss",
+    "reminderFee": "500.00",
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1108",
+    "name": "La Civetta",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1109",
+    "name": "FESTIVITY",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1110",
+    "name": "Matateljén Slakthuset",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1111",
+    "name": "Boo Boo",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1112",
+    "name": "Sigtuna Hotel",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1113",
+    "name": "Kaggeholm",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1114",
+    "name": "RUBY",
+    "reminderFee": null,
+    "nameTruncated": false,
+    "notes": null
+  },
+  {
+    "customerNo": "1115",
+    "name": "Stockholm Meeting Select",
+    "reminderFee": null,
+    "nameTruncated": true,
+    "notes": null
+  }
+]
