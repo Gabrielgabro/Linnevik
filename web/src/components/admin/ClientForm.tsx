@@ -56,6 +56,23 @@ export default function ClientForm(props: Props) {
     }
   };
 
+  // Kontaktpersonerna följer med kunden ut — det står i frågan, så att ingen
+  // råkar radera ett halvår av bearbetning i förbifarten.
+  const remove = async () => {
+    if (!client) return;
+    if (!confirm(`Ta bort ${client.name}? Kundens kontaktpersoner tas bort samtidigt.`)) return;
+    setBusy(true);
+    setError(null);
+    const response = await fetch(`/api/admin/clients/${client.id}`, { method: 'DELETE' });
+    if (!response.ok) {
+      setError('Kunde inte ta bort kunden.');
+      setBusy(false);
+      return;
+    }
+    router.push('/admin/clients');
+    router.refresh();
+  };
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
@@ -98,13 +115,25 @@ export default function ClientForm(props: Props) {
       <ErrorNote>{error}</ErrorNote>
 
       <div className="flex items-center gap-4">
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy} style={{ background: 'var(--viz-s1)', color: '#fff' }}>
           {busy ? 'Sparar…' : client ? 'Spara ändringar' : 'Lägg till kund'}
         </Button>
         {saved && !busy && (
           <span className="text-[13px]" style={{ color: 'var(--viz-ink-3)' }}>
             Sparat.
           </span>
+        )}
+        {client && (
+          <Button
+            type="button"
+            variant="quiet"
+            onClick={remove}
+            disabled={busy}
+            className="ml-auto"
+            style={{ color: 'var(--viz-flag)' }}
+          >
+            Ta bort kund
+          </Button>
         )}
       </div>
     </form>

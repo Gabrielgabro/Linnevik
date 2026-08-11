@@ -23,6 +23,8 @@ export type AdminAction =
   | 'pricewatch.run'
   | 'client.created'
   | 'client.updated'
+  | 'client.deleted'
+  | 'clients.batch'
   | 'contact.created'
   | 'contact.updated'
   | 'contact.deleted';
@@ -36,6 +38,8 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'pricewatch.run': 'Prisbot körde',
   'client.created': 'La till kund',
   'client.updated': 'Ändrade kund',
+  'client.deleted': 'Tog bort kund',
+  'clients.batch': 'Massåtgärd på kunder',
   'contact.created': 'La till kontaktperson',
   'contact.updated': 'Ändrade kontaktperson',
   'contact.deleted': 'Tog bort kontaktperson',

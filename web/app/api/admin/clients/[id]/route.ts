@@ -64,3 +64,25 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   return NextResponse.json({ client: row, changed: changes });
 }
+
+/** Ta bort en kund. Kontaktpersonerna följer med via cascade i schemat. */
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const auth = await requireAdmin(request);
+  if ('response' in auth) return auth.response;
+
+  const id = routeId((await params).id);
+  if (id === null) return NextResponse.json({ error: 'Okänd kund.' }, { status: 404 });
+
+  const db = getDb();
+  const [existing] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
+  if (!existing) return NextResponse.json({ error: 'Okänd kund.' }, { status: 404 });
+
+  await db.delete(clients).where(eq(clients.id, id));
+
+  await record(auth.user, 'client.deleted', String(id), {
+    kundnr: existing.customerNo,
+    kund: existing.name,
+  });
+
+  return NextResponse.json({ ok: true });
+}
