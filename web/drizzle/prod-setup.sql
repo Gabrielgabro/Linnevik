@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS "clients" (
 	"customer_no" text NOT NULL,
 	"name" text NOT NULL,
 	"segment" text,
-	"status" text DEFAULT 'Prospekt' NOT NULL,
+	"status" text DEFAULT 'Tvätterikund' NOT NULL,
 	"priority" text,
 	"reminder_fee" numeric(10, 2),
 	"name_truncated" boolean DEFAULT false NOT NULL,

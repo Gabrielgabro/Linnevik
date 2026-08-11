@@ -90,7 +90,7 @@ export function parseClientInput(body: Body): ClientInput {
     customerNo,
     name,
     segment: oneOf(body, 'segment', SEGMENTS),
-    status: oneOf(body, 'status', CLIENT_STATUSES) ?? 'Prospekt',
+    status: oneOf(body, 'status', CLIENT_STATUSES) ?? 'Tvätterikund',
     priority: oneOf(body, 'priority', PRIORITIES),
     reminderFee: decimal(body, 'reminderFee'),
     notes: text(body, 'notes', 2000),

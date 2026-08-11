@@ -63,8 +63,8 @@ export type StatusTone = 'good' | 'linen' | 'warm' | 'info' | 'flag' | 'muted';
  */
 export function statusTone(status: string): StatusTone {
   if (status === 'Vunnen' || status === 'Aktiv kund') return 'good';
-  // Tvätterikund är kund hos tvätteriet men inte hos oss — egen färg, så att
-  // den inte förväxlas med en vunnen affär.
+  // Tvätterikund känner redan tvätteriet — därför grön, men en egen grön, så
+  // att den inte förväxlas med en affär vi själva vunnit.
   if (status === 'Tvätterikund') return 'linen';
   if (
     status === 'Svarat' ||

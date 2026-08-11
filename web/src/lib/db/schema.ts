@@ -45,7 +45,7 @@ export const clients = pgTable(
     customerNo: text('customer_no').notNull(),
     name: text('name').notNull(),
     segment: text('segment'),
-    status: text('status').notNull().default('Prospekt'),
+    status: text('status').notNull().default('Tvätterikund'),
     priority: text('priority'),
     // Påminnelseavgiften ur arkivlistan. numeric för att ören inte ska
     // vandra iväg i flyttal; drizzle ger den som sträng.

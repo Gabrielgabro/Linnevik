@@ -75,7 +75,7 @@ export default function ClientForm(props: Props) {
           label="Kundstatus"
           name="status"
           options={CLIENT_STATUSES}
-          defaultValue={client?.status ?? 'Prospekt'}
+          defaultValue={client?.status ?? 'Tvätterikund'}
           required
         />
         <Select
