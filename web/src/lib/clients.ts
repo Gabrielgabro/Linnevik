@@ -25,6 +25,7 @@ export const CONTACT_STATUSES = [
 
 export const CLIENT_STATUSES = [
   'Prospekt',
+  'Tvätterikund',
   'Pågående dialog',
   'Aktiv kund',
   'Tidigare kund',
@@ -53,7 +54,7 @@ export function isWorked(status: string): boolean {
   return !UNWORKED.includes(status);
 }
 
-export type StatusTone = 'good' | 'warm' | 'info' | 'flag' | 'muted';
+export type StatusTone = 'good' | 'linen' | 'warm' | 'info' | 'flag' | 'muted';
 
 /**
  * Färgen på en status. Tanken är att man ska kunna skumma listan: grönt är
@@ -62,6 +63,9 @@ export type StatusTone = 'good' | 'warm' | 'info' | 'flag' | 'muted';
  */
 export function statusTone(status: string): StatusTone {
   if (status === 'Vunnen' || status === 'Aktiv kund') return 'good';
+  // Tvätterikund är kund hos tvätteriet men inte hos oss — egen färg, så att
+  // den inte förväxlas med en vunnen affär.
+  if (status === 'Tvätterikund') return 'linen';
   if (
     status === 'Svarat' ||
     status === 'Möte bokat' ||
@@ -82,6 +86,7 @@ export function statusTone(status: string): StatusTone {
 /** Tonens färgvariabel. Delas av prickar, etiketter och listan. */
 export const TONE_COLOR: Record<StatusTone, string> = {
   good: 'var(--viz-s3)',
+  linen: 'var(--viz-s4)',
   warm: 'var(--viz-s2)',
   info: 'var(--viz-s1)',
   flag: 'var(--viz-flag)',

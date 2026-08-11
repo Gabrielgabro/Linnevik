@@ -247,7 +247,11 @@ export default function ContactList({
           Kontaktpersoner · {contacts.length}
         </h2>
         {!adding && (
-          <Button type="button" variant="quiet" onClick={() => setAdding(true)}>
+          <Button
+            type="button"
+            onClick={() => setAdding(true)}
+            style={{ background: 'var(--viz-s1)', color: '#fff' }}
+          >
             + Lägg till person
           </Button>
         )}

@@ -131,6 +131,7 @@ export function Button({
   children,
   variant = 'primary',
   style,
+  className,
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'quiet' }) {
   return (
@@ -140,7 +141,8 @@ export function Button({
         'rounded-[3px] px-3.5 py-2 text-[13px] transition-opacity',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
         'disabled:opacity-50',
-        variant === 'primary' ? 'font-medium' : 'hover:underline'
+        variant === 'primary' ? 'font-medium hover:opacity-85' : 'hover:underline',
+        className
       )}
       // Anropssidan får sista ordet om färgen — "Ta bort" är röd men i övrigt
       // en helt vanlig tyst knapp.
