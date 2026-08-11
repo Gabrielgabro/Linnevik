@@ -53,12 +53,49 @@ export function isWorked(status: string): boolean {
   return !UNWORKED.includes(status);
 }
 
-/** Statusar som förtjänar en färg i listan. Övriga får normal text. */
-export function statusTone(status: string): 'good' | 'flag' | 'muted' | 'none' {
+export type StatusTone = 'good' | 'warm' | 'info' | 'flag' | 'muted';
+
+/**
+ * Färgen på en status. Tanken är att man ska kunna skumma listan: grönt är
+ * i hamn, orange är igång och kräver något av oss, blått är påbörjat,
+ * rött är avfärdat och grått är orört.
+ */
+export function statusTone(status: string): StatusTone {
   if (status === 'Vunnen' || status === 'Aktiv kund') return 'good';
-  if (status === 'Ej intresserad' || status === 'Ej aktuell') return 'flag';
-  if (status === 'Ej kontaktad' || status === 'Ingen kontakt möjlig') return 'muted';
-  return 'none';
+  if (
+    status === 'Svarat' ||
+    status === 'Möte bokat' ||
+    status === 'Offert skickad' ||
+    status === 'Pågående dialog'
+  ) {
+    return 'warm';
+  }
+  if (status === 'Ej intresserad' || status === 'Ej aktuell' || status === 'Fel person') {
+    return 'flag';
+  }
+  if (status === 'Ej kontaktad' || status === 'Ingen kontakt möjlig' || status === 'Vilande') {
+    return 'muted';
+  }
+  return 'info';
+}
+
+/** Tonens färgvariabel. Delas av prickar, etiketter och listan. */
+export const TONE_COLOR: Record<StatusTone, string> = {
+  good: 'var(--viz-s3)',
+  warm: 'var(--viz-s2)',
+  info: 'var(--viz-s1)',
+  flag: 'var(--viz-flag)',
+  muted: 'var(--viz-ink-3)',
+};
+
+/** Färg + tonad platta, för statusetiketter som ska synas utan att skrika. */
+export function toneStyle(status: string): { color: string; background: string; border: string } {
+  const color = TONE_COLOR[statusTone(status)];
+  return {
+    color,
+    background: `color-mix(in srgb, ${color} 11%, transparent)`,
+    border: `1px solid color-mix(in srgb, ${color} 28%, transparent)`,
+  };
 }
 
 export type ClientWithCounts = ClientRow & {

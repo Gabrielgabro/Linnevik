@@ -9,23 +9,36 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
-import { CHANNELS, CONTACT_STATUSES, contactName, statusTone } from '@/lib/clients';
+import {
+  CHANNELS,
+  CONTACT_STATUSES,
+  TONE_COLOR,
+  contactName,
+  statusTone,
+  toneStyle,
+} from '@/lib/clients';
 import type { ClientContactRow } from '@/lib/db/schema';
-
-const TONE: Record<string, string> = {
-  good: 'var(--viz-s3)',
-  flag: 'var(--viz-flag)',
-  muted: 'var(--viz-ink-3)',
-  none: 'var(--viz-ink-2)',
-};
 
 export function StatusDot({ status }: { status: string }) {
   return (
     <span
       aria-hidden
       className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
-      style={{ background: TONE[statusTone(status)] }}
+      style={{ background: TONE_COLOR[statusTone(status)] }}
     />
+  );
+}
+
+/** Statusen som tonad etikett — samma form i kundlistan och på kundkortet. */
+export function StatusPill({ status }: { status: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-[2px] text-[12px] leading-[1.5]"
+      style={toneStyle(status)}
+    >
+      <StatusDot status={status} />
+      {status}
+    </span>
   );
 }
 
@@ -149,10 +162,7 @@ function ContactRow({ contact }: { contact: ClientContactRow }) {
           )}
         </span>
         <span className="flex items-center gap-2 whitespace-nowrap">
-          <StatusDot status={contact.status} />
-          <span className="text-[12.5px]" style={{ color: TONE[statusTone(contact.status)] }}>
-            {contact.status}
-          </span>
+          <StatusPill status={contact.status} />
           {contact.lastContactedAt && (
             <span
               className="font-mono text-[11.5px] tabular-nums"

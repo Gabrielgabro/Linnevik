@@ -35,8 +35,8 @@ export default async function AdminClientsPage() {
         </p>
         <Link
           href="/admin/clients/new"
-          className="self-start rounded-[3px] px-3.5 py-2 text-[13px] font-medium"
-          style={{ background: 'var(--viz-ink)', color: 'var(--viz-surface)' }}
+          className="self-start rounded-[3px] px-3.5 py-2 text-[13px] font-medium transition-opacity hover:opacity-85"
+          style={{ background: 'var(--viz-s1)', color: '#fff' }}
         >
           + Lägg till kund
         </Link>
@@ -44,8 +44,12 @@ export default async function AdminClientsPage() {
 
       {!clientsConfigured() && (
         <p
-          className="border-l-2 pl-3 text-[13.5px]"
-          style={{ color: 'var(--viz-ink-2)', borderColor: 'var(--viz-flag)' }}
+          className="rounded-[3px] border-l-2 py-2 pl-3 pr-3 text-[13.5px]"
+          style={{
+            color: 'var(--viz-ink-2)',
+            borderColor: 'var(--viz-flag)',
+            background: 'color-mix(in srgb, var(--viz-flag) 8%, transparent)',
+          }}
         >
           DATABASE_URL saknas, så registret är tomt i den här miljön.
         </p>
@@ -53,8 +57,12 @@ export default async function AdminClientsPage() {
 
       {truncated > 0 && (
         <p
-          className="border-l-2 pl-3 text-[13.5px]"
-          style={{ color: 'var(--viz-ink-2)', borderColor: 'var(--viz-s2)' }}
+          className="rounded-[3px] border-l-2 py-2 pl-3 pr-3 text-[13.5px]"
+          style={{
+            color: 'var(--viz-ink-2)',
+            borderColor: 'var(--viz-s2)',
+            background: 'color-mix(in srgb, var(--viz-s2) 8%, transparent)',
+          }}
         >
           {truncated} kundnamn kapades av 24-teckensfältet i arkivlistan och behöver
           kompletteras. De är märkta <em>kapat namn</em> i listan; märkningen försvinner när
