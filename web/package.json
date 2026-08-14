@@ -8,9 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "check:localization": "node scripts/check-localization.mjs",
-    "catalog:stage": "node scripts/stage-shopify-catalog.mjs",
-    "catalog:import": "node scripts/import-staged-catalog.mjs",
-    "catalog:collections": "node scripts/import-collections.mjs",
+    "catalog:migrate": "node scripts/migrate-catalog-from-shopify.mjs",
     "catalog:stripe": "node scripts/push-stripe-catalog.mjs",
     "build:tokens": "cp tokens.css ../theme/assets/tokens.css"
   },

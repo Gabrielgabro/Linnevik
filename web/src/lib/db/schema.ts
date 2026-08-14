@@ -91,24 +91,40 @@ export const clientContacts = pgTable(
 export type ClientRow = typeof clients.$inferSelect;
 export type ClientContactRow = typeof clientContacts.$inferSelect;
 
-// Den lokala handelskatalogen är den stabila gränsen mellan Shopify och Stripe.
-// Shopify-ID:n behålls för synkning; SKU:n är vår egen beständiga identitet.
+// Handelskatalogen. Den ägs numera av oss: allt en produkt är — texter, taggar,
+// bilder, priser — ligger här, och Shopify-ID:t är bara ett spår av var raden
+// en gång kom ifrån. Det är därför frivilligt: en produkt som skapas i /admin
+// har inget, och ska inte behöva ha det.
 export const products = pgTable(
   'products',
   {
     id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
-    shopifyProductId: text('shopify_product_id').notNull(),
+    shopifyProductId: text('shopify_product_id'),
     handle: text('handle').notNull(),
     title: text('title').notNull(),
+    // Engelskan hämtades förr live ur Shopify med @inContext. Den bor här nu,
+    // annars försvinner den engelska sajten den dagen butiken stängs.
+    titleEn: text('title_en'),
+    descriptionHtml: text('description_html'),
+    descriptionHtmlEn: text('description_html_en'),
+    tags: text('tags').array().notNull().default([]),
+    productType: text('product_type'),
+    vendor: text('vendor'),
+    seoTitle: text('seo_title'),
+    seoDescription: text('seo_description'),
     stripeProductId: text('stripe_product_id'),
     active: boolean('active').notNull().default(true),
-    source: text('source').notNull().default('shopify'),
+    source: text('source').notNull().default('linnevik'),
     sourceSyncedAt: timestamp('source_synced_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   table => [
-    uniqueIndex('products_shopify_product_id_key').on(table.shopifyProductId),
+    // Partiellt: ett vanligt unikt index tillåter bara en enda rad utan
+    // Shopify-ID, och de kommer nu att bli många.
+    uniqueIndex('products_shopify_product_id_key')
+      .on(table.shopifyProductId)
+      .where(isNotNull(table.shopifyProductId)),
     uniqueIndex('products_handle_key').on(table.handle),
   ]
 );
@@ -120,7 +136,7 @@ export const productVariants = pgTable(
     productId: integer('product_id')
       .notNull()
       .references(() => products.id, { onDelete: 'restrict' }),
-    shopifyVariantId: text('shopify_variant_id').notNull(),
+    shopifyVariantId: text('shopify_variant_id'),
     sku: text('sku').notNull(),
     optionValues: jsonb('option_values')
       .$type<Array<{ name: string; value: string }>>()
@@ -139,7 +155,9 @@ export const productVariants = pgTable(
   },
   table => [
     index('product_variants_product_id_idx').on(table.productId),
-    uniqueIndex('product_variants_shopify_variant_id_key').on(table.shopifyVariantId),
+    uniqueIndex('product_variants_shopify_variant_id_key')
+      .on(table.shopifyVariantId)
+      .where(isNotNull(table.shopifyVariantId)),
     uniqueIndex('product_variants_sku_key').on(table.sku),
     // Partiella index: varje variant är olänkad (NULL) tills Stripe-pushen körts,
     // och ett vanligt unikt index skulle låta bara en enda rad vara olänkad.
@@ -150,6 +168,30 @@ export const productVariants = pgTable(
       .on(table.stripeLookupKey)
       .where(isNotNull(table.stripeLookupKey)),
   ]
+);
+
+// Produktbilderna. Filerna ligger i Vercel Blob och inte hos Shopify — en
+// bild-URL som pekar på cdn.shopify.com hade gjort butiken omöjlig att stänga.
+// `blobPathname` behövs för att kunna radera filen, inte bara raden.
+export const productImages = pgTable(
+  'product_images',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    // En bild kan höra till en enskild variant. Överlever att varianten städas
+    // bort, av samma skäl som orderraderna gör det.
+    variantId: integer('variant_id').references(() => productVariants.id, {
+      onDelete: 'set null',
+    }),
+    url: text('url').notNull(),
+    blobPathname: text('blob_pathname').notNull(),
+    altText: text('alt_text'),
+    position: integer('position').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [index('product_images_product_id_position_idx').on(table.productId, table.position)]
 );
 
 // Kategoriträdet. Egen tabell därför att brödsmulorna ska överleva Shopify:
@@ -260,6 +302,7 @@ export const orderItems = pgTable(
 
 export type ProductRow = typeof products.$inferSelect;
 export type ProductVariantRow = typeof productVariants.$inferSelect;
+export type ProductImageRow = typeof productImages.$inferSelect;
 export type CollectionRow = typeof collections.$inferSelect;
 export type ProductCollectionRow = typeof productCollections.$inferSelect;
 export type OrderRow = typeof orders.$inferSelect;

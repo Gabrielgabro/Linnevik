@@ -27,7 +27,18 @@ export type AdminAction =
   | 'clients.batch'
   | 'contact.created'
   | 'contact.updated'
-  | 'contact.deleted';
+  | 'contact.deleted'
+  | 'product.created'
+  | 'product.updated'
+  | 'product.deleted'
+  | 'product.image_added'
+  | 'product.image_removed'
+  | 'variant.created'
+  | 'variant.updated'
+  | 'variant.deleted'
+  | 'collection.created'
+  | 'collection.updated'
+  | 'collection.deleted';
 
 /** Svenska etiketter för vyn. Nycklarna i databasen förblir stabila. */
 export const ACTION_LABELS: Record<AdminAction, string> = {
@@ -43,6 +54,17 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'contact.created': 'La till kontaktperson',
   'contact.updated': 'Ändrade kontaktperson',
   'contact.deleted': 'Tog bort kontaktperson',
+  'product.created': 'La till produkt',
+  'product.updated': 'Ändrade produkt',
+  'product.deleted': 'Tog bort produkt',
+  'product.image_added': 'La till produktbild',
+  'product.image_removed': 'Tog bort produktbild',
+  'variant.created': 'La till variant',
+  'variant.updated': 'Ändrade variant',
+  'variant.deleted': 'Tog bort variant',
+  'collection.created': 'La till kategori',
+  'collection.updated': 'Ändrade kategori',
+  'collection.deleted': 'Tog bort kategori',
 };
 
 export function actionLabel(action: string): string {

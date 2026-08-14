@@ -30,3 +30,20 @@ export function routeId(value: string): number | null {
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : null;
 }
+
+/**
+ * Sant när felet är en krock med ett visst unikt index.
+ *
+ * Drizzle lindar in databasfelet, så `String(error)` innehåller inte
+ * indexnamnet — det ligger på `cause`. Att leta i strängen ger därför ett
+ * tyst 500 där man ville svara 409, så kedjan gås igenom i stället.
+ */
+export function isUniqueViolation(error: unknown, constraint: string): boolean {
+  let cursor: unknown = error;
+  for (let depth = 0; cursor && depth < 5; depth += 1) {
+    const candidate = cursor as { constraint?: string; code?: string; cause?: unknown };
+    if (candidate.constraint === constraint) return true;
+    cursor = candidate.cause;
+  }
+  return false;
+}

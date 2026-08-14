@@ -51,8 +51,8 @@ CREATE TABLE IF NOT EXISTS "price_suggestions" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- Handelskatalogen (drizzle/0001_catalog.sql och 0002_catalog_hierarchy.sql).
--- Fylls av scripts/stage-shopify-catalog.mjs + scripts/import-staged-catalog.mjs.
+-- Handelskatalogen (drizzle/0001_catalog.sql, 0002_catalog_hierarchy.sql och
+-- 0004_catalog_content.sql). Redigeras i /admin — den ägs av oss, inte Shopify.
 CREATE TABLE IF NOT EXISTS "products" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 	"shopify_product_id" text NOT NULL,
@@ -268,3 +268,48 @@ INSERT INTO clients (customer_no, name, reminder_fee, name_truncated, notes) VAL
   ('1114', 'RUBY', NULL, false, NULL),
   ('1115', 'Stockholm Meeting Selection AB', NULL, false, NULL)
 ON CONFLICT (customer_no) DO NOTHING;
+
+-- 0004: produktinnehållet flyttar hem. Se drizzle/0004_catalog_content.sql.
+ALTER TABLE "products" ALTER COLUMN "shopify_product_id" DROP NOT NULL;
+ALTER TABLE "product_variants" ALTER COLUMN "shopify_variant_id" DROP NOT NULL;
+ALTER TABLE "products" ALTER COLUMN "source" SET DEFAULT 'linnevik';
+
+DROP INDEX IF EXISTS "products_shopify_product_id_key";
+CREATE UNIQUE INDEX IF NOT EXISTS "products_shopify_product_id_key"
+  ON "products" ("shopify_product_id") WHERE "shopify_product_id" IS NOT NULL;
+DROP INDEX IF EXISTS "product_variants_shopify_variant_id_key";
+CREATE UNIQUE INDEX IF NOT EXISTS "product_variants_shopify_variant_id_key"
+  ON "product_variants" ("shopify_variant_id") WHERE "shopify_variant_id" IS NOT NULL;
+
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "title_en" text;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "description_html" text;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "description_html_en" text;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "tags" text[] DEFAULT '{}' NOT NULL;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "product_type" text;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "vendor" text;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "seo_title" text;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "seo_description" text;
+
+CREATE TABLE IF NOT EXISTS "product_images" (
+  "id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  "product_id" integer NOT NULL,
+  "variant_id" integer,
+  "url" text NOT NULL,
+  "blob_pathname" text NOT NULL,
+  "alt_text" text,
+  "position" integer DEFAULT 0 NOT NULL CHECK (position >= 0),
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+DO $$ BEGIN
+  ALTER TABLE "product_images" ADD CONSTRAINT "product_images_product_id_products_id_fk"
+    FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "product_images" ADD CONSTRAINT "product_images_variant_id_product_variants_id_fk"
+    FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE set null;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE INDEX IF NOT EXISTS "product_images_product_id_position_idx"
+  ON "product_images" ("product_id", "position");

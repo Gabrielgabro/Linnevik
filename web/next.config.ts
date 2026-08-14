@@ -3,7 +3,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
     images: {
-        remotePatterns: [{ protocol: 'https', hostname: 'cdn.shopify.com', pathname: '/**' }],
+        remotePatterns: [
+            // Produktbilderna ligger i Vercel Blob. cdn.shopify.com står kvar
+            // tills produktsidan slutat läsa från Shopify, och tas bort då.
+            { protocol: 'https', hostname: '*.public.blob.vercel-storage.com', pathname: '/**' },
+            { protocol: 'https', hostname: 'cdn.shopify.com', pathname: '/**' },
+        ],
     },
     async redirects() {
         return [

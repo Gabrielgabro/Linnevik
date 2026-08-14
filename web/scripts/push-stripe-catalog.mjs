@@ -64,7 +64,7 @@ const rows = await sql`
 
 const missingHandles = inventoryHandles.filter(handle => !rows.some(row => row.handle === handle));
 if (missingHandles.length) {
-  throw new Error(`These landed-cost products are not in the catalog: ${missingHandles.join(', ')}. Run npm run catalog:import first.`);
+  throw new Error(`These landed-cost products are not in the catalog: ${missingHandles.join(', ')}. Add them under /admin/products first.`);
 }
 
 // Listpriserna är momsinklusive (svensk B2C-prissättning). Inget av detta
