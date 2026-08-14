@@ -1,3 +1,6 @@
+import { Activity } from 'lucide-react';
+import { EmptyState, Notice, PageHeader, Panel } from '@/components/admin/ui';
+import { accentFor } from '../nav';
 import { actionLabel, activityConfigured, isFlagged, list } from '@/lib/adminActivity';
 
 export const dynamic = 'force-dynamic';
@@ -34,82 +37,57 @@ export default async function AdminActivityPage() {
 
   return (
     <>
-      <header
-        className="flex flex-col gap-[18px] border-b border-t-2 pb-5 pt-[18px]"
-        style={{ borderTopColor: 'var(--viz-ink)', borderBottomColor: 'var(--viz-rule)' }}
-      >
-        <span
-          className="font-mono text-[11px] uppercase tracking-[0.14em]"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          Aktivitet · Senaste {rows.length} händelserna
-        </span>
-        <h1
-          className="max-w-[20ch] text-balance font-heading text-[clamp(26px,4vw,38px)] leading-[1.1] tracking-[-0.02em]"
-          style={{ color: 'var(--viz-ink)' }}
-        >
-          Vad som hänt i adminvyn
-        </h1>
-        <p className="max-w-[62ch] text-[14px] leading-[1.6]" style={{ color: 'var(--viz-ink-2)' }}>
-          Inloggningar, sparade prisförslag och botkörningar. Tider i svensk tid.
-        </p>
-      </header>
+      <PageHeader
+        kicker={`Senaste ${rows.length} händelserna`}
+        title="Vad som hänt i adminvyn"
+        accent={accentFor('/admin/activity')}
+        description="Inloggningar, sparade prisförslag och botkörningar. Tider i svensk tid."
+      />
 
       {!activityConfigured() && (
-        <p
-          className="border-l-2 pl-3 text-[13.5px]"
-          style={{ color: 'var(--viz-ink-2)', borderColor: 'var(--viz-flag)' }}
-        >
-          DATABASE_URL saknas, så ingenting loggas i den här miljön.
-        </p>
+        <Notice tone="danger" title="DATABASE_URL saknas">
+          Ingenting loggas i den här miljön.
+        </Notice>
       )}
 
       {activityConfigured() && rows.length === 0 && (
-        <p className="text-[13.5px]" style={{ color: 'var(--viz-ink-3)' }}>
-          Inget loggat ännu.
-        </p>
+        <EmptyState
+          icon={Activity}
+          title="Inget loggat ännu"
+          description="Så fort någon loggar in eller sparar ett prisförslag dyker det upp här."
+        />
       )}
 
       {days.map(group => (
-        <section key={group.day} className="flex flex-col gap-0">
-          <h2
-            className="border-b pb-2 font-mono text-[10.5px] uppercase tracking-[0.14em]"
-            style={{ color: 'var(--viz-ink-3)', borderColor: 'var(--viz-rule)' }}
-          >
-            {group.day}
-          </h2>
+        <Panel key={group.day} meta={group.day} padded={false}>
           <ul className="flex flex-col">
             {group.rows.map(row => (
               <li
                 key={row.id}
-                className="grid grid-cols-[64px_96px_1fr] items-baseline gap-3 border-b py-2.5 max-[620px]:grid-cols-[64px_1fr]"
-                style={{ borderColor: 'var(--viz-grid)' }}
+                className="grid grid-cols-[64px_112px_1fr] items-baseline gap-3 border-t border-grid px-5 py-2.5 transition-colors hover:bg-plane max-[620px]:grid-cols-[64px_1fr] sm:px-6"
               >
-                <span
-                  className="font-mono text-[12px] tabular-nums"
-                  style={{ color: 'var(--viz-ink-3)' }}
-                >
+                <span className="font-mono text-[12px] tabular-nums text-ink-3">
                   {stamp.format(row.createdAt).split(' ')[1]}
                 </span>
-                <span
-                  className="text-[13.5px] max-[620px]:hidden"
-                  style={{ color: 'var(--viz-ink-2)' }}
-                >
+                <span className="truncate text-[13.5px] text-ink-2 max-[620px]:hidden">
                   {row.actor}
                 </span>
                 <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span
-                    className="text-[13.5px]"
+                    className="flex items-baseline gap-1.5 text-[13.5px]"
                     style={{ color: isFlagged(row.action) ? 'var(--viz-flag)' : 'var(--viz-ink)' }}
                   >
+                    {isFlagged(row.action) && (
+                      <span
+                        aria-hidden
+                        className="inline-block h-[6px] w-[6px] shrink-0 translate-y-[-1px] rounded-full bg-danger"
+                      />
+                    )}
                     <span className="min-[621px]:hidden">{row.actor} · </span>
                     {actionLabel(row.action)}
                   </span>
                   {detailText(row.detail) && (
-                    <span
-                      className="font-mono text-[11.5px] tabular-nums"
-                      style={{ color: 'var(--viz-ink-3)' }}
-                    >
+                    <span className="font-mono text-[11.5px] tabular-nums text-ink-3">
                       {detailText(row.detail)}
                     </span>
                   )}
@@ -117,7 +95,7 @@ export default async function AdminActivityPage() {
               </li>
             ))}
           </ul>
-        </section>
+        </Panel>
       ))}
     </>
   );

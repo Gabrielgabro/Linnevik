@@ -2,7 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, ErrorNote, Field, Select, formValues } from '@/components/admin/Fields';
+import { Plus } from 'lucide-react';
+import { ErrorNote, Field, Select, formValues } from '@/components/admin/Fields';
+import { Button, Panel, Tag } from '@/components/admin/ui';
 import type { DiscountCodeRow, ShippingRuleRow } from '@/lib/db/schema';
 import { formatMinor, toMinor } from '@/lib/money';
 
@@ -37,18 +39,20 @@ export default function CommerceSettings({ discounts, shippingRules }: {
   }
 
   return (
-    <div className="grid gap-10">
-      <section className="grid gap-4">
-        <h2 className="font-heading text-2xl">Rabattkoder</h2>
-        <ul className="divide-y" style={{ borderColor: 'var(--viz-rule)' }}>
+    <div className="grid gap-6">
+      <Panel title="Rabattkoder" accent="var(--adm-warn)" meta={`${discounts.length} koder`}>
+        <ul className="divide-y divide-grid">
           {discounts.map(row => (
-            <li key={row.id} className="flex items-center gap-4 py-3 text-sm">
-              <strong className="font-mono">{row.code}</strong>
-              <span>{row.title}</span>
-              <span className="text-xs" style={{ color: 'var(--viz-ink-3)' }}>
+            <li key={row.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
+              <strong className="font-mono text-ink">{row.code}</strong>
+              <span className="text-ink-2">{row.title}</span>
+              <span className="text-xs text-ink-3">
                 {row.kind === 'percentage' ? `${row.value} %` : row.kind === 'fixed_amount' ? formatMinor(row.value, row.currency) : 'fri frakt'}
               </span>
-              <Button className="ml-auto" variant="quiet" onClick={() => toggle(`/api/admin/discounts/${row.id}`, !row.active)}>
+              <Tag color={row.active ? 'var(--adm-ok)' : 'var(--viz-ink-3)'}>
+                {row.active ? 'Aktiv' : 'Inaktiv'}
+              </Tag>
+              <Button className="ml-auto" variant="secondary" size="sm" onClick={() => toggle(`/api/admin/discounts/${row.id}`, !row.active)}>
                 {row.active ? 'Inaktivera' : 'Aktivera'}
               </Button>
             </li>
@@ -64,20 +68,25 @@ export default function CommerceSettings({ discounts, shippingRules }: {
           <Select label="Typ" name="kind" required options={['percentage', 'fixed_amount', 'free_shipping']} />
           <Field label="Värde (% eller kr)" name="value" type="number" step="0.01" defaultValue="0" />
           <Field label="Minsta order (kr)" name="minimumSubtotal" type="number" step="0.01" defaultValue="0" />
-          <Button type="submit">Skapa rabattkod</Button>
+          <Button type="submit" className="self-end">
+            <Plus size={16} strokeWidth={2} aria-hidden />
+            Skapa rabattkod
+          </Button>
         </form>
-      </section>
+      </Panel>
 
-      <section className="grid gap-4">
-        <h2 className="font-heading text-2xl">Fraktregler</h2>
-        <ul className="divide-y" style={{ borderColor: 'var(--viz-rule)' }}>
+      <Panel title="Fraktregler" accent="var(--viz-s2)" meta={`${shippingRules.length} regler`}>
+        <ul className="divide-y divide-grid">
           {shippingRules.map(row => (
-            <li key={row.id} className="flex items-center gap-4 py-3 text-sm">
-              <strong>{row.name}</strong>
-              <span>{row.countryCodes.join(', ')}</span>
-              <span>{formatMinor(row.priceMinor, row.currency)}</span>
-              <span className="text-xs" style={{ color: 'var(--viz-ink-3)' }}>prioritet {row.priority} (lägre väljs först)</span>
-              <Button className="ml-auto" variant="quiet" onClick={() => toggle(`/api/admin/shipping/${row.id}`, !row.active)}>
+            <li key={row.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
+              <strong className="text-ink">{row.name}</strong>
+              <span className="text-ink-2">{row.countryCodes.join(', ')}</span>
+              <span className="font-mono tabular-nums text-ink">{formatMinor(row.priceMinor, row.currency)}</span>
+              <span className="text-xs text-ink-3">prioritet {row.priority} (lägre väljs först)</span>
+              <Tag color={row.active ? 'var(--adm-ok)' : 'var(--viz-ink-3)'}>
+                {row.active ? 'Aktiv' : 'Inaktiv'}
+              </Tag>
+              <Button className="ml-auto" variant="secondary" size="sm" onClick={() => toggle(`/api/admin/shipping/${row.id}`, !row.active)}>
                 {row.active ? 'Inaktivera' : 'Aktivera'}
               </Button>
             </li>
@@ -93,9 +102,12 @@ export default function CommerceSettings({ discounts, shippingRules }: {
           <Field label="Pris (kr)" name="price" type="number" step="0.01" defaultValue="0" />
           <Field label="Fri över (kr)" name="freeAbove" type="number" step="0.01" />
           <Field label="Prioritet (lägre först)" name="priority" type="number" defaultValue="0" />
-          <Button type="submit">Skapa fraktregel</Button>
+          <Button type="submit" className="self-end">
+            <Plus size={16} strokeWidth={2} aria-hidden />
+            Skapa fraktregel
+          </Button>
         </form>
-      </section>
+      </Panel>
       <ErrorNote>{error}</ErrorNote>
     </div>
   );

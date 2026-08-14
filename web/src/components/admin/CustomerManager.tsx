@@ -2,7 +2,18 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, ErrorNote, Field, formValues } from '@/components/admin/Fields';
+import { Building2, Plus } from 'lucide-react';
+import { ErrorNote, Field, formValues } from '@/components/admin/Fields';
+import {
+  Button,
+  EmptyState,
+  Panel,
+  Tag,
+  TableShell,
+  Td,
+  Th,
+  Tr,
+} from '@/components/admin/ui';
 import type { CustomerRow } from '@/lib/db/schema';
 
 export default function CustomerManager({ customers }: { customers: CustomerRow[] }) {
@@ -21,33 +32,59 @@ export default function CustomerManager({ customers }: { customers: CustomerRow[
     router.refresh();
   }
   return (
-    <div className="grid gap-8">
-      <form onSubmit={create} className="grid grid-cols-3 gap-4 max-[700px]:grid-cols-1">
-        <Field label="E-post" name="email" type="email" required />
-        <Field label="Förnamn" name="firstName" />
-        <Field label="Efternamn" name="lastName" />
-        <Field label="Företag" name="company" />
-        <Field label="Telefon" name="phone" type="tel" />
-        <Field label="Kundnummer" name="customerNo" />
-        <Button type="submit">Skapa kund</Button>
-      </form>
-      <ErrorNote>{error}</ErrorNote>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="font-mono text-xs uppercase" style={{ color: 'var(--viz-ink-3)' }}>
-            <tr><th className="py-2">Kund</th><th>E-post</th><th>Företag</th><th>Kundnr</th><th>Status</th></tr>
+    <div className="grid gap-6">
+      <Panel title="Ny kund" accent="var(--adm-warn)">
+        <form onSubmit={create} className="grid grid-cols-3 gap-4 max-[700px]:grid-cols-1">
+          <Field label="E-post" name="email" type="email" required />
+          <Field label="Förnamn" name="firstName" />
+          <Field label="Efternamn" name="lastName" />
+          <Field label="Företag" name="company" />
+          <Field label="Telefon" name="phone" type="tel" />
+          <Field label="Kundnummer" name="customerNo" />
+          <Button type="submit" className="self-end">
+            <Plus size={16} strokeWidth={2} aria-hidden />
+            Skapa kund
+          </Button>
+        </form>
+        <ErrorNote>{error}</ErrorNote>
+      </Panel>
+
+      {customers.length === 0 ? (
+        <EmptyState
+          icon={Building2}
+          title="Inga kundposter ännu"
+          description="Poster skapas automatiskt vid betald order, eller manuellt i formuläret ovan."
+        />
+      ) : (
+        <TableShell>
+          <thead>
+            <tr>
+              <Th>Kund</Th>
+              <Th>E-post</Th>
+              <Th>Företag</Th>
+              <Th>Kundnr</Th>
+              <Th>Status</Th>
+            </tr>
           </thead>
           <tbody>
             {customers.map(customer => (
-              <tr key={customer.id} className="border-t" style={{ borderColor: 'var(--viz-rule)' }}>
-                <td className="py-3">{[customer.firstName, customer.lastName].filter(Boolean).join(' ') || '—'}</td>
-                <td>{customer.email}</td><td>{customer.company ?? '—'}</td>
-                <td>{customer.customerNo ?? '—'}</td><td>{customer.status}</td>
-              </tr>
+              <Tr key={customer.id}>
+                <Td className="text-ink">
+                  {[customer.firstName, customer.lastName].filter(Boolean).join(' ') || '—'}
+                </Td>
+                <Td>{customer.email}</Td>
+                <Td>{customer.company ?? '—'}</Td>
+                <Td numeric>{customer.customerNo ?? '—'}</Td>
+                <Td>
+                  <Tag color={customer.status === 'active' ? 'var(--adm-ok)' : 'var(--viz-ink-3)'}>
+                    {customer.status}
+                  </Tag>
+                </Td>
+              </Tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </TableShell>
+      )}
     </div>
   );
 }

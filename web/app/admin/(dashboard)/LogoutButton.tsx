@@ -2,8 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import clsx from 'clsx';
+import { LogOut } from 'lucide-react';
 
-export default function LogoutButton() {
+/** Ligger längst ned i sidomenyn, alltså på den mörkgröna ytan. */
+export default function LogoutButton({ collapsed = false }: { collapsed?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -19,10 +22,18 @@ export default function LogoutButton() {
       type="button"
       onClick={logout}
       disabled={busy}
-      className="rounded-[3px] px-2 py-1 text-[13px] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
-      style={{ color: 'var(--viz-ink-3)' }}
+      title={collapsed ? 'Logga ut' : undefined}
+      className={clsx(
+        'flex items-center gap-3 rounded-ctl px-2.5 py-2 text-[13.5px] opacity-75 transition-colors',
+        'hover:bg-white/10 hover:opacity-100 disabled:opacity-50',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-fg',
+        collapsed && 'lg:justify-center lg:px-0'
+      )}
     >
-      {busy ? 'Loggar ut…' : 'Logga ut'}
+      <LogOut size={17} strokeWidth={1.75} aria-hidden className="shrink-0" />
+      <span className={clsx(collapsed && 'lg:sr-only')}>
+        {busy ? 'Loggar ut…' : 'Logga ut'}
+      </span>
     </button>
   );
 }

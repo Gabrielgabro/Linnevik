@@ -1,70 +1,17 @@
 import { cookies } from 'next/headers';
-import Link from 'next/link';
 import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
-import LogoutButton from './LogoutButton';
+import Sidebar from './Sidebar';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = (await cookies()).get(ADMIN_COOKIE)?.value;
   const user = await readSessionValue(session);
 
   return (
-    <>
-      <header
-        className="border-b"
-        style={{ borderColor: 'var(--viz-rule)', background: 'var(--viz-surface)' }}
-      >
-        <div className="mx-auto flex max-w-[1060px] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3.5">
-          <Link
-            href="/admin"
-            className="font-heading text-[15px] tracking-tight"
-            style={{ color: 'var(--viz-ink)' }}
-          >
-            Linnevik
-          </Link>
-          <span
-            className="font-mono text-[10.5px] uppercase tracking-[0.14em]"
-            style={{ color: 'var(--viz-ink-3)' }}
-          >
-            Admin{user ? ` · ${user}` : ''}
-          </span>
-          <nav className="ml-auto flex items-center gap-5 text-[13px]">
-            <Link href="/admin" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>
-              Prisbild
-            </Link>
-            <Link href="/admin/products" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>
-              Produkter
-            </Link>
-            <Link
-              href="/admin/collections"
-              className="hover:underline"
-              style={{ color: 'var(--viz-ink-2)' }}
-            >
-              Kategorier
-            </Link>
-            <Link href="/admin/orders" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>
-              Ordrar
-            </Link>
-            <Link href="/admin/commerce" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>
-              Handel
-            </Link>
-            <Link href="/admin/customers" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>
-              Handelskunder
-            </Link>
-            <Link href="/admin/clients" className="hover:underline" style={{ color: 'var(--viz-ink-2)' }}>
-              Kunder
-            </Link>
-            <Link
-              href="/admin/activity"
-              className="hover:underline"
-              style={{ color: 'var(--viz-ink-2)' }}
-            >
-              Aktivitet
-            </Link>
-            <LogoutButton />
-          </nav>
-        </div>
-      </header>
-      <main className="mx-auto flex max-w-[1060px] flex-col gap-7 px-5 pb-20 pt-10">{children}</main>
-    </>
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      <Sidebar user={user} />
+      <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-7 px-5 pb-20 pt-8 lg:px-8 lg:pt-10">
+        {children}
+      </main>
+    </div>
   );
 }

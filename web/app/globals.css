@@ -452,33 +452,74 @@ pre {
    Håll dem åtskilda från varumärkesfärgerna: de kodar identitet, inte ton.
    --------------------------------------------------------------------------- */
 .admin-viz {
-  --viz-surface: #fcfcfb;
-  --viz-plane: #f2f5f8;
-  --viz-ink: #0b0b0b;
-  --viz-ink-2: #4c5157;
-  --viz-ink-3: #858c93;
-  --viz-rule: #dfe4e9;
-  --viz-grid: #e6eaee;
+  /* Ytor och text. Varm beige duk, vita kort ovanpå — samma familj som
+     butiken (#FAF7F2 / #0B3D2E), men en aning djupare så korten lyfter. */
+  --viz-plane: #f3efe8;
+  --viz-surface: #ffffff;
+  --viz-ink: #14231c;
+  --viz-ink-2: #4a5a52;
+  --viz-ink-3: #7e8c85;
+  --viz-rule: #e3ddd2;
+  --viz-grid: #ede8df;
+  --viz-flag: #c0392b;
+
+  /* Diagramserierna lämnas orörda — validerad färgblindhetssäker palett. */
   --viz-s1: #2a78d6;
   --viz-s2: #eb6834;
   --viz-s3: #1baf7a;
   --viz-s4: #59a14f;
-  --viz-flag: #d03b3b;
+
+  /* Varumärkeskrom: sidomenyn, primärknappar, aktiv markering. */
+  --adm-brand: #0b3d2e;
+  --adm-brand-hover: #145c45;
+  --adm-brand-soft: #d9f0e8;
+  --adm-on-brand: #f5efe7;
+  /* Grönt som *text* på den ljusa duken. Egen variabel eftersom --adm-brand
+     mörknar i mörkt läge och då blir oläsligt som länkfärg. */
+  --adm-brand-text: #0b3d2e;
+
+  /* Semantiska toner för status, varningar och fel. */
+  --adm-ok: #1b7f5e;
+  --adm-warn: #b4761f;
+  --adm-danger: #c0392b;
+  --adm-info: #2e5a8f;
+
+  /* Höjd och radie — ersätter den tidigare platta rounded-[3px]-stilen. */
+  --adm-shadow-1: 0 1px 2px rgba(11, 61, 46, 0.06), 0 1px 3px rgba(11, 61, 46, 0.05);
+  --adm-shadow-2: 0 4px 12px rgba(11, 61, 46, 0.1), 0 2px 4px rgba(11, 61, 46, 0.06);
+  --adm-r-sm: 6px;
+  --adm-r: 10px;
+  --adm-r-lg: 14px;
 }
 
 @media (prefers-color-scheme: dark) {
   .admin-viz {
-    --viz-surface: #1a1a19;
-    --viz-plane: #0c0d0f;
-    --viz-ink: #ffffff;
-    --viz-ink-2: #c3c2b7;
-    --viz-ink-3: #898781;
-    --viz-rule: #2b2d30;
-    --viz-grid: #2c2c2a;
+    --viz-plane: #141310;
+    --viz-surface: #1e1c18;
+    --viz-ink: #f5efe7;
+    --viz-ink-2: #c3beb2;
+    --viz-ink-3: #8b8579;
+    --viz-rule: #332f28;
+    --viz-grid: #2a2721;
+    --viz-flag: #e88073;
+
     --viz-s1: #3987e5;
     --viz-s2: #d95926;
     --viz-s3: #199e70;
     --viz-s4: #6fb765;
-    --viz-flag: #e66767;
+
+    --adm-brand: #0e2c22;
+    --adm-brand-hover: #174736;
+    --adm-brand-soft: #1c4a3a;
+    --adm-on-brand: #ede7dc;
+    --adm-brand-text: #6fcfae;
+
+    --adm-ok: #35a97f;
+    --adm-warn: #d49a3e;
+    --adm-danger: #e88073;
+    --adm-info: #6e9bd1;
+
+    --adm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --adm-shadow-2: 0 4px 14px rgba(0, 0, 0, 0.5);
   }
 }

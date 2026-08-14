@@ -127,16 +127,12 @@ export function Card({
 }) {
   return (
     <section
-      className="flex flex-col gap-[18px] rounded-[3px] border px-6 pb-5 pt-6"
-      style={{ background: 'var(--viz-surface)', borderColor: 'var(--viz-rule)' }}
+      className="flex flex-col gap-[18px] rounded-card border border-rule bg-surface px-6 pb-5 pt-6 shadow-card"
+      style={{ borderTop: `3px solid ${flag ? 'var(--viz-flag)' : 'var(--adm-info)'}` }}
     >
       <header className="flex flex-col gap-[5px]">
-        <h2 className="text-[17px] font-semibold tracking-[-0.012em]" style={{ color: 'var(--viz-ink)' }}>
-          {title}
-        </h2>
-        <p className="max-w-[70ch] text-[13.5px]" style={{ color: 'var(--viz-ink-2)' }}>
-          {sub}
-        </p>
+        <h2 className="text-[17px] font-semibold tracking-[-0.012em] text-ink">{title}</h2>
+        <p className="max-w-[70ch] text-[13.5px] text-ink-2">{sub}</p>
       </header>
       {children}
       <p

@@ -9,38 +9,13 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
-import {
-  CHANNELS,
-  CONTACT_STATUSES,
-  TONE_COLOR,
-  contactName,
-  statusTone,
-  toneStyle,
-} from '@/lib/clients';
+import StatusPill, { StatusDot } from '@/components/admin/ui/StatusPill';
+import { CHANNELS, CONTACT_STATUSES, contactName } from '@/lib/clients';
 import type { ClientContactRow } from '@/lib/db/schema';
 
-export function StatusDot({ status }: { status: string }) {
-  return (
-    <span
-      aria-hidden
-      className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
-      style={{ background: TONE_COLOR[statusTone(status)] }}
-    />
-  );
-}
-
-/** Statusen som tonad etikett — samma form i kundlistan och på kundkortet. */
-export function StatusPill({ status }: { status: string }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-[2px] text-[12px] leading-[1.5]"
-      style={toneStyle(status)}
-    >
-      <StatusDot status={status} />
-      {status}
-    </span>
-  );
-}
+// Etiketten bor numera i ui/StatusPill. Re-exporten står kvar så att
+// befintliga importer från den här filen fortsätter fungera.
+export { StatusDot, StatusPill };
 
 function ContactFields({ contact }: { contact?: ClientContactRow }) {
   return (

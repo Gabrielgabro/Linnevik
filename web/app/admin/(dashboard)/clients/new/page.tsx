@@ -1,5 +1,8 @@
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import ClientForm from '@/components/admin/ClientForm';
+import { PageHeader } from '@/components/admin/ui';
+import { accentFor } from '../../nav';
 import { nextCustomerNo } from '@/lib/clientsDb';
 
 export const dynamic = 'force-dynamic';
@@ -9,27 +12,20 @@ export default async function NewClientPage() {
 
   return (
     <>
-      <header
-        className="flex flex-col gap-[18px] border-b border-t-2 pb-5 pt-[18px]"
-        style={{ borderTopColor: 'var(--viz-ink)', borderBottomColor: 'var(--viz-rule)' }}
-      >
-        <Link
-          href="/admin/clients"
-          className="font-mono text-[11px] uppercase tracking-[0.14em] hover:underline"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          ← Kundregister
-        </Link>
-        <h1
-          className="max-w-[20ch] text-balance font-heading text-[clamp(24px,3.5vw,34px)] leading-[1.1] tracking-[-0.02em]"
-          style={{ color: 'var(--viz-ink)' }}
-        >
-          Lägg till kund
-        </h1>
-        <p className="max-w-[62ch] text-[14px] leading-[1.6]" style={{ color: 'var(--viz-ink-2)' }}>
-          Kontaktpersoner läggs till på kunden när den är sparad.
-        </p>
-      </header>
+      <PageHeader
+        kicker={
+          <Link
+            href="/admin/clients"
+            className="inline-flex items-center gap-1.5 hover:text-ink-2 hover:underline"
+          >
+            <ArrowLeft size={13} strokeWidth={2} aria-hidden />
+            Kundregister
+          </Link>
+        }
+        title="Lägg till kund"
+        accent={accentFor('/admin/clients')}
+        description="Kontaktpersoner läggs till på kunden när den är sparad."
+      />
 
       <ClientForm mode="create" suggestedCustomerNo={suggestedCustomerNo} />
     </>

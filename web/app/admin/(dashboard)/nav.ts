@@ -1,0 +1,84 @@
+import {
+  Activity,
+  Building2,
+  FolderTree,
+  LineChart,
+  Package,
+  Settings2,
+  ShoppingCart,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
+
+/**
+ * Enda källan för adminmenyn. Accentfärgen används både av ikonen i sidomenyn
+ * och av linjen över sidrubriken, så att man ser vilken del man står i.
+ */
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** CSS-variabel, aldrig en hex — mörkt läge går via tokens. */
+  accent: string;
+};
+
+export type NavGroup = {
+  /** Utelämnas för toppobjekt som står utan rubrik. */
+  label?: string;
+  items: NavItem[];
+};
+
+export const NAV: NavGroup[] = [
+  {
+    items: [{ href: '/admin', label: 'Prisbild', icon: LineChart, accent: 'var(--adm-info)' }],
+  },
+  {
+    label: 'Katalog',
+    items: [
+      { href: '/admin/products', label: 'Produkter', icon: Package, accent: 'var(--adm-brand)' },
+      {
+        href: '/admin/collections',
+        label: 'Kategorier',
+        icon: FolderTree,
+        accent: 'var(--viz-s4)',
+      },
+    ],
+  },
+  {
+    label: 'Försäljning',
+    items: [
+      { href: '/admin/orders', label: 'Ordrar', icon: ShoppingCart, accent: 'var(--viz-s2)' },
+      {
+        href: '/admin/customers',
+        label: 'Handelskunder',
+        icon: Building2,
+        accent: 'var(--adm-warn)',
+      },
+      { href: '/admin/commerce', label: 'Handel', icon: Settings2, accent: 'var(--adm-warn)' },
+    ],
+  },
+  {
+    label: 'Kundregister',
+    items: [
+      { href: '/admin/clients', label: 'Kunder', icon: Users, accent: 'var(--viz-s1)' },
+      { href: '/admin/activity', label: 'Aktivitet', icon: Activity, accent: 'var(--viz-ink-3)' },
+    ],
+  },
+];
+
+export const NAV_ITEMS: NavItem[] = NAV.flatMap(group => group.items);
+
+/**
+ * Aktiv post för en sökväg. `/admin` är exakt matchning — annars skulle
+ * startsidan vara aktiv på varje undersida. Längsta träffen vinner.
+ */
+export function activeItem(pathname: string): NavItem | undefined {
+  return NAV_ITEMS.filter(item =>
+    item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href)
+  ).sort((a, b) => b.href.length - a.href.length)[0];
+}
+
+/** Accentfärgen för en sökväg, med bläck som neutral reserv. */
+export function accentFor(pathname: string): string {
+  return activeItem(pathname)?.accent ?? 'var(--viz-ink)';
+}

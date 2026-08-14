@@ -1,25 +1,43 @@
 'use client';
 
 /**
- * Formulärdelarna för kundregistret. Samma visuella språk som resten av
- * adminvyn: mono-versaler som etikett, tunn linje under fältet, inga rutor.
+ * Formulärdelarna för adminvyn. Fälten är numera inramade i stället för
+ * understrukna — vid tät ifyllning är det svårt att se var ett fält börjar när
+ * det bara finns en tunn linje under. Etiketten är kvar i mono-versaler, som i
+ * resten av gränssnittet.
+ *
+ * Exporterna är oförändrade (Label, Field, Select, TextArea, Button,
+ * ErrorNote, formValues) så att alla befintliga anropsställen fungerar.
  */
 
 import clsx from 'clsx';
+import UiButton, { type ButtonVariant } from './ui/Button';
 
-const inputClass =
-  'w-full rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-[14px] outline-none ' +
-  'focus:border-b-2 focus:pb-[5px] disabled:opacity-50';
+const controlClass = clsx(
+  'w-full rounded-ctl border border-rule bg-surface px-3 py-2 text-[14px] text-ink outline-none transition-colors',
+  'placeholder:text-ink-3 focus:border-brand',
+  // Fokusringen görs med color-mix: färgerna är CSS-variabler, och Tailwinds
+  // /opacity-modifierare biter inte på dem i Tailwind 3.
+  'focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--adm-brand-text)_22%,transparent)]',
+  'disabled:cursor-not-allowed disabled:bg-plane disabled:opacity-60'
+);
 
 export function Label({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      className="font-mono text-[10.5px] uppercase tracking-[0.12em]"
-      style={{ color: 'var(--viz-ink-3)' }}
-    >
+    <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-3">
       {children}
     </span>
   );
+}
+
+function Hint({ hint, error }: { hint?: React.ReactNode; error?: React.ReactNode }) {
+  if (error) {
+    return (
+      <span className="text-[12px] leading-[1.5] text-danger">{error}</span>
+    );
+  }
+  if (!hint) return null;
+  return <span className="text-[12px] leading-[1.5] text-ink-3">{hint}</span>;
 }
 
 type FieldProps = {
@@ -32,6 +50,8 @@ type FieldProps = {
   step?: string;
   min?: string;
   max?: string;
+  hint?: React.ReactNode;
+  error?: React.ReactNode;
   className?: string;
 };
 
@@ -45,6 +65,8 @@ export function Field({
   step,
   min,
   max,
+  hint,
+  error,
   className,
 }: FieldProps) {
   return (
@@ -62,9 +84,10 @@ export function Field({
         required={required}
         placeholder={placeholder}
         defaultValue={defaultValue ?? ''}
-        className={inputClass}
-        style={{ color: 'var(--viz-ink)', borderColor: 'var(--viz-rule)' }}
+        aria-invalid={error ? true : undefined}
+        className={clsx(controlClass, error && 'border-danger')}
       />
+      <Hint hint={hint} error={error} />
     </label>
   );
 }
@@ -76,6 +99,7 @@ export function Select({
   defaultValue,
   blankLabel = '—',
   required,
+  hint,
   className,
 }: {
   label: string;
@@ -84,6 +108,7 @@ export function Select({
   defaultValue?: string | null;
   blankLabel?: string;
   required?: boolean;
+  hint?: React.ReactNode;
   className?: string;
 }) {
   return (
@@ -92,8 +117,16 @@ export function Select({
       <select
         name={name}
         defaultValue={defaultValue ?? ''}
-        className={inputClass}
-        style={{ color: 'var(--viz-ink)', borderColor: 'var(--viz-rule)' }}
+        className={clsx(controlClass, 'appearance-none pr-8')}
+        style={{
+          // Enkel pil i stället för webbläsarens egen, som annars ser
+          // annorlunda ut i varje operativsystem.
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237e8c85' stroke-width='2' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>\")",
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 10px center',
+          backgroundSize: '12px',
+        }}
       >
         {!required && <option value="">{blankLabel}</option>}
         {options.map(option => (
@@ -102,6 +135,7 @@ export function Select({
           </option>
         ))}
       </select>
+      <Hint hint={hint} />
     </label>
   );
 }
@@ -111,12 +145,14 @@ export function TextArea({
   name,
   defaultValue,
   rows = 3,
+  hint,
   className,
 }: {
   label: string;
   name: string;
   defaultValue?: string | null;
   rows?: number;
+  hint?: React.ReactNode;
   className?: string;
 }) {
   return (
@@ -126,42 +162,22 @@ export function TextArea({
         name={name}
         rows={rows}
         defaultValue={defaultValue ?? ''}
-        className={clsx(inputClass, 'resize-y leading-[1.6]')}
-        style={{ color: 'var(--viz-ink)', borderColor: 'var(--viz-rule)' }}
+        className={clsx(controlClass, 'resize-y leading-[1.6]')}
       />
+      <Hint hint={hint} />
     </label>
   );
 }
 
+/**
+ * Behåller det gamla API:et (`variant="primary" | "quiet"`) men går via den
+ * nya knappen, så att befintliga anropsställen byter utseende utan att ändras.
+ */
 export function Button({
-  children,
   variant = 'primary',
-  style,
-  className,
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'quiet' }) {
-  return (
-    <button
-      {...rest}
-      className={clsx(
-        'rounded-[3px] px-3.5 py-2 text-[13px] transition-opacity',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
-        'disabled:opacity-50',
-        variant === 'primary' ? 'font-medium hover:opacity-85' : 'hover:underline',
-        className
-      )}
-      // Anropssidan får sista ordet om färgen — "Ta bort" är röd men i övrigt
-      // en helt vanlig tyst knapp.
-      style={{
-        ...(variant === 'primary'
-          ? { background: 'var(--viz-ink)', color: 'var(--viz-surface)' }
-          : { color: 'var(--viz-ink-3)' }),
-        ...style,
-      }}
-    >
-      {children}
-    </button>
-  );
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
+  return <UiButton variant={variant} {...rest} />;
 }
 
 export function ErrorNote({ children }: { children: React.ReactNode }) {
@@ -169,8 +185,11 @@ export function ErrorNote({ children }: { children: React.ReactNode }) {
   return (
     <p
       role="alert"
-      className="border-l-2 pl-3 text-[13px]"
-      style={{ color: 'var(--viz-flag)', borderColor: 'var(--viz-flag)' }}
+      className="rounded-ctl border px-3 py-2 text-[13px] text-danger"
+      style={{
+        borderColor: 'color-mix(in srgb, var(--adm-danger) 40%, transparent)',
+        background: 'color-mix(in srgb, var(--adm-danger) 9%, transparent)',
+      }}
     >
       {children}
     </p>

@@ -1,31 +1,94 @@
 import Link from 'next/link';
+import { ShoppingCart } from 'lucide-react';
+import {
+  EmptyState,
+  PageHeader,
+  Tag,
+  TableShell,
+  Td,
+  Th,
+  Tr,
+} from '@/components/admin/ui';
+import { accentFor } from '../nav';
 import { listRecentOrders } from '@/lib/ordersDb';
 import { formatMinor } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
+
+/** Betalning och leverans får varsin ton, så att en avvikelse syns i listan. */
+const ORDER_TONE: Record<string, string> = {
+  paid: 'var(--adm-ok)',
+  delivered: 'var(--adm-ok)',
+  fulfilled: 'var(--adm-ok)',
+  shipped: 'var(--adm-info)',
+  pending: 'var(--adm-warn)',
+  unfulfilled: 'var(--adm-warn)',
+  partially_refunded: 'var(--viz-s2)',
+  refunded: 'var(--adm-danger)',
+  cancelled: 'var(--adm-danger)',
+};
+
+const tone = (status: string) => ORDER_TONE[status] ?? 'var(--viz-ink-3)';
+
 export default async function OrdersPage() {
   const orders = await listRecentOrders(200);
+
   return (
     <>
-      <header className="border-t-2 pt-5" style={{ borderColor: 'var(--viz-ink)' }}>
-        <h1 className="font-heading text-4xl">Ordrar</h1>
-        <p className="mt-3 text-sm" style={{ color: 'var(--viz-ink-2)' }}>Betalning, rabatt, frakt, återbetalning och fulfillment i ett orderregister.</p>
-      </header>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="font-mono text-xs uppercase" style={{ color: 'var(--viz-ink-3)' }}>
-            <tr><th className="py-2">Order</th><th>Kund</th><th>Betalning</th><th>Leverans</th><th>Total</th><th>Datum</th></tr>
-          </thead>
-          <tbody>{orders.map(order => (
-            <tr key={order.id} className="border-t" style={{ borderColor: 'var(--viz-rule)' }}>
-              <td className="py-3"><Link className="underline" href={`/admin/orders/${order.id}`}>#{order.id}</Link></td>
-              <td>{order.customerName ?? order.email ?? '—'}</td><td>{order.paymentStatus}</td>
-              <td>{order.fulfillmentStatus}</td><td>{formatMinor(order.totalMinor, order.currency)}</td>
-              <td>{order.createdAt.toLocaleDateString('sv-SE')}</td>
+      <PageHeader
+        kicker={`${orders.length} senaste ordrarna`}
+        title="Ordrar"
+        accent={accentFor('/admin/orders')}
+        description="Betalning, rabatt, frakt, återbetalning och fulfillment i ett orderregister."
+      />
+
+      {orders.length === 0 ? (
+        <EmptyState
+          icon={ShoppingCart}
+          title="Inga ordrar ännu"
+          description="Så fort en Stripe-checkout betalas dyker ordern upp här."
+        />
+      ) : (
+        <TableShell>
+          <thead>
+            <tr>
+              <Th>Order</Th>
+              <Th>Kund</Th>
+              <Th>Betalning</Th>
+              <Th>Leverans</Th>
+              <Th align="right">Total</Th>
+              <Th align="right">Datum</Th>
             </tr>
-          ))}</tbody>
-        </table>
-      </div>
+          </thead>
+          <tbody>
+            {orders.map(order => (
+              <Tr key={order.id}>
+                <Td numeric>
+                  <Link
+                    href={`/admin/orders/${order.id}`}
+                    className="text-brand-text hover:underline"
+                  >
+                    #{order.id}
+                  </Link>
+                </Td>
+                <Td className="text-ink">{order.customerName ?? order.email ?? '—'}</Td>
+                <Td>
+                  <Tag color={tone(order.paymentStatus)}>{order.paymentStatus}</Tag>
+                </Td>
+                <Td>
+                  <Tag color={tone(order.fulfillmentStatus)}>{order.fulfillmentStatus}</Tag>
+                </Td>
+                <Td numeric align="right">
+                  {formatMinor(order.totalMinor, order.currency)}
+                </Td>
+                <Td numeric align="right" className="text-ink-3">
+                  {order.createdAt.toLocaleDateString('sv-SE')}
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </TableShell>
+      )}
     </>
   );
 }

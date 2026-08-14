@@ -1,5 +1,8 @@
 import Link from 'next/link';
+import { Plus } from 'lucide-react';
 import ClientTable from '@/components/admin/ClientTable';
+import { buttonClass, Notice, PageHeader, StatRow, StatTile } from '@/components/admin/ui';
+import { accentFor } from '../nav';
 import { clientsConfigured, listClients } from '@/lib/clientsDb';
 
 export const dynamic = 'force-dynamic';
@@ -12,46 +15,35 @@ export default async function AdminClientsPage() {
 
   return (
     <>
-      <header
-        className="flex flex-col gap-[18px] border-b border-t-2 pb-5 pt-[18px]"
-        style={{ borderTopColor: 'var(--viz-ink)', borderBottomColor: 'var(--viz-rule)' }}
-      >
-        <span
-          className="font-mono text-[11px] uppercase tracking-[0.14em]"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          Kunder · {clients.length} företag · {contacts} kontaktpersoner · {worked} bearbetade
-        </span>
-        <h1
-          className="max-w-[20ch] text-balance font-heading text-[clamp(26px,4vw,38px)] leading-[1.1] tracking-[-0.02em]"
-          style={{ color: 'var(--viz-ink)' }}
-        >
-          Kundregister
-        </h1>
-        <p className="max-w-[62ch] text-[14px] leading-[1.6]" style={{ color: 'var(--viz-ink-2)' }}>
-          Företagen ur tvätteriets arkivlista, med kontaktpersonerna vi bearbetar dem genom.
-          Ett företag kan ha flera personer — statusen sitter på personen.
-        </p>
-        <Link
-          href="/admin/clients/new"
-          className="self-start rounded-[3px] px-3.5 py-2 text-[13px] font-medium transition-opacity hover:opacity-85"
-          style={{ background: 'var(--viz-s1)', color: '#fff' }}
-        >
-          + Lägg till kund
-        </Link>
-      </header>
+      <PageHeader
+        kicker={`${clients.length} företag · ${contacts} kontaktpersoner`}
+        title="Kundregister"
+        accent={accentFor('/admin/clients')}
+        description="Företagen ur tvätteriets arkivlista, med kontaktpersonerna vi bearbetar dem
+          genom. Ett företag kan ha flera personer — statusen sitter på personen."
+        actions={
+          <Link href="/admin/clients/new" className={buttonClass('primary')}>
+            <Plus size={16} strokeWidth={2} aria-hidden />
+            Lägg till kund
+          </Link>
+        }
+      />
+
+      <StatRow>
+        <StatTile label="Företag" value={clients.length} accent="var(--viz-s1)" />
+        <StatTile label="Kontaktpersoner" value={contacts} accent="var(--adm-info)" />
+        <StatTile
+          label="Bearbetade"
+          value={worked}
+          accent="var(--adm-ok)"
+          hint={contacts > 0 ? `${Math.round((worked / contacts) * 100)} % av kontakterna` : undefined}
+        />
+      </StatRow>
 
       {!clientsConfigured() && (
-        <p
-          className="rounded-[3px] border-l-2 py-2 pl-3 pr-3 text-[13.5px]"
-          style={{
-            color: 'var(--viz-ink-2)',
-            borderColor: 'var(--viz-flag)',
-            background: 'color-mix(in srgb, var(--viz-flag) 8%, transparent)',
-          }}
-        >
-          DATABASE_URL saknas, så registret är tomt i den här miljön.
-        </p>
+        <Notice tone="danger" title="DATABASE_URL saknas">
+          Registret är tomt i den här miljön.
+        </Notice>
       )}
 
       <ClientTable clients={clients} />

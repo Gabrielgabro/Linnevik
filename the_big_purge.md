@@ -87,3 +87,33 @@ The launch is Sweden-only, SEK, B2B, immediate cutover, with no customer or orde
 - Changes to pricing configuration become active immediately after validation and are audit-logged.
 - Invoice terms are available only after explicit staff approval; all other customers pay through Stripe.
 - Stripe Checkout Sessions, restricted keys, verified webhooks, and registration-gated Stripe Tax are the chosen payment and tax integration defaults.
+
+## Current backend status
+
+### Available now
+
+- The Neon/Postgres database is reachable and the commerce schema is deployed.
+- Catalog management is operational with products, variants, collections, localized content, and product images.
+- Admin authentication and protected APIs are implemented.
+- Admin operations exist for products, collections, customers, sales clients and contacts, discounts, shipping rules, orders, refunds, and fulfillments.
+- Stripe Checkout Session creation and signature-verified, idempotent Stripe webhook processing are implemented.
+- Orders are stored before checkout and can be managed through the admin interface after payment.
+- Shopify customer registration, login, activation, password recovery, storefront cart, and checkout fallback remain available during migration.
+- Automated tests currently pass: 22 of 22 tests, and TypeScript validation passes.
+
+### Not yet complete
+
+- The storefront still uses the Shopify cart. The owned cart API exists, but `OWNED_COMMERCE_ENABLED` is not enabled and the UI has not been connected to it.
+- Inventory is validated during cart and checkout operations, but stock is not reserved or deducted when payment succeeds, leaving an overselling risk.
+- SMTP credentials are not configured locally, so contact-form and sample-request emails cannot currently be delivered.
+- Order-confirmation and fulfillment emails have not been implemented.
+- The separate email-verification implementation is still a logging-only placeholder; current customer registration instead relies on Shopify activation.
+- Stripe automatic tax remains disabled until the Swedish tax registration has been confirmed and `STRIPE_TAX_REGISTRATION_CONFIRMED` is enabled.
+- Owned checkout currently supports Swedish delivery addresses only.
+- Database integration tests and full Stripe payment, webhook, expiration, inventory, refund, and fulfillment end-to-end tests are still missing.
+- The current branch has four lint errors in the admin dashboard because the `Stat` component is referenced but not defined.
+- The connected database currently contains no owned carts, customers, orders, or processed Stripe webhook events, so the complete owned purchase flow has not yet been proven end to end.
+
+### Readiness decision
+
+The existing Shopify-backed customer journey can continue operating, and many owned backend functions are usable now. The owned backend is not yet ready to replace Shopify. The immediate priorities are connecting the owned cart to the storefront, implementing atomic inventory handling, adding transactional emails, and validating the complete Stripe flow in test mode.

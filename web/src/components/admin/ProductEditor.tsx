@@ -10,6 +10,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
+import PageHeader from '@/components/admin/ui/PageHeader';
+import { Tag } from '@/components/admin/ui/StatusPill';
 import { formatMinor, toMinor } from '@/lib/money';
 import type { CollectionListRow, ProductDetail, VariantWithUsage } from '@/lib/productsDb';
 
@@ -23,22 +25,10 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section
-      className="flex flex-col gap-4 border-t pt-5"
-      style={{ borderColor: 'var(--viz-rule)' }}
-    >
+    <section className="flex flex-col gap-4 rounded-card border border-rule bg-surface px-5 py-5 shadow-card sm:px-6">
       <div className="flex flex-col gap-1">
-        <h2
-          className="font-mono text-[11px] uppercase tracking-[0.14em]"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          {title}
-        </h2>
-        {note && (
-          <p className="max-w-[62ch] text-[13px] leading-[1.6]" style={{ color: 'var(--viz-ink-2)' }}>
-            {note}
-          </p>
-        )}
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">{title}</h2>
+        {note && <p className="max-w-[62ch] text-[13px] leading-[1.6] text-ink-2">{note}</p>}
       </div>
       {children}
     </section>
@@ -735,29 +725,27 @@ export default function ProductEditor({
 
   return (
     <>
-      <header
-        className="flex flex-col gap-[18px] border-b border-t-2 pb-5 pt-[18px]"
-        style={{ borderTopColor: 'var(--viz-ink)', borderBottomColor: 'var(--viz-rule)' }}
-      >
-        <span
-          className="font-mono text-[11px] uppercase tracking-[0.14em]"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          {detail.variants.length} {detail.variants.length === 1 ? 'variant' : 'varianter'} ·{' '}
-          {stock} i lager ·{' '}
-          {product.stripeProductId ? `Stripe: ${product.stripeProductId}` : 'inte i Stripe'}
-          {landedCostSek !== null &&
-            ` · landad kostnad ${landedCostSek.toFixed(2)} kr${
-              landedConfidence === 'likely' ? ' (osäker koppling)' : ''
-            }`}
-        </span>
-        <h1
-          className="max-w-[20ch] text-balance font-heading text-[clamp(26px,4vw,38px)] leading-[1.1] tracking-[-0.02em]"
-          style={{ color: 'var(--viz-ink)' }}
-        >
-          {product.title}
-        </h1>
-      </header>
+      <PageHeader
+        kicker={
+          <>
+            {detail.variants.length} {detail.variants.length === 1 ? 'variant' : 'varianter'} ·{' '}
+            {stock} i lager
+            {landedCostSek !== null &&
+              ` · landad kostnad ${landedCostSek.toFixed(2)} kr${
+                landedConfidence === 'likely' ? ' (osäker koppling)' : ''
+              }`}
+          </>
+        }
+        title={product.title}
+        accent="var(--adm-brand)"
+        description={
+          product.stripeProductId ? (
+            <Tag color="var(--adm-ok)">Stripe: {product.stripeProductId}</Tag>
+          ) : (
+            <Tag color="var(--adm-danger)">Inte i Stripe</Tag>
+          )
+        }
+      />
 
       <Panel
         title="Innehåll"

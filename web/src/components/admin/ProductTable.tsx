@@ -10,7 +10,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { Button, ErrorNote } from '@/components/admin/Fields';
+import { ChevronRight, ImageOff, Package, Plus } from 'lucide-react';
+import { ErrorNote } from '@/components/admin/Fields';
+import {
+  Button,
+  EmptyState,
+  FilterPill,
+  SearchInput,
+  Tag,
+  Toolbar,
+} from '@/components/admin/ui';
 import { formatMinor } from '@/lib/money';
 import type { ProductListRow } from '@/lib/productsDb';
 
@@ -22,6 +31,17 @@ type Filter =
   | 'utan-kategori'
   | 'utan-leverantor'
   | 'inaktiva';
+
+/** Ett predikat per filter, så att både urval och räknare går via samma regel. */
+const MATCHES: Record<Filter, (product: ProductListRow) => boolean> = {
+  alla: () => true,
+  'i-lager': product => product.stock > 0,
+  slut: product => product.stock <= 0,
+  'utan-stripe': product => !product.stripeProductId,
+  'utan-kategori': product => !product.primaryCollection,
+  'utan-leverantor': product => product.supplier === 'unknown',
+  inaktiva: product => !product.active,
+};
 
 const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: 'alla', label: 'Alla' },
@@ -51,13 +71,9 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
 
   if (!open) {
     return (
-      <Button
-        type="button"
-        onClick={() => setOpen(true)}
-        style={{ background: 'var(--viz-s1)', color: '#fff' }}
-        className="self-start font-medium"
-      >
-        + Ny produkt
+      <Button type="button" onClick={() => setOpen(true)} className="shrink-0">
+        <Plus size={16} strokeWidth={2} aria-hidden />
+        Ny produkt
       </Button>
     );
   }
@@ -82,13 +98,13 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2">
+    <form
+      onSubmit={submit}
+      className="flex w-full flex-col gap-2 rounded-card border border-rule bg-surface p-4 shadow-card"
+    >
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex min-w-[240px] flex-1 flex-col gap-1.5">
-          <span
-            className="font-mono text-[10.5px] uppercase tracking-[0.12em]"
-            style={{ color: 'var(--viz-ink-3)' }}
-          >
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-3">
             Titel
           </span>
           <input
@@ -97,8 +113,7 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
             onChange={e => setTitle(e.target.value)}
             required
             placeholder="Täcke - Sebastian"
-            className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-[14px] outline-none focus:border-b-2 focus:pb-[5px]"
-            style={{ color: 'var(--viz-ink)', borderColor: 'var(--viz-rule)' }}
+            className="w-full rounded-ctl border border-rule bg-surface px-3 py-2 text-[14px] text-ink outline-none placeholder:text-ink-3 focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--adm-brand-text)_22%,transparent)]"
           />
         </label>
         <Button type="submit" disabled={busy || !title.trim()}>
@@ -118,15 +133,18 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('alla');
 
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(
+        FILTERS.map(option => [option.key, products.filter(MATCHES[option.key]).length])
+      ) as Record<Filter, number>,
+    [products]
+  );
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return products.filter(product => {
-      if (filter === 'i-lager' && product.stock <= 0) return false;
-      if (filter === 'slut' && product.stock > 0) return false;
-      if (filter === 'utan-stripe' && product.stripeProductId) return false;
-      if (filter === 'utan-kategori' && product.primaryCollection) return false;
-      if (filter === 'utan-leverantor' && product.supplier !== 'unknown') return false;
-      if (filter === 'inaktiva' && product.active) return false;
+      if (!MATCHES[filter](product)) return false;
       if (!needle) return true;
       return (
         product.title.toLowerCase().includes(needle) ||
@@ -139,169 +157,119 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
 
   return (
     <>
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-        <label className="flex min-w-[220px] flex-1 flex-col gap-1.5">
-          <span
-            className="font-mono text-[10.5px] uppercase tracking-[0.12em]"
-            style={{ color: 'var(--viz-ink-3)' }}
-          >
-            Sök
-          </span>
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Titel, handle, tagg eller leverantör"
-            className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-[14px] outline-none focus:border-b-2 focus:pb-[5px]"
-            style={{ color: 'var(--viz-ink)', borderColor: 'var(--viz-rule)' }}
-          />
-        </label>
+      <Toolbar>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Titel, handle, tagg eller leverantör"
+        />
         <NewProductForm onDone={() => router.refresh()} />
-      </div>
+      </Toolbar>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        {FILTERS.map(option => {
-          const active = filter === option.key;
-          return (
-            <button
-              key={option.key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setFilter(active ? 'alla' : option.key)}
-              className="rounded-full px-2.5 py-[3px] text-[12.5px] leading-[1.5] transition-opacity"
-              style={
-                active
-                  ? {
-                      color: 'var(--viz-surface)',
-                      background: 'var(--viz-ink)',
-                      border: '1px solid var(--viz-ink)',
-                    }
-                  : {
-                      color: 'var(--viz-ink-2)',
-                      background: 'transparent',
-                      border: '1px solid var(--viz-rule)',
-                    }
-              }
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div
-        className="flex items-baseline justify-between border-b pb-2"
-        style={{ borderColor: 'var(--viz-rule)' }}
-      >
-        <span
-          className="font-mono text-[10.5px] uppercase tracking-[0.14em]"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          {visible.length} av {products.length} produkter
-        </span>
-        <span
-          className="font-mono text-[10.5px] uppercase tracking-[0.14em] max-[620px]:hidden"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          Pris · Lager
-        </span>
-      </div>
-
-      <ul className="flex flex-col">
-        {visible.map(product => (
-          <li key={product.id} className="border-b" style={{ borderColor: 'var(--viz-grid)' }}>
-            <Link
-              href={`/admin/products/${product.handle}`}
-              className="grid grid-cols-[44px_1fr_auto] items-center gap-x-4 gap-y-1 px-2 py-3 transition-colors hover:bg-[var(--viz-plane)]"
-            >
-              <span
-                className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[3px]"
-                style={{ background: 'var(--viz-plane)', border: '1px solid var(--viz-rule)' }}
-              >
-                {product.thumbnailUrl ? (
-                  <Image
-                    src={product.thumbnailUrl}
-                    alt={product.thumbnailAlt ?? ''}
-                    width={44}
-                    height={44}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="font-mono text-[10px]" style={{ color: 'var(--viz-ink-3)' }}>
-                    —
-                  </span>
-                )}
-              </span>
-
-              <span className="flex flex-col gap-1">
-                <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                  <span
-                    className="text-[14px]"
-                    style={{ color: product.active ? 'var(--viz-ink)' : 'var(--viz-ink-3)' }}
-                  >
-                    {product.title}
-                  </span>
-                  {!product.active && (
-                    <span
-                      className="rounded-full px-2 py-[2px] text-[12px] leading-[1.5]"
-                      style={{
-                        color: 'var(--viz-ink-3)',
-                        background: 'var(--viz-plane)',
-                        border: '1px solid var(--viz-rule)',
-                      }}
-                    >
-                      Inaktiv
-                    </span>
-                  )}
-                  {/* Utan Stripe-produkt går varan att sälja ändå — kassan
-                      faller tillbaka på ett namn — men den blir osynlig i
-                      Stripes rapporter, och det är värt att se här. */}
-                  {!product.stripeProductId && (
-                    <span
-                      className="rounded-full px-2 py-[2px] text-[12px] leading-[1.5]"
-                      style={{
-                        color: 'var(--viz-flag)',
-                        background: 'color-mix(in srgb, var(--viz-flag) 8%, transparent)',
-                        border: '1px solid color-mix(in srgb, var(--viz-flag) 40%, transparent)',
-                      }}
-                    >
-                      Saknar Stripe
-                    </span>
-                  )}
-                </span>
-                <span
-                  className="font-mono text-[11.5px]"
-                  style={{ color: 'var(--viz-ink-3)' }}
-                >
-                  {product.handle} · {product.variantCount}{' '}
-                  {product.variantCount === 1 ? 'variant' : 'varianter'}
-                  {product.primaryCollection ? ` · ${product.primaryCollection}` : ' · ingen kategori'}
-                  {` · ${product.supplier === 'unknown' ? 'okänd leverantör' : product.supplier}`}
-                </span>
-              </span>
-
-              <span className="flex flex-col items-end gap-1 max-[620px]:hidden">
-                <span
-                  className="font-mono text-[12.5px] tabular-nums"
-                  style={{ color: 'var(--viz-ink)' }}
-                >
-                  {priceRange(product)}
-                </span>
-                <span
-                  className="font-mono text-[11.5px] tabular-nums"
-                  style={{ color: product.stock > 0 ? 'var(--viz-ink-3)' : 'var(--viz-flag)' }}
-                >
-                  {product.stock} st
-                </span>
-              </span>
-            </Link>
-          </li>
+      <Toolbar className="gap-y-2">
+        {FILTERS.map(option => (
+          <FilterPill
+            key={option.key}
+            active={filter === option.key}
+            count={counts[option.key]}
+            onClick={() => setFilter(filter === option.key ? 'alla' : option.key)}
+          >
+            {option.label}
+          </FilterPill>
         ))}
-      </ul>
+      </Toolbar>
 
-      {visible.length === 0 && (
-        <p className="text-[13.5px]" style={{ color: 'var(--viz-ink-3)' }}>
-          Ingen produkt matchar filtret.
-        </p>
+      {visible.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="Ingen produkt matchar filtret"
+          description="Rensa sökningen eller välj ett annat filter."
+        />
+      ) : (
+        <div className="overflow-hidden rounded-card border border-rule bg-surface shadow-card">
+          <div className="flex items-baseline justify-between border-b border-rule bg-plane px-4 py-2.5">
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">
+              {visible.length} av {products.length} produkter
+            </span>
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3 max-[620px]:hidden">
+              Pris · Lager
+            </span>
+          </div>
+
+          <ul className="flex flex-col">
+            {visible.map(product => (
+              <li key={product.id} className="border-b border-grid last:border-b-0">
+                <Link
+                  href={`/admin/products/${product.handle}`}
+                  className="group grid grid-cols-[44px_1fr_auto_16px] items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors hover:bg-plane"
+                >
+                  <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-ctl border border-rule bg-plane">
+                    {product.thumbnailUrl ? (
+                      <Image
+                        src={product.thumbnailUrl}
+                        alt={product.thumbnailAlt ?? ''}
+                        width={44}
+                        height={44}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <ImageOff size={16} strokeWidth={1.5} aria-hidden className="text-ink-3" />
+                    )}
+                  </span>
+
+                  <span className="flex flex-col gap-1">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span
+                        className={
+                          product.active ? 'text-[14px] text-ink' : 'text-[14px] text-ink-3'
+                        }
+                      >
+                        {product.title}
+                      </span>
+                      {!product.active && <Tag>Inaktiv</Tag>}
+                      {/* Utan Stripe-produkt går varan att sälja ändå — kassan
+                          faller tillbaka på ett namn — men den blir osynlig i
+                          Stripes rapporter, och det är värt att se här. */}
+                      {!product.stripeProductId && (
+                        <Tag color="var(--adm-danger)">Saknar Stripe</Tag>
+                      )}
+                      {!product.primaryCollection && (
+                        <Tag color="var(--adm-warn)">Utan kategori</Tag>
+                      )}
+                    </span>
+                    <span className="font-mono text-[11.5px] text-ink-3">
+                      {product.handle} · {product.variantCount}{' '}
+                      {product.variantCount === 1 ? 'variant' : 'varianter'}
+                      {` · ${product.supplier === 'unknown' ? 'okänd leverantör' : product.supplier}`}
+                    </span>
+                  </span>
+
+                  <span className="flex flex-col items-end gap-1 max-[620px]:hidden">
+                    <span className="font-mono text-[12.5px] tabular-nums text-ink">
+                      {priceRange(product)}
+                    </span>
+                    <span
+                      className={
+                        product.stock > 0
+                          ? 'font-mono text-[11.5px] tabular-nums text-ink-3'
+                          : 'font-mono text-[11.5px] font-medium tabular-nums text-danger'
+                      }
+                    >
+                      {product.stock} st
+                    </span>
+                  </span>
+
+                  <ChevronRight
+                    size={16}
+                    strokeWidth={1.75}
+                    aria-hidden
+                    className="text-ink-3 opacity-0 transition-opacity group-hover:opacity-100"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </>
   );

@@ -9,13 +9,22 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { StatusPill } from '@/components/admin/ContactList';
+import { Trash2, Users } from 'lucide-react';
 import { ErrorNote } from '@/components/admin/Fields';
+import {
+  EmptyState,
+  pillStyle,
+  SearchInput,
+  StatusPill,
+  Tag,
+  Toolbar,
+} from '@/components/admin/ui';
 import {
   CLIENT_STATUSES,
   PRIORITIES,
   SEGMENTS,
-  toneStyle,
+  statusTone,
+  TONE_COLOR,
   type ClientWithCounts,
 } from '@/lib/clients';
 
@@ -41,32 +50,18 @@ function BatchBar({
   if (ids.length === 0) return null;
 
   const selectClass =
-    'rounded-[3px] border px-2 py-1.5 text-[13px] outline-none disabled:opacity-50';
-  const selectStyle = {
-    color: 'var(--viz-ink)',
-    background: 'var(--viz-surface)',
-    borderColor: 'var(--viz-rule)',
-  };
+    'rounded-ctl border border-rule bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none ' +
+    'focus:border-brand disabled:opacity-50';
 
   return (
-    <div className="sticky bottom-3 z-10 flex flex-col gap-2">
-      <div
-        className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[4px] border px-3 py-2.5 shadow-lg"
-        style={{
-          background: 'var(--viz-surface)',
-          borderColor: 'color-mix(in srgb, var(--viz-s1) 40%, transparent)',
-        }}
-      >
-        <span
-          className="rounded-full px-2.5 py-[3px] text-[12.5px] font-medium"
-          style={{ background: 'var(--viz-s1)', color: '#fff' }}
-        >
+    <div className="sticky bottom-3 z-20 flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-brand bg-surface px-3 py-2.5 shadow-pop">
+        <span className="rounded-full bg-brand px-2.5 py-[3px] text-[12.5px] font-medium text-brand-fg">
           {ids.length} {ids.length === 1 ? 'vald' : 'valda'}
         </span>
 
         <select
           className={selectClass}
-          style={selectStyle}
           disabled={busy}
           value=""
           onChange={e => e.target.value && onRun('status', e.target.value)}
@@ -81,7 +76,6 @@ function BatchBar({
 
         <select
           className={selectClass}
-          style={selectStyle}
           disabled={busy}
           value=""
           onChange={e => e.target.value && onRun('segment', e.target.value)}
@@ -96,7 +90,6 @@ function BatchBar({
 
         <select
           className={selectClass}
-          style={selectStyle}
           disabled={busy}
           value=""
           onChange={e => e.target.value && onRun('priority', e.target.value)}
@@ -113,9 +106,9 @@ function BatchBar({
           type="button"
           disabled={busy}
           onClick={() => onRun('delete')}
-          className="rounded-[3px] px-3 py-1.5 text-[13px] font-medium transition-opacity hover:opacity-85 disabled:opacity-50"
-          style={{ background: 'var(--viz-flag)', color: '#fff' }}
+          className="inline-flex items-center gap-1.5 rounded-ctl bg-danger px-3 py-1.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
         >
+          <Trash2 size={14} strokeWidth={1.75} aria-hidden />
           Ta bort
         </button>
 
@@ -123,8 +116,7 @@ function BatchBar({
           type="button"
           disabled={busy}
           onClick={onClear}
-          className="ml-auto text-[13px] hover:underline disabled:opacity-50"
-          style={{ color: 'var(--viz-ink-3)' }}
+          className="ml-auto text-[13px] text-ink-3 hover:underline disabled:opacity-50"
         >
           {busy ? 'Arbetar…' : 'Avmarkera'}
         </button>
@@ -213,166 +205,120 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
 
   return (
     <>
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-        <label className="flex min-w-[220px] flex-1 flex-col gap-1.5">
-          <span
-            className="font-mono text-[10.5px] uppercase tracking-[0.12em]"
-            style={{ color: 'var(--viz-ink-3)' }}
-          >
-            Sök
-          </span>
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Namn, kundnr. eller segment"
-            className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-[14px] outline-none focus:border-b-2 focus:pb-[5px]"
-            style={{ color: 'var(--viz-ink)', borderColor: 'var(--viz-rule)' }}
-          />
-        </label>
-
-        <label
-          className="flex cursor-pointer items-center gap-2 pb-2 text-[13px]"
-          style={{ color: 'var(--viz-ink-2)' }}
-        >
+      <Toolbar>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Namn, kundnr. eller segment"
+        />
+        <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink-2">
           <input
             type="checkbox"
             checked={onlyUnworked}
             onChange={e => setOnlyUnworked(e.target.checked)}
-            style={{ accentColor: 'var(--viz-s1)' }}
+            style={{ accentColor: 'var(--adm-brand)' }}
           />
           Bara obearbetade
         </label>
-      </div>
+      </Toolbar>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span
-          className="mr-1 font-mono text-[10.5px] uppercase tracking-[0.12em]"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
+      {/* Statusfiltren behåller sin egen ton även omarkerade — det är den enda
+          platsen där hela statusskalan syns bredvid varandra. */}
+      <Toolbar className="gap-y-2">
+        <span className="mr-1 font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-3">
           Kundstatus
         </span>
         {[ALL, ...CLIENT_STATUSES].map(option => {
           const active = status === option;
-          const tone =
-            option === ALL
-              ? { color: 'var(--viz-ink-2)', background: 'transparent', border: '1px solid var(--viz-rule)' }
-              : toneStyle(option);
+          const color =
+            option === ALL ? 'var(--adm-brand)' : TONE_COLOR[statusTone(option)];
           return (
             <button
               key={option}
               type="button"
               aria-pressed={active}
               onClick={() => setStatus(active ? ALL : option)}
-              className="rounded-full px-2.5 py-[3px] text-[12.5px] leading-[1.5] transition-opacity"
+              className="rounded-full px-3 py-[5px] text-[12.5px] leading-[1.5] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-text"
               style={
                 active
-                  ? {
-                      color: 'var(--viz-surface)',
-                      background: option === ALL ? 'var(--viz-ink)' : tone.color,
-                      border: `1px solid ${option === ALL ? 'var(--viz-ink)' : tone.color}`,
-                    }
-                  : tone
+                  ? { color: '#fff', background: color, border: `1px solid ${color}`, fontWeight: 500 }
+                  : pillStyle(color)
               }
             >
               {option}
             </button>
           );
         })}
-      </div>
+      </Toolbar>
 
-      <div
-        className="flex items-baseline justify-between border-b pb-2"
-        style={{ borderColor: 'var(--viz-rule)' }}
-      >
-        <span className="flex items-center gap-2.5">
-          <input
-            type="checkbox"
-            aria-label="Markera alla i listan"
-            checked={allVisibleSelected}
-            ref={node => {
-              if (node) node.indeterminate = !allVisibleSelected && selectedVisible.length > 0;
-            }}
-            onChange={toggleAll}
-            disabled={visible.length === 0}
-            style={{ accentColor: 'var(--viz-s1)' }}
-          />
-          <span
-            className="font-mono text-[10.5px] uppercase tracking-[0.14em]"
-            style={{ color: 'var(--viz-ink-3)' }}
-          >
-            {visible.length} av {clients.length} kunder
-          </span>
-        </span>
-        <span
-          className="font-mono text-[10.5px] uppercase tracking-[0.14em] max-[620px]:hidden"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          Kontakter · Bearbetade
-        </span>
-      </div>
-
-      <ul className="flex flex-col">
-        {visible.map(client => (
-          <li
-            key={client.id}
-            className="flex items-center gap-2.5 border-b pl-1"
-            style={{
-              borderColor: 'var(--viz-grid)',
-              background: selected.has(client.id)
-                ? 'color-mix(in srgb, var(--viz-s1) 8%, transparent)'
-                : undefined,
-            }}
-          >
-            <input
-              type="checkbox"
-              aria-label={`Markera ${client.name}`}
-              checked={selected.has(client.id)}
-              onChange={() => toggleOne(client.id)}
-              style={{ accentColor: 'var(--viz-s1)' }}
-            />
-            <Link
-              href={`/admin/clients/${client.id}`}
-              className="grid flex-1 grid-cols-[56px_1fr_auto] items-center gap-x-4 gap-y-1 px-2 py-3 transition-colors hover:bg-[var(--viz-plane)] max-[620px]:grid-cols-[56px_1fr]"
-            >
-              <span
-                className="font-mono text-[12px] tabular-nums"
-                style={{ color: 'var(--viz-ink-3)' }}
-              >
-                {client.customerNo}
+      {visible.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Ingen kund matchar filtret"
+          description="Rensa sökningen eller välj en annan kundstatus."
+        />
+      ) : (
+        <div className="overflow-hidden rounded-card border border-rule bg-surface shadow-card">
+          <div className="flex items-center justify-between border-b border-rule bg-plane px-4 py-2.5">
+            <span className="flex items-center gap-2.5">
+              <input
+                type="checkbox"
+                aria-label="Markera alla i listan"
+                checked={allVisibleSelected}
+                ref={node => {
+                  if (node) node.indeterminate = !allVisibleSelected && selectedVisible.length > 0;
+                }}
+                onChange={toggleAll}
+                disabled={visible.length === 0}
+                style={{ accentColor: 'var(--adm-brand)' }}
+              />
+              <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">
+                {visible.length} av {clients.length} kunder
               </span>
-              <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                <span className="text-[14px]" style={{ color: 'var(--viz-ink)' }}>
-                  {client.name}
-                </span>
-                {client.segment && (
-                  <span
-                    className="rounded-full px-2 py-[2px] text-[12px] leading-[1.5]"
-                    style={{
-                      color: 'var(--viz-ink-2)',
-                      background: 'var(--viz-plane)',
-                      border: '1px solid var(--viz-rule)',
-                    }}
-                  >
-                    {client.segment}
+            </span>
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3 max-[620px]:hidden">
+              Kontakter · Bearbetade
+            </span>
+          </div>
+
+          <ul className="flex flex-col">
+            {visible.map(client => (
+              <li
+                key={client.id}
+                className="flex items-center gap-2.5 border-b border-grid pl-4 last:border-b-0"
+                style={
+                  selected.has(client.id)
+                    ? { background: 'color-mix(in srgb, var(--adm-brand) 7%, transparent)' }
+                    : undefined
+                }
+              >
+                <input
+                  type="checkbox"
+                  aria-label={`Markera ${client.name}`}
+                  checked={selected.has(client.id)}
+                  onChange={() => toggleOne(client.id)}
+                  style={{ accentColor: 'var(--adm-brand)' }}
+                />
+                <Link
+                  href={`/admin/clients/${client.id}`}
+                  className="grid flex-1 grid-cols-[56px_1fr_auto] items-center gap-x-4 gap-y-1 px-3 py-3 transition-colors hover:bg-plane max-[620px]:grid-cols-[56px_1fr]"
+                >
+                  <span className="font-mono text-[12px] tabular-nums text-ink-3">
+                    {client.customerNo}
                   </span>
-                )}
-                <StatusPill status={client.status} />
-              </span>
-              <span
-                className="font-mono text-[12px] tabular-nums max-[620px]:hidden"
-                style={{ color: 'var(--viz-ink-3)' }}
-              >
-                {client.contactCount} · {client.workedCount}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      {visible.length === 0 && (
-        <p className="text-[13.5px]" style={{ color: 'var(--viz-ink-3)' }}>
-          Ingen kund matchar filtret.
-        </p>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-[14px] text-ink">{client.name}</span>
+                    {client.segment && <Tag>{client.segment}</Tag>}
+                    <StatusPill status={client.status} />
+                  </span>
+                  <span className="font-mono text-[12px] tabular-nums text-ink-3 max-[620px]:hidden">
+                    {client.contactCount} · {client.workedCount}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <BatchBar

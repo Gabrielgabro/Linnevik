@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import ProductEditor from '@/components/admin/ProductEditor';
 import { getProductBreadcrumb } from '@/lib/catalogDb';
 import { landedPerPcs, products as landedProducts } from '@/data/landedCost';
@@ -31,22 +32,23 @@ export default async function AdminProductPage({
 
   return (
     <>
-      <nav
-        className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.12em]"
-        style={{ color: 'var(--viz-ink-3)' }}
-      >
-        <Link href="/admin/products" className="hover:underline">
+      <nav className="flex flex-wrap items-center gap-1 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-3">
+        <Link
+          href="/admin/products"
+          className="inline-flex items-center gap-1.5 rounded-ctl px-1.5 py-1 hover:bg-surface hover:text-ink"
+        >
+          <ArrowLeft size={13} strokeWidth={2} aria-hidden />
           Produkter
         </Link>
         {crumbs.map(crumb => (
-          <span key={crumb.handle} className="flex items-center gap-1.5">
-            <span aria-hidden>/</span>
+          <span key={crumb.handle} className="flex items-center gap-1">
+            <ChevronRight size={13} strokeWidth={2} aria-hidden className="opacity-60" />
             {crumb.title}
           </span>
         ))}
         {crumbs.length === 0 && (
-          <span className="flex items-center gap-1.5" style={{ color: 'var(--viz-flag)' }}>
-            <span aria-hidden>/</span>
+          <span className="flex items-center gap-1 text-danger">
+            <ChevronRight size={13} strokeWidth={2} aria-hidden className="opacity-60" />
             Ingen kategori — brödsmulan på sajten blir tom
           </span>
         )}

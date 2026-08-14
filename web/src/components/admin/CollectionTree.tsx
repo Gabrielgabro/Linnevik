@@ -9,7 +9,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import clsx from 'clsx';
+import { ChevronRight, FolderTree, Plus } from 'lucide-react';
 import { Button, ErrorNote, Field, formValues, TextArea } from '@/components/admin/Fields';
+import { EmptyState, Tag } from '@/components/admin/ui';
 import type { CollectionListRow } from '@/lib/productsDb';
 
 type Node = CollectionListRow & { depth: number };
@@ -99,34 +102,40 @@ function CollectionRow({ node, options }: { node: Node; options: CollectionListR
   };
 
   return (
-    <li className="border-b" style={{ borderColor: 'var(--viz-grid)' }}>
+    <li className="border-b border-grid last:border-b-0">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 py-3 text-left transition-colors hover:bg-[var(--viz-plane)]"
-        style={{ paddingLeft: `${node.depth * 20}px` }}
+        aria-expanded={open}
+        className="grid w-full grid-cols-[16px_1fr_auto] items-center gap-x-3 py-3 pr-4 text-left transition-colors hover:bg-plane"
+        // Indraget ritas som padding i stället för nästlade listor: trädet är
+        // en platt lista i trädordning, se flatten().
+        style={{ paddingLeft: `${16 + node.depth * 20}px` }}
       >
+        <ChevronRight
+          size={15}
+          strokeWidth={1.75}
+          aria-hidden
+          className={clsx(
+            'shrink-0 text-ink-3 transition-transform',
+            open && 'rotate-90',
+            node.depth > 0 && 'opacity-70'
+          )}
+        />
         <span className="flex flex-col gap-0.5">
-          <span
-            className="text-[14px]"
-            style={{ color: node.active ? 'var(--viz-ink)' : 'var(--viz-ink-3)' }}
-          >
-            {node.depth > 0 && <span aria-hidden>└ </span>}
+          <span className={node.active ? 'text-[14px] text-ink' : 'text-[14px] text-ink-3'}>
             {node.titleSv}
-            <span className="ml-2 text-[13px]" style={{ color: 'var(--viz-ink-3)' }}>
-              {node.titleEn}
-            </span>
+            <span className="ml-2 text-[13px] text-ink-3">{node.titleEn}</span>
           </span>
-          <span className="font-mono text-[11.5px]" style={{ color: 'var(--viz-ink-3)' }}>
+          <span className="font-mono text-[11.5px] text-ink-3">
             {node.handle} · pos {node.position}
-            {!node.active && ' · inaktiv'}
           </span>
         </span>
-        <span
-          className="font-mono text-[12px] tabular-nums"
-          style={{ color: 'var(--viz-ink-3)' }}
-        >
-          {node.productCount} {node.productCount === 1 ? 'produkt' : 'produkter'}
+        <span className="flex items-center gap-2">
+          {!node.active && <Tag>Inaktiv</Tag>}
+          <span className="whitespace-nowrap font-mono text-[12px] tabular-nums text-ink-3">
+            {node.productCount} {node.productCount === 1 ? 'produkt' : 'produkter'}
+          </span>
         </span>
       </button>
 
@@ -231,13 +240,9 @@ function NewCollection({ options }: { options: CollectionListRow[] }) {
 
   if (!open) {
     return (
-      <Button
-        type="button"
-        onClick={() => setOpen(true)}
-        style={{ background: 'var(--viz-s1)', color: '#fff' }}
-        className="self-start font-medium"
-      >
-        + Ny kategori
+      <Button type="button" onClick={() => setOpen(true)} className="self-start">
+        <Plus size={16} strokeWidth={2} aria-hidden />
+        Ny kategori
       </Button>
     );
   }
@@ -268,23 +273,22 @@ function NewCollection({ options }: { options: CollectionListRow[] }) {
   };
 
   return (
-    <form onSubmit={save} className="flex flex-col gap-4 pt-2">
+    <form
+      onSubmit={save}
+      className="flex flex-col gap-4 rounded-card border border-rule bg-surface p-5 shadow-card"
+    >
       <div className="grid grid-cols-2 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
         <Field label="Titel (sv)" name="titleSv" required placeholder="Täcken" />
         <Field label="Titel (en)" name="titleEn" required placeholder="Duvets" />
         <Field label="Handle" name="handle" placeholder="lämna tomt för automatisk" />
         <label className="flex flex-col gap-1.5">
-          <span
-            className="font-mono text-[10.5px] uppercase tracking-[0.12em]"
-            style={{ color: 'var(--viz-ink-3)' }}
-          >
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-3">
             Förälder
           </span>
           <select
             name="parentId"
             defaultValue=""
-            className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-[14px] outline-none focus:border-b-2 focus:pb-[5px]"
-            style={{ color: 'var(--viz-ink)', borderColor: 'var(--viz-rule)' }}
+            className="w-full rounded-ctl border border-rule bg-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-brand"
           >
             <option value="">— ingen (rot)</option>
             {options.map(option => (
@@ -313,16 +317,20 @@ export default function CollectionTree({ collections }: { collections: Collectio
 
   return (
     <>
-      <ul className="flex flex-col">
-        {nodes.map(node => (
-          <CollectionRow key={node.id} node={node} options={collections} />
-        ))}
-      </ul>
-
-      {nodes.length === 0 && (
-        <p className="text-[13.5px]" style={{ color: 'var(--viz-ink-3)' }}>
-          Inga kategorier ännu.
-        </p>
+      {nodes.length === 0 ? (
+        <EmptyState
+          icon={FolderTree}
+          title="Inga kategorier ännu"
+          description="Lägg upp en rotkategori här nedanför, så kan produkterna hängas under den."
+        />
+      ) : (
+        <div className="overflow-hidden rounded-card border border-rule bg-surface shadow-card">
+          <ul className="flex flex-col">
+            {nodes.map(node => (
+              <CollectionRow key={node.id} node={node} options={collections} />
+            ))}
+          </ul>
+        </div>
       )}
 
       <NewCollection options={collections} />
