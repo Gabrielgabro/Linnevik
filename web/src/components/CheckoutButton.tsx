@@ -20,6 +20,7 @@ type Props = {
     label: string;
     pendingLabel: string;
     errorLabel: string;
+    discountCode?: string;
 };
 
 export default function CheckoutButton({
@@ -28,6 +29,7 @@ export default function CheckoutButton({
     label,
     pendingLabel,
     errorLabel,
+    discountCode,
 }: Props) {
     const [isPending, setIsPending] = useState(false);
     const [hasError, setHasError] = useState(false);
@@ -41,7 +43,7 @@ export default function CheckoutButton({
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lines }),
+                body: JSON.stringify({ lines, discountCode }),
             });
             const data = await response.json();
 

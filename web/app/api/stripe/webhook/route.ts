@@ -9,7 +9,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
-import { markOrderFailed, markOrderPaid } from '@/lib/ordersDb';
+import { markOrderFailed, markOrderPaid, updateRefundStatus } from '@/lib/ordersDb';
+import { claimStripeEvent, completeStripeEvent, releaseStripeEvent } from '@/lib/stripeWebhookDb';
 
 export const runtime = 'nodejs';
 // Kroppen får inte cachas eller förvandlas — signaturen räknas på byte-nivå.
@@ -38,6 +39,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 });
   }
 
+  const claimed = await claimStripeEvent(event.id, event.type);
+  if (!claimed) return NextResponse.json({ received: true, duplicate: true });
+
   try {
     switch (event.type) {
       case 'checkout.session.completed':
@@ -64,6 +68,10 @@ export async function POST(request: NextRequest) {
               ? session.payment_intent
               : session.payment_intent?.id ?? null,
           email: details?.email ?? null,
+          stripeCustomerId:
+            typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
+          phone: details?.phone ?? null,
+          customerNo: session.metadata?.linnevik_customer_no ?? null,
           customerName: shipping?.name ?? details?.name ?? null,
           shippingAddress: shipping?.address
             ? {
@@ -76,12 +84,19 @@ export async function POST(request: NextRequest) {
               }
             : null,
           subtotalMinor: session.amount_subtotal ?? 0,
+          discountMinor: session.total_details?.amount_discount ?? 0,
+          shippingMinor: session.total_details?.amount_shipping ?? 0,
           taxMinor: session.total_details?.amount_tax ?? 0,
           totalMinor: session.amount_total ?? 0,
           currency: session.currency ?? 'sek',
         });
         break;
       }
+
+      case 'refund.updated':
+      case 'refund.failed':
+        await updateRefundStatus(event.data.object.id, event.data.object.status ?? 'pending');
+        break;
 
       case 'checkout.session.expired':
         await markOrderFailed(event.data.object.id, 'expired');
@@ -98,8 +113,10 @@ export async function POST(request: NextRequest) {
     // 500 gör att Stripe försöker igen. Skrivningarna är idempotenta, så ett
     // omtag är ofarligt och bättre än en tappad order.
     console.error(`[Stripe webhook] Failed to handle ${event.type}:`, error);
+    await releaseStripeEvent(event.id);
     return NextResponse.json({ error: 'Handler failed.' }, { status: 500 });
   }
 
+  await completeStripeEvent(event.id);
   return NextResponse.json({ received: true });
 }

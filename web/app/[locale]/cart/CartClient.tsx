@@ -5,10 +5,12 @@ import Image from 'next/image';
 import { LocaleLink } from '@/components/LocaleLink';
 import CheckoutButton from '@/components/CheckoutButton';
 import { useTranslation } from '@/contexts/LocaleContext';
+import { useState } from 'react';
 
 export default function CartClient() {
     const { t } = useTranslation();
     const { cart, isLoading, updateItem, removeItem } = useCart();
+    const [discountCode, setDiscountCode] = useState('');
 
     if (isLoading) {
         return (
@@ -165,6 +167,16 @@ export default function CartClient() {
                         );
                     })()}
 
+                    <label className="mt-5 block text-sm text-secondary">
+                        Rabattkod
+                        <input
+                            value={discountCode}
+                            onChange={event => setDiscountCode(event.target.value)}
+                            autoComplete="off"
+                            className="mt-2 w-full rounded border border-gray-300 bg-transparent px-3 py-2 uppercase dark:border-gray-600"
+                        />
+                    </label>
+
                     <CheckoutButton
                         lines={(cart?.lines.edges ?? []).map(({ node }) => ({
                             shopifyVariantId: node.merchandise.id,
@@ -174,6 +186,7 @@ export default function CartClient() {
                         label={t.cart.summary.checkout}
                         pendingLabel={t.cart.summary.checkoutPending}
                         errorLabel={t.cart.summary.checkoutError}
+                        discountCode={discountCode}
                     />
 
                     <LocaleLink

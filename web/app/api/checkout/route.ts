@@ -27,6 +27,7 @@ import {
 } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
+import { ensureStripeCoupon, resolveDiscount, resolveShipping } from '@/lib/commerceOperations';
 
 export const runtime = 'nodejs';
 
@@ -34,6 +35,8 @@ type CheckoutBody = {
   lines?: Array<{ sku?: unknown; shopifyVariantId?: unknown; quantity?: unknown }>;
   cartId?: unknown;
   customerNo?: unknown;
+  discountCode?: unknown;
+  email?: unknown;
 };
 
 function parseLines(body: CheckoutBody): PriceableRequest[] {
@@ -63,6 +66,8 @@ export async function POST(request: NextRequest) {
   let lines: PriceableRequest[];
   let ownedCartId: string | null = null;
   let customerNo: string | null = null;
+  let discountCode: string | null = null;
+  let email: string | null = null;
   try {
     const body = (await request.json()) as CheckoutBody;
     ownedCartId = typeof body.cartId === 'string' ? body.cartId.trim() : null;
@@ -74,6 +79,8 @@ export async function POST(request: NextRequest) {
     }
     lines = ownedCartId ? [] : parseLines(body);
     customerNo = typeof body.customerNo === 'string' ? body.customerNo : null;
+    discountCode = typeof body.discountCode === 'string' ? body.discountCode : null;
+    email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : null;
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Invalid request.' },
@@ -113,10 +120,36 @@ export async function POST(request: NextRequest) {
           stripeProductId: line.stripeProductId,
         }))
       : await priceLines(lines, { customerNo });
+    const subtotalMinor = priced.reduce(
+      (sum, line) => sum + line.unitAmountMinor * line.quantity,
+      0
+    );
+    const discount = await resolveDiscount({
+      code: discountCode,
+      subtotalMinor,
+      currency: priced[0].currency,
+      email,
+    });
+    const shipping = await resolveShipping({
+      subtotalMinor,
+      discountMinor: discount?.amountMinor,
+      currency: priced[0].currency,
+      countryCode: 'SE',
+      freeShipping: discount?.freeShipping,
+    });
+    if (!shipping) throw new Error('No shipping rule supports this order.');
+    const stripeCouponId = discount ? await ensureStripeCoupon(discount) : null;
     const orderId = await createPendingOrder(
       priced,
       locale,
-      ownedCart ? { id: ownedCart.id, version: ownedCart.version } : undefined
+      ownedCart ? { id: ownedCart.id, version: ownedCart.version } : undefined,
+      {
+        customerNo,
+        discount: discount
+          ? { id: discount.id, code: discount.code, amountMinor: discount.amountMinor }
+          : null,
+        shipping: { id: shipping.id, name: shipping.name, amountMinor: shipping.amountMinor },
+      }
     );
 
     const session = await getStripe().checkout.sessions.create({
@@ -127,6 +160,8 @@ export async function POST(request: NextRequest) {
       integration_identifier: stripeIntegrationIdentifier(),
       locale: locale === 'en' ? 'en' : 'sv',
       currency: priced[0].currency,
+      customer_creation: 'always',
+      ...(email ? { customer_email: email } : {}),
       line_items: priced.map(line => ({
         quantity: line.quantity,
         price_data: {
@@ -140,6 +175,16 @@ export async function POST(request: NextRequest) {
             : { product_data: { name: line.title } }),
         },
       })),
+      ...(stripeCouponId ? { discounts: [{ coupon: stripeCouponId }] } : {}),
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type: 'fixed_amount',
+            display_name: shipping.name,
+            fixed_amount: { amount: shipping.amountMinor, currency: shipping.currency },
+          },
+        },
+      ],
       shipping_address_collection: { allowed_countries: ['SE'] },
       billing_address_collection: 'required',
       // Krävs för att kunna dra av moms mot ett giltigt VAT-nummer vid B2B.
@@ -149,6 +194,8 @@ export async function POST(request: NextRequest) {
       metadata: {
         linnevik_order_id: String(orderId),
         ...(customerNo ? { linnevik_customer_no: customerNo } : {}),
+        ...(discount ? { linnevik_discount_id: String(discount.id) } : {}),
+        linnevik_shipping_rule_id: String(shipping.id),
       },
       success_url: getSiteUrl(`${locale}/checkout/klar?session_id={CHECKOUT_SESSION_ID}`),
       cancel_url: getSiteUrl(`${locale}/cart`),

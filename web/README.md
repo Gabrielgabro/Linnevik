@@ -5,8 +5,8 @@ live storefront/cart fallback while the owned path is tested.
 
 ## Owned commerce rollout
 
-1. Apply `drizzle/0005_owned_carts.sql` to the target database before deploying
-   code that enables the owned cart.
+1. Apply the numbered migrations through `drizzle/0009_stripe_webhook_idempotency.sql`
+   to the target database before deploying code that enables owned commerce.
 2. Set `OWNED_COMMERCE_ENABLED=true` only in the environment being tested.
    When absent or false, every `/api/store/cart` endpoint returns 503 and the
    existing Shopify cart remains unchanged.
@@ -16,7 +16,13 @@ live storefront/cart fallback while the owned path is tested.
 4. Optionally set `STRIPE_INTEGRATION_IDENTIFIER`. It must be a stable label
    ending in eight random letters. The default is `linnevik_owned_qhjmztka`.
 5. Use a separate restricted Stripe key for each environment and give it only
-   the Checkout Session/Product permissions exercised by this application.
+   the Checkout Session, Customer, Coupon and Refund permissions exercised by
+   this application. Store it as a sensitive Vercel environment variable.
+
+The operational admin is split into `/admin/orders`, `/admin/commerce`, and
+`/admin/customers`. Refund requests require a paid PaymentIntent and use a
+per-request idempotency key. Fulfillment quantities are checked against the
+remaining unfulfilled quantity before a shipment is recorded.
 
 The owned API accepts internal variant IDs, never prices:
 
