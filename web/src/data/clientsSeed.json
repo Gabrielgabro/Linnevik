@@ -449,9 +449,9 @@
   },
   {
     "customerNo": "1066",
-    "name": "Waxholms Hotell Aktiebol",
+    "name": "Waxholms Hotell Aktiebolag",
     "reminderFee": null,
-    "nameTruncated": true,
+    "nameTruncated": false,
     "notes": null
   },
   {
@@ -479,14 +479,14 @@
     "customerNo": "1070",
     "name": "Utbildningsförvaltningen",
     "reminderFee": null,
-    "nameTruncated": true,
+    "nameTruncated": false,
     "notes": null
   },
   {
     "customerNo": "1071",
-    "name": "Best Western Park City S",
+    "name": "Best Western Park City Solna",
     "reminderFee": null,
-    "nameTruncated": true,
+    "nameTruncated": false,
     "notes": null
   },
   {
@@ -533,10 +533,10 @@
   },
   {
     "customerNo": "1078",
-    "name": "Park City Hammarby Sjöst",
+    "name": "Park City Hammarby Sjöstad",
     "reminderFee": null,
-    "nameTruncated": true,
-    "notes": "Namnslut från källfilen: \"...stern\" – mitten saknas"
+    "nameTruncated": false,
+    "notes": null
   },
   {
     "customerNo": "1079",
@@ -549,7 +549,7 @@
     "customerNo": "1080",
     "name": "Riddargatan Profilhotels",
     "reminderFee": null,
-    "nameTruncated": true,
+    "nameTruncated": false,
     "notes": null
   },
   {
@@ -575,16 +575,16 @@
   },
   {
     "customerNo": "1084",
-    "name": "Kastellets Bed & Breakfa",
+    "name": "Kastellets Bed & Breakfast",
     "reminderFee": null,
-    "nameTruncated": true,
+    "nameTruncated": false,
     "notes": null
   },
   {
     "customerNo": "1085",
-    "name": "Nykvarns fest & hotell A",
+    "name": "Nykvarns fest & hotell AB",
     "reminderFee": null,
-    "nameTruncated": true,
+    "nameTruncated": false,
     "notes": null
   },
   {
@@ -792,9 +792,9 @@
   },
   {
     "customerNo": "1115",
-    "name": "Stockholm Meeting Select",
+    "name": "Stockholm Meeting Selection AB",
     "reminderFee": null,
-    "nameTruncated": true,
+    "nameTruncated": false,
     "notes": null
   }
 ]

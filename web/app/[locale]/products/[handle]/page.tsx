@@ -4,6 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs';
 import { Metadata } from 'next';
 
 import { getProductByHandle } from '@/lib/shopify';
+import { getProductBreadcrumb } from '@/lib/catalogDb';
 import { getHreflang } from '@/lib/metadata';
 import { SITE_URL, getSiteUrl } from '@/lib/site';
 import { toShopifyLanguage } from '@/lib/languageConfig';
@@ -89,14 +90,25 @@ export default async function ProductPage({ params }: Props) {
     const packSize = product.packSize?.value ? Number(product.packSize.value) : null;
     const hasMTOTag = product.tags?.includes('MTO') ?? false;
 
-    // Build breadcrumbs with collection information
-    const collections = product.collections.edges.map(e => e.node);
-    const primaryCollection = collections[0]; // Use the first collection
+    // Brödsmulorna kommer i första hand ur vår egen katalog: där finns en
+    // utpekad primär kategori och ett träd, medan Shopify bara ger en lista i
+    // godtycklig ordning. Fallbacket gäller tills kategorisynkningen körts.
+    const catalogCrumbs = await getProductBreadcrumb(handle, locale);
+    const shopifyCollections = product.collections.edges.map(e => e.node);
+    const categoryTrail = catalogCrumbs.length
+        ? catalogCrumbs
+        : shopifyCollections.slice(0, 1).map(collection => ({
+            handle: collection.handle,
+            title: collection.title,
+        }));
 
-    const breadcrumbItems = primaryCollection
+    const breadcrumbItems = categoryTrail.length
         ? [
             { href: "/collections", label: t.breadcrumb.categories },
-            { href: `/collections/${primaryCollection.handle}`, label: primaryCollection.title },
+            ...categoryTrail.map(crumb => ({
+                href: `/collections/${crumb.handle}`,
+                label: crumb.title,
+            })),
             { href: `/products/${handle}`, label: product.title }
         ]
         : [

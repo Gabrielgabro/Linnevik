@@ -344,19 +344,6 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
                 <span className="text-[14px]" style={{ color: 'var(--viz-ink)' }}>
                   {client.name}
                 </span>
-                {client.nameTruncated && (
-                  <span
-                    title="Namnet kapades i källfilen och behöver kompletteras"
-                    className="rounded-full px-2 py-[2px] font-mono text-[10px] uppercase tracking-[0.1em]"
-                    style={{
-                      color: 'var(--viz-s2)',
-                      background: 'color-mix(in srgb, var(--viz-s2) 11%, transparent)',
-                      border: '1px solid color-mix(in srgb, var(--viz-s2) 28%, transparent)',
-                    }}
-                  >
-                    kapat namn
-                  </span>
-                )}
                 {client.segment && (
                   <span
                     className="rounded-full px-2 py-[2px] text-[12px] leading-[1.5]"

@@ -51,12 +51,105 @@ CREATE TABLE IF NOT EXISTS "price_suggestions" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 
+-- Handelskatalogen (drizzle/0001_catalog.sql och 0002_catalog_hierarchy.sql).
+-- Fylls av scripts/stage-shopify-catalog.mjs + scripts/import-staged-catalog.mjs.
+CREATE TABLE IF NOT EXISTS "products" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	"shopify_product_id" text NOT NULL,
+	"handle" text NOT NULL,
+	"title" text NOT NULL,
+	"stripe_product_id" text,
+	"active" boolean DEFAULT true NOT NULL,
+	"source" text DEFAULT 'shopify' NOT NULL,
+	"source_synced_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "product_variants" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	"product_id" integer NOT NULL,
+	"shopify_variant_id" text NOT NULL,
+	"sku" text NOT NULL,
+	"option_values" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"price_minor" integer NOT NULL CHECK (price_minor >= 0),
+	"currency" text DEFAULT 'sek' NOT NULL CHECK (currency ~ '^[a-z]{3}$'),
+	"inventory_quantity" integer DEFAULT 0 NOT NULL,
+	"available_for_sale" boolean DEFAULT false NOT NULL,
+	"stripe_price_id" text,
+	"stripe_lookup_key" text,
+	"active" boolean DEFAULT true NOT NULL,
+	"source_synced_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "collections" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	"shopify_collection_id" text,
+	"handle" text NOT NULL,
+	"title_sv" text NOT NULL,
+	"title_en" text NOT NULL,
+	"parent_id" integer,
+	"position" integer DEFAULT 0 NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	"source_synced_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "product_collections" (
+	"product_id" integer NOT NULL,
+	"collection_id" integer NOT NULL,
+	"is_primary" boolean DEFAULT false NOT NULL,
+	"position" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "product_collections_pkey" PRIMARY KEY ("product_id", "collection_id")
+);
+
 DO $$ BEGIN
   ALTER TABLE "client_contacts" ADD CONSTRAINT "client_contacts_client_id_clients_id_fk"
     FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_product_id_products_id_fk"
+    FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE restrict;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "collections" ADD CONSTRAINT "collections_parent_id_collections_id_fk"
+    FOREIGN KEY ("parent_id") REFERENCES "public"."collections"("id") ON DELETE restrict;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "collections" ADD CONSTRAINT "collections_parent_not_self"
+    CHECK ("parent_id" IS NULL OR "parent_id" <> "id");
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "product_collections" ADD CONSTRAINT "product_collections_product_id_products_id_fk"
+    FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "product_collections" ADD CONSTRAINT "product_collections_collection_id_collections_id_fk"
+    FOREIGN KEY ("collection_id") REFERENCES "public"."collections"("id") ON DELETE cascade;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 CREATE INDEX IF NOT EXISTS "client_contacts_client_id_idx" ON "client_contacts" USING btree ("client_id");
 CREATE UNIQUE INDEX IF NOT EXISTS "clients_customer_no_key" ON "clients" USING btree ("customer_no");
+CREATE UNIQUE INDEX IF NOT EXISTS "products_shopify_product_id_key" ON "products" ("shopify_product_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "products_handle_key" ON "products" ("handle");
+CREATE INDEX IF NOT EXISTS "product_variants_product_id_idx" ON "product_variants" ("product_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "product_variants_shopify_variant_id_key" ON "product_variants" ("shopify_variant_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "product_variants_sku_key" ON "product_variants" ("sku");
+CREATE UNIQUE INDEX IF NOT EXISTS "product_variants_stripe_price_id_key"
+  ON "product_variants" ("stripe_price_id") WHERE "stripe_price_id" IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "product_variants_stripe_lookup_key_key"
+  ON "product_variants" ("stripe_lookup_key") WHERE "stripe_lookup_key" IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS "collections_handle_key" ON "collections" ("handle");
+CREATE UNIQUE INDEX IF NOT EXISTS "collections_shopify_collection_id_key"
+  ON "collections" ("shopify_collection_id") WHERE "shopify_collection_id" IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "collections_parent_id_idx" ON "collections" ("parent_id");
+CREATE INDEX IF NOT EXISTS "product_collections_collection_id_idx" ON "product_collections" ("collection_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "product_collections_primary_key"
+  ON "product_collections" ("product_id") WHERE "is_primary";
 
 -- Kundregistret ur sales/kunder_tvätteriet.xlsx (114 kunder).
 INSERT INTO clients (customer_no, name, reminder_fee, name_truncated, notes) VALUES
@@ -124,26 +217,26 @@ INSERT INTO clients (customer_no, name, reminder_fee, name_truncated, notes) VAL
   ('1063', 'Turinge Hotel AB', NULL, false, NULL),
   ('1064', 'Ulriksdals Wärdshus AB', NULL, false, NULL),
   ('1065', 'NP', NULL, false, NULL),
-  ('1066', 'Waxholms Hotell Aktiebol', NULL, true, NULL),
+  ('1066', 'Waxholms Hotell Aktiebolag', NULL, false, NULL),
   ('1067', 'LA NONNA', NULL, false, NULL),
   ('1068', 'With Hotell', NULL, false, NULL),
   ('1069', 'Wasa Park Hotel', NULL, false, NULL),
-  ('1070', 'Utbildningsförvaltningen', NULL, true, NULL),
-  ('1071', 'Best Western Park City S', NULL, true, NULL),
+  ('1070', 'Utbildningsförvaltningen', NULL, false, NULL),
+  ('1071', 'Best Western Park City Solna', NULL, false, NULL),
   ('1072', 'ASPACE', NULL, false, NULL),
   ('1073', 'Comforta AB', NULL, false, NULL),
   ('1074', 'Motel L Älvsjö', NULL, false, NULL),
   ('1075', 'Motel L Hammarby', NULL, false, NULL),
   ('1076', 'Apartments By Ligula', NULL, false, NULL),
   ('1077', 'Central Hotel Profil', NULL, false, NULL),
-  ('1078', 'Park City Hammarby Sjöst', NULL, true, 'Namnslut från källfilen: "...stern" – mitten saknas'),
+  ('1078', 'Park City Hammarby Sjöstad', NULL, false, NULL),
   ('1079', 'Stadshotell Älvsjö AB', NULL, false, NULL),
-  ('1080', 'Riddargatan Profilhotels', NULL, true, NULL),
+  ('1080', 'Riddargatan Profilhotels', NULL, false, NULL),
   ('1081', 'Restaurant Ergo', NULL, false, NULL),
   ('1082', 'Stockholm Live', NULL, false, NULL),
   ('1083', 'ProSolar i Stockholm AB', NULL, false, NULL),
-  ('1084', 'Kastellets Bed & Breakfa', NULL, true, NULL),
-  ('1085', 'Nykvarns fest & hotell A', NULL, true, NULL),
+  ('1084', 'Kastellets Bed & Breakfast', NULL, false, NULL),
+  ('1085', 'Nykvarns fest & hotell AB', NULL, false, NULL),
   ('1086', 'Fabrikören', NULL, false, NULL),
   ('1087', 'Kasten Bistro AB', NULL, false, NULL),
   ('1088', 'Copine', NULL, false, NULL),
@@ -173,5 +266,5 @@ INSERT INTO clients (customer_no, name, reminder_fee, name_truncated, notes) VAL
   ('1112', 'Sigtuna Hotel', NULL, false, NULL),
   ('1113', 'Kaggeholm', NULL, false, NULL),
   ('1114', 'RUBY', NULL, false, NULL),
-  ('1115', 'Stockholm Meeting Select', NULL, true, NULL)
+  ('1115', 'Stockholm Meeting Selection AB', NULL, false, NULL)
 ON CONFLICT (customer_no) DO NOTHING;

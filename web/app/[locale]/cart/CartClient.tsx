@@ -3,6 +3,7 @@
 import { useCart } from '@/contexts/CartContext';
 import Image from 'next/image';
 import { LocaleLink } from '@/components/LocaleLink';
+import CheckoutButton from '@/components/CheckoutButton';
 import { useTranslation } from '@/contexts/LocaleContext';
 
 export default function CartClient() {
@@ -164,12 +165,16 @@ export default function CartClient() {
                         );
                     })()}
 
-                    <a
-                        href={cart?.checkoutUrl || '#'}
-                        className="mt-6 block w-full py-3 px-6 text-center rounded-full bg-accent text-color-accent-primary font-semibold hover:bg-accent/90 transition-colors"
-                    >
-                        {t.cart.summary.checkout}
-                    </a>
+                    <CheckoutButton
+                        lines={(cart?.lines.edges ?? []).map(({ node }) => ({
+                            shopifyVariantId: node.merchandise.id,
+                            quantity: node.quantity,
+                        }))}
+                        fallbackUrl={cart?.checkoutUrl}
+                        label={t.cart.summary.checkout}
+                        pendingLabel={t.cart.summary.checkoutPending}
+                        errorLabel={t.cart.summary.checkoutError}
+                    />
 
                     <LocaleLink
                         href="/collections"

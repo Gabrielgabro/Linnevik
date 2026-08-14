@@ -686,7 +686,9 @@
       "vatLabel": "VAT (25%)",
       "totalInclVat": "Total incl. VAT",
       "checkout": "Proceed to checkout",
-      "continueShopping": "Continue shopping"
+      "continueShopping": "Continue shopping",
+      "checkoutPending": "Opening checkout…",
+      "checkoutError": "Checkout could not be opened. Please try again."
     }
   },
   "search": {
@@ -794,5 +796,16 @@
     "title": "Choose Your Region",
     "subtitle": "Select your country to see prices in your local currency",
     "changeNote": "You can change this anytime from the currency selector"
+  },
+  "checkout": {
+    "complete": {
+      "title": "Thank you for your order!",
+      "body": "We have received your payment and a confirmation is on its way to your inbox.",
+      "pendingTitle": "Payment processing",
+      "pendingBody": "Your payment has not been confirmed yet. This page will update once it clears.",
+      "orderNumber": "Order number",
+      "vat": "of which VAT",
+      "total": "Total"
+    }
   }
 }

@@ -9,7 +9,6 @@ export default async function AdminClientsPage() {
 
   const contacts = clients.reduce((sum, c) => sum + c.contactCount, 0);
   const worked = clients.reduce((sum, c) => sum + c.workedCount, 0);
-  const truncated = clients.filter(c => c.nameTruncated).length;
 
   return (
     <>
@@ -52,21 +51,6 @@ export default async function AdminClientsPage() {
           }}
         >
           DATABASE_URL saknas, så registret är tomt i den här miljön.
-        </p>
-      )}
-
-      {truncated > 0 && (
-        <p
-          className="rounded-[3px] border-l-2 py-2 pl-3 pr-3 text-[13.5px]"
-          style={{
-            color: 'var(--viz-ink-2)',
-            borderColor: 'var(--viz-s2)',
-            background: 'color-mix(in srgb, var(--viz-s2) 8%, transparent)',
-          }}
-        >
-          {truncated} kundnamn kapades av 24-teckensfältet i arkivlistan och behöver
-          kompletteras. De är märkta <em>kapat namn</em> i listan; märkningen försvinner när
-          namnet ändras.
         </p>
       )}
 

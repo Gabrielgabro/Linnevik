@@ -686,7 +686,9 @@
       "vatLabel": "Moms (25%)",
       "totalInclVat": "Totalt inkl. moms",
       "checkout": "Gå till kassan",
-      "continueShopping": "Fortsätt handla"
+      "continueShopping": "Fortsätt handla",
+      "checkoutPending": "Öppnar kassan…",
+      "checkoutError": "Kassan kunde inte öppnas. Försök igen."
     }
   },
   "search": {
@@ -794,5 +796,16 @@
     "title": "Välj din region",
     "subtitle": "Välj land för att se priser i din valuta",
     "changeNote": "Du kan ändra detta när som helst via valutaväljaren"
+  },
+  "checkout": {
+    "complete": {
+      "title": "Tack för din beställning!",
+      "body": "Vi har tagit emot din betalning och en bekräftelse är på väg till din e-post.",
+      "pendingTitle": "Betalningen behandlas",
+      "pendingBody": "Din betalning är inte bekräftad ännu. Sidan uppdateras när den gått igenom.",
+      "orderNumber": "Ordernummer",
+      "vat": "Varav moms",
+      "total": "Totalt"
+    }
   }
 }
