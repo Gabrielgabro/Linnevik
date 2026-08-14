@@ -1,4 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Linnevik web
+
+Next.js storefront and the Linnevik-owned commerce backend. Shopify remains the
+live storefront/cart fallback while the owned path is tested.
+
+## Owned commerce rollout
+
+1. Apply `drizzle/0005_owned_carts.sql` to the target database before deploying
+   code that enables the owned cart.
+2. Set `OWNED_COMMERCE_ENABLED=true` only in the environment being tested.
+   When absent or false, every `/api/store/cart` endpoint returns 503 and the
+   existing Shopify cart remains unchanged.
+3. Keep `STRIPE_TAX_REGISTRATION_CONFIRMED` unset until the Swedish registration
+   is visible as **Collecting** in Stripe. Set it to `true` only after that
+   operational check; this is what enables `automatic_tax` in Checkout.
+4. Optionally set `STRIPE_INTEGRATION_IDENTIFIER`. It must be a stable label
+   ending in eight random letters. The default is `linnevik_owned_qhjmztka`.
+5. Use a separate restricted Stripe key for each environment and give it only
+   the Checkout Session/Product permissions exercised by this application.
+
+The owned API accepts internal variant IDs, never prices:
+
+- `POST /api/store/cart` creates a cart.
+- `GET /api/store/cart/:id` reads and reprices it.
+- `POST /api/store/cart/:id/items` sets a variant quantity.
+- `PATCH` or `DELETE /api/store/cart/:id/items/:itemId` changes a line.
+- `POST /api/checkout` with `{ "cartId": "..." }` freezes the cart version and
+  creates or reuses its Stripe Checkout Session.
+
+Run `npm test` and `npm run build` before enabling the flag. Do not remove the
+Shopify fallback until test-mode payment, expiration, duplicate-webhook, and
+inventory scenarios have also passed in the deployment environment.
 
 ## Getting Started
 

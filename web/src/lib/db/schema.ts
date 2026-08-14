@@ -1,6 +1,7 @@
-import { eq, isNotNull } from 'drizzle-orm';
+import { eq, isNotNull, sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -145,6 +146,9 @@ export const productVariants = pgTable(
     priceMinor: integer('price_minor').notNull(),
     currency: text('currency').notNull().default('sek'),
     inventoryQuantity: integer('inventory_quantity').notNull().default(0),
+    minimumOrderQuantity: integer('minimum_order_quantity').notNull().default(1),
+    orderIncrement: integer('order_increment').notNull().default(1),
+    inventoryTracked: boolean('inventory_tracked').notNull().default(true),
     availableForSale: boolean('available_for_sale').notNull().default(false),
     stripePriceId: text('stripe_price_id'),
     stripeLookupKey: text('stripe_lookup_key'),
@@ -167,6 +171,8 @@ export const productVariants = pgTable(
     uniqueIndex('product_variants_stripe_lookup_key_key')
       .on(table.stripeLookupKey)
       .where(isNotNull(table.stripeLookupKey)),
+    check('product_variants_minimum_order_quantity_check', sql`${table.minimumOrderQuantity} > 0`),
+    check('product_variants_order_increment_check', sql`${table.orderIncrement} > 0`),
   ]
 );
 
@@ -250,6 +256,56 @@ export const productCollections = pgTable(
   ]
 );
 
+// Den egna korgen är en kapabilitetsresurs: ett slumpmässigt UUID fungerar som
+// både identifierare och den hemlighet som krävs för att läsa eller ändra den.
+// Den ligger parallellt med Shopify-korgen tills hela köpresan är verifierad.
+export const carts = pgTable(
+  'carts',
+  {
+    id: text('id').primaryKey(),
+    status: text('status').notNull().default('active'),
+    customerNo: text('customer_no'),
+    locale: text('locale').notNull().default('sv'),
+    currency: text('currency').notNull().default('sek'),
+    pricingVersion: text('pricing_version').notNull().default('v1'),
+    // Ökas vid varje ändring. Checkout använder (cart_id, version) som
+    // idempotensnyckel, så ett dubbelklick kan aldrig frysa två ordrar.
+    version: integer('version').notNull().default(1),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    checkoutStartedAt: timestamp('checkout_started_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    index('carts_status_expires_at_idx').on(table.status, table.expiresAt),
+    check('carts_version_check', sql`${table.version} > 0`),
+  ]
+);
+
+export const cartItems = pgTable(
+  'cart_items',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    cartId: text('cart_id')
+      .notNull()
+      .references(() => carts.id, { onDelete: 'cascade' }),
+    variantId: integer('variant_id')
+      .notNull()
+      .references(() => productVariants.id, { onDelete: 'restrict' }),
+    quantity: integer('quantity').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('cart_items_cart_variant_key').on(table.cartId, table.variantId),
+    index('cart_items_cart_id_idx').on(table.cartId),
+    check('cart_items_quantity_check', sql`${table.quantity} > 0`),
+  ]
+);
+
+export type CartRow = typeof carts.$inferSelect;
+export type CartItemRow = typeof cartItems.$inferSelect;
+
 // Ordrar. Stripe äger betalningen, vi äger ordern: beloppen skrivs av från
 // sessionen så att en order går att läsa utan att fråga Stripe, och
 // `stripeSessionId` är unik så att en omsänd webhook inte skapar en dubblett.
@@ -259,6 +315,8 @@ export const orders = pgTable(
     id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
     stripeSessionId: text('stripe_session_id').notNull(),
     stripePaymentIntentId: text('stripe_payment_intent_id'),
+    cartId: text('cart_id').references(() => carts.id, { onDelete: 'set null' }),
+    cartVersion: integer('cart_version'),
     status: text('status').notNull().default('pending'),
     email: text('email'),
     customerName: text('customer_name'),
@@ -276,6 +334,9 @@ export const orders = pgTable(
   table => [
     uniqueIndex('orders_stripe_session_id_key').on(table.stripeSessionId),
     index('orders_status_idx').on(table.status),
+    uniqueIndex('orders_cart_version_key')
+      .on(table.cartId, table.cartVersion)
+      .where(sql`${table.cartId} is not null and ${table.cartVersion} is not null`),
   ]
 );
 

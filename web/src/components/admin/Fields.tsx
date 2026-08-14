@@ -30,6 +30,8 @@ type FieldProps = {
   required?: boolean;
   placeholder?: string;
   step?: string;
+  min?: string;
+  max?: string;
   className?: string;
 };
 
@@ -41,6 +43,8 @@ export function Field({
   required,
   placeholder,
   step,
+  min,
+  max,
   className,
 }: FieldProps) {
   return (
@@ -53,6 +57,8 @@ export function Field({
         name={name}
         type={type}
         step={step}
+        min={min}
+        max={max}
         required={required}
         placeholder={placeholder}
         defaultValue={defaultValue ?? ''}

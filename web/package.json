@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "check:localization": "node scripts/check-localization.mjs",
     "catalog:migrate": "node scripts/migrate-catalog-from-shopify.mjs",
     "catalog:stripe": "node scripts/push-stripe-catalog.mjs",
@@ -24,8 +26,8 @@
     "drizzle-orm": "^0.45.2",
     "flowbite-react": "^0.12.10",
     "googleapis": "^170.1.0",
-    "next": "^15.5.7",
-    "nodemailer": "^7.0.11",
+    "next": "16.3.1",
+    "nodemailer": "9.0.5",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-icons": "^5.5.0",
@@ -33,23 +35,19 @@
     "stripe": "^22.5.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^2.1.4",
     "@types/node": "^20",
-    "@types/nodemailer": "^7.0.4",
+    "@types/nodemailer": "8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^8.0.0",
-    "eslint-config-next": "^14.0.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.1",
     "postcss": "^8.5.6",
     "tailwindcss": "3.4",
-    "typescript": "^5"
-  },
-  "overrides": {
-    "strip-ansi": "7.1.2",
-    "ansi-styles": "6.2.3"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20 <23",

@@ -115,8 +115,22 @@ export function parseVariantInput(body: Body, { partial = false } = {}): Variant
   const inventoryQuantity = count(body, 'inventoryQuantity', 1_000_000);
   if (inventoryQuantity !== undefined) input.inventoryQuantity = inventoryQuantity;
 
+  const minimumOrderQuantity = count(body, 'minimumOrderQuantity', 10_000);
+  if (minimumOrderQuantity !== undefined) {
+    if (minimumOrderQuantity < 1) throw new InputError('Minsta beställningsantal måste vara minst 1.');
+    input.minimumOrderQuantity = minimumOrderQuantity;
+  }
+
+  const orderIncrement = count(body, 'orderIncrement', 10_000);
+  if (orderIncrement !== undefined) {
+    if (orderIncrement < 1) throw new InputError('Beställningssteget måste vara minst 1.');
+    input.orderIncrement = orderIncrement;
+  }
+
   const availableForSale = bool(body, 'availableForSale');
   if (availableForSale !== undefined) input.availableForSale = availableForSale;
+  const inventoryTracked = bool(body, 'inventoryTracked');
+  if (inventoryTracked !== undefined) input.inventoryTracked = inventoryTracked;
   const active = bool(body, 'active');
   if (active !== undefined) input.active = active;
 

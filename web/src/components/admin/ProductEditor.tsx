@@ -359,6 +359,9 @@ function VariantRow({
         sku: values.sku,
         priceMinor,
         inventoryQuantity: values.inventoryQuantity,
+        minimumOrderQuantity: values.minimumOrderQuantity,
+        orderIncrement: values.orderIncrement,
+        inventoryTracked: values.inventoryTracked === 'on',
         availableForSale: values.availableForSale === 'on',
         active: values.active === 'on',
       }),
@@ -446,6 +449,20 @@ function VariantRow({
               type="number"
               defaultValue={String(variant.inventoryQuantity)}
             />
+            <Field
+              label="Minsta antal"
+              name="minimumOrderQuantity"
+              type="number"
+              min="1"
+              defaultValue={String(variant.minimumOrderQuantity)}
+            />
+            <Field
+              label="Beställningssteg"
+              name="orderIncrement"
+              type="number"
+              min="1"
+              defaultValue={String(variant.orderIncrement)}
+            />
           </div>
 
           <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -472,6 +489,18 @@ function VariantRow({
                 style={{ accentColor: 'var(--viz-s1)' }}
               />
               Säljbar
+            </label>
+            <label
+              className="flex cursor-pointer items-center gap-2 text-[13px]"
+              style={{ color: 'var(--viz-ink-2)' }}
+            >
+              <input
+                type="checkbox"
+                name="inventoryTracked"
+                defaultChecked={variant.inventoryTracked}
+                style={{ accentColor: 'var(--viz-s1)' }}
+              />
+              Lagerstyrd
             </label>
           </div>
 
@@ -536,6 +565,10 @@ function NewVariant({ productId }: { productId: number }) {
         sku: values.sku,
         priceMinor: toMinor(values.price),
         inventoryQuantity: values.inventoryQuantity || 0,
+        minimumOrderQuantity: values.minimumOrderQuantity || 1,
+        orderIncrement: values.orderIncrement || 1,
+        inventoryTracked: values.inventoryTracked === 'on',
+        availableForSale: values.availableForSale === 'on',
         optionValues: values.optionName
           ? [{ name: values.optionName, value: values.optionValue }]
           : [],
@@ -557,8 +590,20 @@ function NewVariant({ productId }: { productId: number }) {
         <Field label="SKU" name="sku" required placeholder="TAC-SEB-150200-AND" />
         <Field label="Pris (SEK, inkl. moms)" name="price" type="number" step="0.01" required />
         <Field label="Lager" name="inventoryQuantity" type="number" defaultValue="0" />
+        <Field label="Minsta antal" name="minimumOrderQuantity" type="number" min="1" defaultValue="1" />
+        <Field label="Beställningssteg" name="orderIncrement" type="number" min="1" defaultValue="1" />
         <Field label="Alternativ" name="optionName" placeholder="Storlek" />
         <Field label="Värde" name="optionValue" placeholder="150x200" />
+      </div>
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <label className="flex cursor-pointer items-center gap-2 text-[13px]" style={{ color: 'var(--viz-ink-2)' }}>
+          <input type="checkbox" name="availableForSale" style={{ accentColor: 'var(--viz-s1)' }} />
+          Säljbar
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-[13px]" style={{ color: 'var(--viz-ink-2)' }}>
+          <input type="checkbox" name="inventoryTracked" defaultChecked style={{ accentColor: 'var(--viz-s1)' }} />
+          Lagerstyrd
+        </label>
       </div>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={busy}>

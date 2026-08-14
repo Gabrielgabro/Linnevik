@@ -250,6 +250,9 @@ export type VariantInput = Partial<
     | 'priceMinor'
     | 'currency'
     | 'inventoryQuantity'
+    | 'minimumOrderQuantity'
+    | 'orderIncrement'
+    | 'inventoryTracked'
     | 'availableForSale'
     | 'active'
   >
