@@ -14,7 +14,14 @@ import { Button, ErrorNote } from '@/components/admin/Fields';
 import { formatMinor } from '@/lib/money';
 import type { ProductListRow } from '@/lib/productsDb';
 
-type Filter = 'alla' | 'i-lager' | 'slut' | 'utan-stripe' | 'utan-kategori' | 'inaktiva';
+type Filter =
+  | 'alla'
+  | 'i-lager'
+  | 'slut'
+  | 'utan-stripe'
+  | 'utan-kategori'
+  | 'utan-leverantor'
+  | 'inaktiva';
 
 const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: 'alla', label: 'Alla' },
@@ -22,6 +29,7 @@ const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: 'slut', label: 'Slut' },
   { key: 'utan-stripe', label: 'Saknar Stripe' },
   { key: 'utan-kategori', label: 'Utan kategori' },
+  { key: 'utan-leverantor', label: 'Okänd leverantör' },
   { key: 'inaktiva', label: 'Inaktiva' },
 ];
 
@@ -117,11 +125,13 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
       if (filter === 'slut' && product.stock > 0) return false;
       if (filter === 'utan-stripe' && product.stripeProductId) return false;
       if (filter === 'utan-kategori' && product.primaryCollection) return false;
+      if (filter === 'utan-leverantor' && product.supplier !== 'unknown') return false;
       if (filter === 'inaktiva' && product.active) return false;
       if (!needle) return true;
       return (
         product.title.toLowerCase().includes(needle) ||
         product.handle.toLowerCase().includes(needle) ||
+        product.supplier.toLowerCase().includes(needle) ||
         product.tags.some(tag => tag.toLowerCase().includes(needle))
       );
     });
@@ -140,7 +150,7 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Titel, handle eller tagg"
+            placeholder="Titel, handle, tagg eller leverantör"
             className="w-full rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-[14px] outline-none focus:border-b-2 focus:pb-[5px]"
             style={{ color: 'var(--viz-ink)', borderColor: 'var(--viz-rule)' }}
           />
@@ -265,6 +275,7 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
                   {product.handle} · {product.variantCount}{' '}
                   {product.variantCount === 1 ? 'variant' : 'varianter'}
                   {product.primaryCollection ? ` · ${product.primaryCollection}` : ' · ingen kategori'}
+                  {` · ${product.supplier === 'unknown' ? 'okänd leverantör' : product.supplier}`}
                 </span>
               </span>
 

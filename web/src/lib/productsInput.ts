@@ -87,10 +87,21 @@ export function parseProductInput(body: Body, { partial = false } = {}): Product
   };
   if (title) input.title = title;
 
+  // Leverantören är NOT NULL i databasen. Ett tomrensat fält betyder därför
+  // "vi vet inte" och blir 'unknown', inte null.
+  if (body.supplier !== undefined) input.supplier = text(body, 'supplier', 120) ?? 'unknown';
+
   const tagList = tags(body, 'tags');
   if (tagList !== undefined) input.tags = tagList;
   const active = bool(body, 'active');
   if (active !== undefined) input.active = active;
+  if (body.status !== undefined) {
+    const status = text(body, 'status', 20);
+    if (!status || !['active', 'draft', 'archived'].includes(status)) {
+      throw new InputError('Produktstatus måste vara active, draft eller archived.');
+    }
+    input.status = status;
+  }
 
   return input;
 }
@@ -159,6 +170,17 @@ export function parseCollectionInput(body: Body, { partial = false } = {}): Coll
   const input: CollectionInput = {};
   if (titleSv) input.titleSv = titleSv;
   if (titleEn) input.titleEn = titleEn;
+
+  for (const key of [
+    'descriptionHtml',
+    'descriptionHtmlEn',
+    'seoTitle',
+    'seoTitleEn',
+    'seoDescription',
+    'seoDescriptionEn',
+  ] as const) {
+    if (body[key] !== undefined) input[key] = text(body, key, 20_000) ?? null;
+  }
 
   const handle = text(body, 'handle', 80);
   if (handle) input.handle = handle;

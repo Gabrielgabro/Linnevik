@@ -287,6 +287,7 @@ ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "description_html_en" text;
 ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "tags" text[] DEFAULT '{}' NOT NULL;
 ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "product_type" text;
 ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "vendor" text;
+ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "supplier" text DEFAULT 'unknown' NOT NULL;
 ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "seo_title" text;
 ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "seo_description" text;
 
@@ -372,3 +373,38 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS "orders_cart_version_key"
   ON "orders" ("cart_id", "cart_version")
   WHERE "cart_id" IS NOT NULL AND "cart_version" IS NOT NULL;
+
+DO $$ BEGIN
+  ALTER TABLE "products" ADD CONSTRAINT "products_supplier_check"
+    CHECK (length(btrim("supplier")) > 0);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE INDEX IF NOT EXISTS "products_supplier_idx" ON "products" ("supplier");
+
+-- 0007: full localized collection content and repeatable image imports.
+ALTER TABLE "products"
+  ADD COLUMN IF NOT EXISTS "seo_title_en" text,
+  ADD COLUMN IF NOT EXISTS "seo_description_en" text,
+  ADD COLUMN IF NOT EXISTS "shopify_updated_at" timestamp with time zone;
+
+ALTER TABLE "product_images"
+  ADD COLUMN IF NOT EXISTS "source_url" text,
+  ADD COLUMN IF NOT EXISTS "width" integer,
+  ADD COLUMN IF NOT EXISTS "height" integer;
+CREATE UNIQUE INDEX IF NOT EXISTS "product_images_product_source_key"
+  ON "product_images" ("product_id", "source_url")
+  WHERE "source_url" IS NOT NULL;
+
+ALTER TABLE "collections"
+  ADD COLUMN IF NOT EXISTS "description_html" text,
+  ADD COLUMN IF NOT EXISTS "description_html_en" text,
+  ADD COLUMN IF NOT EXISTS "seo_title" text,
+  ADD COLUMN IF NOT EXISTS "seo_title_en" text,
+  ADD COLUMN IF NOT EXISTS "seo_description" text,
+  ADD COLUMN IF NOT EXISTS "seo_description_en" text,
+  ADD COLUMN IF NOT EXISTS "image_url" text,
+  ADD COLUMN IF NOT EXISTS "image_blob_pathname" text,
+  ADD COLUMN IF NOT EXISTS "image_source_url" text,
+  ADD COLUMN IF NOT EXISTS "image_alt_text" text,
+  ADD COLUMN IF NOT EXISTS "image_width" integer,
+  ADD COLUMN IF NOT EXISTS "image_height" integer,
+  ADD COLUMN IF NOT EXISTS "shopify_updated_at" timestamp with time zone;

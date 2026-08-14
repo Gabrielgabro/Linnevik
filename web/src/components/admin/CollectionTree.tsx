@@ -9,7 +9,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { Button, ErrorNote, Field, formValues } from '@/components/admin/Fields';
+import { Button, ErrorNote, Field, formValues, TextArea } from '@/components/admin/Fields';
 import type { CollectionListRow } from '@/lib/productsDb';
 
 type Node = CollectionListRow & { depth: number };
@@ -62,6 +62,12 @@ function CollectionRow({ node, options }: { node: Node; options: CollectionListR
       body: JSON.stringify({
         titleSv: values.titleSv,
         titleEn: values.titleEn,
+        descriptionHtml: values.descriptionHtml,
+        descriptionHtmlEn: values.descriptionHtmlEn,
+        seoTitle: values.seoTitle,
+        seoTitleEn: values.seoTitleEn,
+        seoDescription: values.seoDescription,
+        seoDescriptionEn: values.seoDescriptionEn,
         handle: values.handle,
         parentId: values.parentId ? Number(values.parentId) : null,
         position: values.position,
@@ -171,6 +177,25 @@ function CollectionRow({ node, options }: { node: Node; options: CollectionListR
               />
               Aktiv
             </label>
+          </div>
+
+          {node.imageUrl && (
+            // Imported collection artwork is already served from our Blob store.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={node.imageUrl}
+              alt={node.imageAltText ?? node.titleSv}
+              className="max-h-52 w-auto object-contain object-left"
+            />
+          )}
+
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
+            <TextArea label="Beskrivning (sv, HTML)" name="descriptionHtml" rows={6} defaultValue={node.descriptionHtml} />
+            <TextArea label="Beskrivning (en, HTML)" name="descriptionHtmlEn" rows={6} defaultValue={node.descriptionHtmlEn} />
+            <Field label="SEO-titel (sv)" name="seoTitle" defaultValue={node.seoTitle} />
+            <Field label="SEO-titel (en)" name="seoTitleEn" defaultValue={node.seoTitleEn} />
+            <TextArea label="SEO-beskrivning (sv)" name="seoDescription" defaultValue={node.seoDescription} />
+            <TextArea label="SEO-beskrivning (en)" name="seoDescriptionEn" defaultValue={node.seoDescriptionEn} />
           </div>
 
           <div className="flex flex-wrap items-center gap-3">

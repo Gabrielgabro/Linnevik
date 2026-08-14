@@ -9,7 +9,7 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, ErrorNote, Field, TextArea, formValues } from '@/components/admin/Fields';
+import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
 import { formatMinor, toMinor } from '@/lib/money';
 import type { CollectionListRow, ProductDetail, VariantWithUsage } from '@/lib/productsDb';
 
@@ -64,7 +64,6 @@ function ContentPanel({ detail }: { detail: ProductDetail }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...values,
-        active: values.active === 'on',
         tags: values.tags,
       }),
     });
@@ -96,7 +95,14 @@ function ContentPanel({ detail }: { detail: ProductDetail }) {
           placeholder="MTO, dun"
         />
         <Field label="Typ" name="productType" defaultValue={product.productType} />
-        <Field label="Leverantör" name="vendor" defaultValue={product.vendor} />
+        {/* Varumärket syns för kunden, leverantören gör det inte. */}
+        <Field label="Varumärke" name="vendor" defaultValue={product.vendor} />
+        <Field
+          label="Leverantör"
+          name="supplier"
+          defaultValue={product.supplier}
+          placeholder="unknown"
+        />
       </div>
 
       <TextArea
@@ -117,18 +123,13 @@ function ContentPanel({ detail }: { detail: ProductDetail }) {
         <Field label="SEO-beskrivning" name="seoDescription" defaultValue={product.seoDescription} />
       </div>
 
-      <label
-        className="flex cursor-pointer items-center gap-2 text-[13px]"
-        style={{ color: 'var(--viz-ink-2)' }}
-      >
-        <input
-          type="checkbox"
-          name="active"
-          defaultChecked={product.active}
-          style={{ accentColor: 'var(--viz-s1)' }}
-        />
-        Aktiv — visas på sajten och går att sälja
-      </label>
+      <Select
+        label="Publiceringsstatus"
+        name="status"
+        options={['active', 'draft', 'archived']}
+        defaultValue={product.status}
+        required
+      />
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={busy}>

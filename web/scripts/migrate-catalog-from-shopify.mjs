@@ -1,21 +1,12 @@
 /**
- * Flytta hem produktinnehållet från Shopify. En gång, sedan aldrig mer.
+ * Copy the current public Shopify catalog into the owned Neon/Blob backend.
  *
- * Torrkörning (standard): npm run catalog:migrate
- * Skriv på riktigt:       npm run catalog:migrate -- --apply
+ * Dry run: npm run catalog:migrate
+ * Apply:   npm run catalog:migrate -- --apply
  *
- * Det här är inte en synkning. Efter den här körningen äger Neon texterna,
- * taggarna och bilderna, importskripten är borttagna, och /admin är där
- * katalogen redigeras. Skriptet är skrivet för att köras en gång och sedan
- * raderas — det finns ingen mening med att underhålla det.
- *
- * Bilderna laddas ner från cdn.shopify.com och upp i Vercel Blob. Det är
- * själva poängen: en bild-URL som pekar på Shopify gör butiken omöjlig att
- * stänga, hur mycket text vi än kopierat.
- *
- * Kör efter att drizzle/0004_catalog_content.sql är applicerad.
+ * This is an explicit import, not a live application dependency. It is safe
+ * to rerun: source URLs identify imported images and owned/admin images remain.
  */
-import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { neon } from '@neondatabase/serverless';
@@ -23,260 +14,104 @@ import { put } from '@vercel/blob';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const apply = process.argv.includes('--apply');
-
-if (!process.env.DATABASE_URL || !process.env.BLOB_READ_WRITE_TOKEN) {
-  try {
-    process.loadEnvFile(resolve(here, '../.env.local'));
-  } catch {
-    // Variablerna kan redan vara satta av anroparen.
-  }
+try {
+  process.loadEnvFile(resolve(here, '../.env.local'));
+} catch {
+  // CI and production can provide variables directly.
 }
 
 const domain = process.env.SHOPIFY_STORE_DOMAIN;
 const token = process.env.SHOPIFY_STOREFRONT_TOKEN;
-const sql = neon(process.env.DATABASE_URL);
-
+const apiVersion = process.env.SHOPIFY_API_VERSION ?? '2026-07';
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL krävs.');
+if (!domain || !token) {
+  throw new Error('SHOPIFY_STORE_DOMAIN och SHOPIFY_STOREFRONT_TOKEN krävs.');
+}
 if (apply && !process.env.BLOB_READ_WRITE_TOKEN) {
-  throw new Error('BLOB_READ_WRITE_TOKEN krävs för att kunna flytta bilderna.');
+  throw new Error('BLOB_READ_WRITE_TOKEN krävs för att kopiera bilder.');
 }
 
-// --- CSV ---------------------------------------------------------------
-// Samma parser som stage-shopify-catalog.mjs. Kopierad med flit: det skriptet
-// tas bort i samma ändring, och den här filen ska kunna stå för sig själv.
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let quoted = false;
+const sql = neon(process.env.DATABASE_URL);
+const endpoint = `https://${domain}/api/${apiVersion}/graphql.json`;
 
-  for (let index = 0; index < text.length; index++) {
-    const character = text[index];
-    if (quoted) {
-      if (character === '"' && text[index + 1] === '"') {
-        field += '"';
-        index++;
-      } else if (character === '"') quoted = false;
-      else field += character;
-    } else if (character === '"') quoted = true;
-    else if (character === ',') {
-      row.push(field);
-      field = '';
-    } else if (character === '\n') {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = '';
-    } else if (character !== '\r') field += character;
+async function storefront(query, variables) {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Storefront-Access-Token': token,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const payload = await response.json();
+  if (!response.ok || payload.errors) {
+    throw new Error(
+      `Shopify-frågan misslyckades (${response.status}): ${JSON.stringify(payload.errors ?? payload)}`
+    );
   }
-  if (field || row.length) {
-    row.push(field);
-    rows.push(row);
-  }
-
-  const [headers, ...body] = rows.filter(candidate => candidate.some(value => value !== ''));
-  return body.map(values =>
-    Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']))
-  );
+  return payload.data;
 }
 
-const exportPath = resolve(
-  here,
-  '../../catalog/shopify/latest_export/products_export_1_order_descriptions.csv'
-);
-const csvRows = parseCsv(readFileSync(exportPath, 'utf8'));
-
-/**
- * Shopifys export har en rad per variant *och* per bild. Produktfälten står
- * bara på den första raden för varje handle; bildraderna har bara Image Src.
- */
-const byHandle = new Map();
-for (const row of csvRows) {
-  const handle = row.Handle?.trim();
-  if (!handle) continue;
-
-  if (!byHandle.has(handle)) {
-    byHandle.set(handle, { handle, content: null, images: [] });
-  }
-  const entry = byHandle.get(handle);
-
-  if (!entry.content && row.Title?.trim()) {
-    entry.content = {
-      title: row.Title.trim(),
-      descriptionHtml: row['Body (HTML)']?.trim() || null,
-      vendor: row.Vendor?.trim() || null,
-      productType: row.Type?.trim() || null,
-      seoTitle: row['SEO Title']?.trim() || null,
-      seoDescription: row['SEO Description']?.trim() || null,
-      tags: (row.Tags ?? '')
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(Boolean),
-    };
-  }
-
-  const src = row['Image Src']?.trim();
-  if (src && !entry.images.some(image => image.src === src)) {
-    entry.images.push({
-      src,
-      alt: row['Image Alt Text']?.trim() || null,
-      position: Number(row['Image Position']) || entry.images.length + 1,
-    });
-  }
-}
-
-// --- Engelska ----------------------------------------------------------
-// Enda stället engelskan finns är Shopify, bakom @inContext. Efter att butiken
-// stängts går den inte att få tag på igen, så den hämtas nu.
-const EN_QUERY = `query Products($cursor: String) @inContext(language: EN) {
-  products(first: 100, after: $cursor) {
+const PRODUCTS_QUERY = `query CatalogProducts($cursor: String, $language: LanguageCode!)
+@inContext(language: $language) {
+  products(first: 100, after: $cursor, sortKey: TITLE) {
     pageInfo { hasNextPage endCursor }
-    nodes { handle title descriptionHtml }
+    nodes {
+      id handle title descriptionHtml productType vendor tags updatedAt
+      seo { title description }
+      images(first: 250) { nodes { url altText width height } }
+    }
   }
 }`;
 
-async function fetchEnglish() {
-  if (!domain || !token) {
-    console.warn(
-      '! SHOPIFY_STORE_DOMAIN/SHOPIFY_STOREFRONT_TOKEN saknas — engelskan hämtas inte.\n' +
-        '  Kör inte skarpt utan dem: den engelska texten finns ingen annanstans.'
-    );
-    return new Map();
-  }
-
-  const out = new Map();
-  let cursor = null;
-  do {
-    const response = await fetch(`https://${domain}/api/2025-01/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Storefront-Access-Token': token,
-      },
-      body: JSON.stringify({ query: EN_QUERY, variables: { cursor } }),
-    });
-    const payload = await response.json();
-    if (!response.ok || payload.errors) {
-      throw new Error(
-        `Shopify-frågan misslyckades (${response.status}): ${JSON.stringify(payload.errors ?? payload)}`
-      );
-    }
-    for (const node of payload.data.products.nodes) {
-      out.set(node.handle, { title: node.title, descriptionHtml: node.descriptionHtml });
-    }
-    cursor = payload.data.products.pageInfo.hasNextPage
-      ? payload.data.products.pageInfo.endCursor
-      : null;
-  } while (cursor);
-  return out;
-}
-
-// --- Kategorier --------------------------------------------------------
-// Kategorierna har aldrig importerats: tabellen är tom i produktion, och
-// brödsmulorna faller därför tillbaka på Shopify vid varje sidvisning. De
-// hämtas en gång per språk, precis som titlarna, och medlemskapen med dem —
-// när butiken stängts finns det ingenstans att läsa dem ifrån.
-//
-// `parent_id` sätts inte: Shopify har inga nästlade kategorier. Hierarkin är
-// vår egen och redigeras under /admin/collections.
-const COLLECTION_QUERY = `query Collections($cursor: String, $language: LanguageCode!)
+const COLLECTIONS_QUERY = `query CatalogCollections($cursor: String, $language: LanguageCode!)
 @inContext(language: $language) {
   collections(first: 100, after: $cursor, sortKey: TITLE) {
     pageInfo { hasNextPage endCursor }
     nodes {
-      id handle title
+      id handle title descriptionHtml updatedAt
+      seo { title description }
+      image { url altText width height }
       products(first: 250) { nodes { handle } }
     }
   }
 }`;
 
-async function fetchCollections(language) {
-  if (!domain || !token) return [];
+async function fetchConnection(query, root, language) {
   const nodes = [];
   let cursor = null;
   do {
-    const response = await fetch(`https://${domain}/api/2025-01/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Storefront-Access-Token': token,
-      },
-      body: JSON.stringify({ query: COLLECTION_QUERY, variables: { cursor, language } }),
-    });
-    const payload = await response.json();
-    if (!response.ok || payload.errors) {
-      throw new Error(
-        `Shopify-kategorifrågan misslyckades (${response.status}): ${JSON.stringify(payload.errors ?? payload)}`
-      );
-    }
-    nodes.push(...payload.data.collections.nodes);
-    cursor = payload.data.collections.pageInfo.hasNextPage
-      ? payload.data.collections.pageInfo.endCursor
-      : null;
+    const data = await storefront(query, { cursor, language });
+    nodes.push(...data[root].nodes);
+    cursor = data[root].pageInfo.hasNextPage ? data[root].pageInfo.endCursor : null;
   } while (cursor);
   return nodes;
 }
 
-async function migrateCollections(productIdByHandle) {
-  const [sv, en] = await Promise.all([fetchCollections('SV'), fetchCollections('EN')]);
-  if (!sv.length) {
-    console.log('\nInga kategorier hämtade — bygg trädet för hand under /admin/collections.');
-    return;
-  }
-  const titleEnById = new Map(en.map(node => [node.id, node.title]));
-
-  console.log(`\n${sv.length} kategorier:`);
-  // Primär kategori = den första i titelordning som innehåller produkten.
-  // Godtyckligt men stabilt, och går att ändra i /admin efteråt.
-  const primaryByProduct = new Map();
-
-  for (const [position, node] of sv.entries()) {
-    const memberships = node.products.nodes.map(product => product.handle);
-    console.log(`  ${node.handle} — ${memberships.length} produkter`);
-    if (!apply) continue;
-
-    const [row] = await sql`
-      insert into collections (shopify_collection_id, handle, title_sv, title_en, position)
-      values (${node.id}, ${node.handle}, ${node.title},
-              ${titleEnById.get(node.id) ?? node.title}, ${position})
-      on conflict (handle) do update set
-        title_sv = excluded.title_sv,
-        title_en = excluded.title_en,
-        updated_at = now()
-      returning id`;
-
-    for (const handle of memberships) {
-      const productId = productIdByHandle.get(handle);
-      if (!productId) continue;
-      const isPrimary = !primaryByProduct.has(handle);
-      if (isPrimary) primaryByProduct.set(handle, row.id);
-      await sql`
-        insert into product_collections (product_id, collection_id, is_primary, position)
-        values (${productId}, ${row.id}, ${isPrimary}, ${position})
-        on conflict (product_id, collection_id) do nothing`;
-    }
-  }
+function byHandle(nodes) {
+  return new Map(nodes.map(node => [node.handle, node]));
 }
 
-// --- Bilder ------------------------------------------------------------
+function cleanSource(url) {
+  return url ? url.split('?')[0] : null;
+}
+
 const EXTENSIONS = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
   'image/avif': 'avif',
+  'image/gif': 'gif',
 };
 
-async function moveImage(productId, image, index) {
-  // Shopifys URL:er bär querystring för storlek. Vi vill ha originalet.
-  const source = image.src.split('?')[0];
+async function copyImage(sourceUrl, pathname) {
+  const source = cleanSource(sourceUrl);
   const response = await fetch(source);
   if (!response.ok) throw new Error(`Kunde inte hämta ${source} (${response.status})`);
-
   const contentType = (response.headers.get('content-type') ?? '').split(';')[0];
   const extension = EXTENSIONS[contentType] ?? source.split('.').pop()?.slice(0, 5) ?? 'jpg';
   const body = Buffer.from(await response.arrayBuffer());
-
-  const blob = await put(`products/${productId}/${index}.${extension}`, body, {
+  const blob = await put(`${pathname}.${extension}`, body, {
     access: 'public',
     contentType: contentType || 'image/jpeg',
     addRandomSuffix: true,
@@ -284,103 +119,172 @@ async function moveImage(productId, image, index) {
   return { url: blob.url, pathname: blob.pathname, bytes: body.length };
 }
 
-// --- Körningen ---------------------------------------------------------
-const english = await fetchEnglish();
+const [productsSv, productsEn, collectionsSv, collectionsEn] = await Promise.all([
+  fetchConnection(PRODUCTS_QUERY, 'products', 'SV'),
+  fetchConnection(PRODUCTS_QUERY, 'products', 'EN'),
+  fetchConnection(COLLECTIONS_QUERY, 'collections', 'SV'),
+  fetchConnection(COLLECTIONS_QUERY, 'collections', 'EN'),
+]);
+const productEnByHandle = byHandle(productsEn);
+const collectionEnByHandle = byHandle(collectionsEn);
+const dbProducts = await sql`select id, handle from products order by handle`;
+const dbProductByHandle = new Map(dbProducts.map(row => [row.handle, row]));
+const existingImages = await sql`
+  select id, product_id, source_url, position
+  from product_images order by product_id, position, id`;
+const imagesByProduct = new Map();
+for (const image of existingImages) {
+  const list = imagesByProduct.get(image.product_id) ?? [];
+  list.push(image);
+  imagesByProduct.set(image.product_id, list);
+}
 
-const dbProducts = await sql`select id, handle, title from products order by handle`;
-if (!dbProducts.length) throw new Error('Inga produkter i databasen. Kör migrationen först.');
+console.log(
+  `${apply ? 'Skriver på riktigt' : 'Torrkörning'} från Shopify Storefront ${apiVersion}.\n` +
+    `${productsSv.length} produkter och ${collectionsSv.length} kategorier hittades.\n`
+);
 
-const existingImages = await sql`select product_id, count(*)::int as count
-  from product_images group by product_id`;
-const imageCountByProduct = new Map(existingImages.map(row => [row.product_id, row.count]));
+let copiedImages = 0;
+let copiedBytes = 0;
+const warnings = [];
 
-console.log(apply ? 'Skriver på riktigt.\n' : 'Torrkörning. Inget skrivs.\n');
-
-let movedImages = 0;
-let movedBytes = 0;
-const missing = [];
-
-for (const product of dbProducts) {
-  const entry = byHandle.get(product.handle);
-  const en = english.get(product.handle);
-  const content = entry?.content ?? null;
-
-  const gaps = [];
-  if (!content) gaps.push('inget innehåll i CSV-exporten');
-  if (!en) gaps.push('ingen engelsk text');
-  if (!entry?.images.length) gaps.push('inga bilder');
-  if (gaps.length) missing.push(`${product.handle}: ${gaps.join(', ')}`);
-
-  console.log(
-    `${product.handle} — ${content?.tags.length ?? 0} taggar, ${entry?.images.length ?? 0} bilder` +
-      `${en ? '' : ', SAKNAR engelska'}`
-  );
-
-  if (!apply) continue;
-
-  if (content || en) {
-    await sql`
-      update products set
-        title_en             = coalesce(${en?.title ?? null}, title_en),
-        description_html     = coalesce(${content?.descriptionHtml ?? null}, description_html),
-        description_html_en  = coalesce(${en?.descriptionHtml ?? null}, description_html_en),
-        tags                 = case when ${content ? content.tags.length : 0} > 0
-                                 then ${content?.tags ?? []}::text[] else tags end,
-        product_type         = coalesce(${content?.productType ?? null}, product_type),
-        vendor               = coalesce(${content?.vendor ?? null}, vendor),
-        seo_title            = coalesce(${content?.seoTitle ?? null}, seo_title),
-        seo_description      = coalesce(${content?.seoDescription ?? null}, seo_description),
-        updated_at           = now()
-      where id = ${product.id}`;
-  }
-
-  // Bilder flyttas bara för produkter som inte redan har några, så att en
-  // avbruten körning kan tas om utan att skapa dubbletter.
-  if (imageCountByProduct.get(product.id)) {
-    console.log('  (har redan bilder — hoppar över)');
+for (const product of productsSv) {
+  const dbProduct = dbProductByHandle.get(product.handle);
+  const en = productEnByHandle.get(product.handle);
+  if (!dbProduct) {
+    warnings.push(`${product.handle}: finns i Shopify men inte i Neon`);
     continue;
   }
+  if (!en) warnings.push(`${product.handle}: engelsk Storefront-version saknas`);
+  console.log(
+    `${product.handle} — ${product.images.nodes.length} bilder, ` +
+      `${product.descriptionHtml ? 'sv-text' : 'ingen sv-text'}, ` +
+      `${en?.descriptionHtml ? 'en-text' : 'ingen en-text'}`
+  );
+  if (!apply) continue;
 
-  const ordered = [...(entry?.images ?? [])].sort((a, b) => a.position - b.position);
-  for (const [index, image] of ordered.entries()) {
+  await sql`
+    update products set
+      shopify_product_id = ${product.id}, title = ${product.title},
+      title_en = ${en?.title ?? product.title},
+      description_html = ${product.descriptionHtml || null},
+      description_html_en = ${en?.descriptionHtml || null},
+      tags = ${product.tags}::text[], product_type = ${product.productType || null},
+      vendor = ${product.vendor || null}, seo_title = ${product.seo?.title || null},
+      seo_description = ${product.seo?.description || null},
+      seo_title_en = ${en?.seo?.title || null},
+      seo_description_en = ${en?.seo?.description || null},
+      shopify_updated_at = ${product.updatedAt},
+      status = 'active', active = true, published_at = coalesce(published_at, now()),
+      source_synced_at = now(), updated_at = now()
+    where id = ${dbProduct.id}`;
+
+  const ownedImages = imagesByProduct.get(dbProduct.id) ?? [];
+  for (const [position, image] of product.images.nodes.entries()) {
+    const source = cleanSource(image.url);
+    let existing = ownedImages.find(candidate => cleanSource(candidate.source_url) === source);
+    // First-run images predate source_url; associate them by stable position.
+    if (!existing) {
+      existing = ownedImages.find(
+        candidate => candidate.source_url === null && candidate.position === position
+      );
+    }
+    if (existing) {
+      await sql`update product_images set
+        source_url = ${source}, alt_text = ${image.altText}, width = ${image.width},
+        height = ${image.height}, position = ${position} where id = ${existing.id}`;
+      continue;
+    }
     try {
-      const blob = await moveImage(product.id, image, index);
-      await sql`insert into product_images (product_id, url, blob_pathname, alt_text, position)
-        values (${product.id}, ${blob.url}, ${blob.pathname}, ${image.alt}, ${index})`;
-      movedImages += 1;
-      movedBytes += blob.bytes;
-      console.log(`  ↳ ${blob.pathname}`);
+      const blob = await copyImage(source, `products/${dbProduct.id}/${position}`);
+      await sql`insert into product_images
+        (product_id, url, blob_pathname, source_url, alt_text, width, height, position)
+        values (${dbProduct.id}, ${blob.url}, ${blob.pathname}, ${source},
+                ${image.altText}, ${image.width}, ${image.height}, ${position})
+        on conflict (product_id, source_url) where source_url is not null do update set
+          alt_text = excluded.alt_text, width = excluded.width,
+          height = excluded.height, position = excluded.position`;
+      copiedImages += 1;
+      copiedBytes += blob.bytes;
     } catch (error) {
-      // En bild som inte går att flytta ska inte stoppa resten — men den måste
-      // synas i rapporten, annars saknas den tyst på sajten efteråt.
-      missing.push(`${product.handle}: bilden ${image.src} kunde inte flyttas (${error.message})`);
-      console.error(`  ! ${image.src}: ${error.message}`);
+      warnings.push(`${product.handle}: ${source} kunde inte kopieras (${error.message})`);
     }
   }
 }
 
-await migrateCollections(new Map(dbProducts.map(product => [product.handle, product.id])));
+const primaryByProduct = new Set();
+for (const [position, collection] of collectionsSv.entries()) {
+  const en = collectionEnByHandle.get(collection.handle);
+  const source = cleanSource(collection.image?.url);
+  console.log(
+    `${collection.handle} — ${collection.products.nodes.length} produkter, ` +
+      `${collection.descriptionHtml ? 'sv-text' : 'ingen sv-text'}, ${source ? 'bild' : 'ingen bild'}`
+  );
+  if (!apply) continue;
+
+  const [current] = await sql`
+    select id, image_source_url from collections where handle = ${collection.handle} limit 1`;
+  let image = null;
+  if (source && cleanSource(current?.image_source_url) !== source) {
+    try {
+      image = await copyImage(source, `collections/${collection.handle}/cover`);
+      copiedImages += 1;
+      copiedBytes += image.bytes;
+    } catch (error) {
+      warnings.push(`${collection.handle}: kategoribilden kunde inte kopieras (${error.message})`);
+    }
+  }
+
+  const [row] = await sql`
+    insert into collections (
+      shopify_collection_id, handle, title_sv, title_en,
+      description_html, description_html_en,
+      seo_title, seo_title_en, seo_description, seo_description_en,
+      image_url, image_blob_pathname, image_source_url, image_alt_text,
+      image_width, image_height, shopify_updated_at, source_synced_at, position
+    ) values (
+      ${collection.id}, ${collection.handle}, ${collection.title}, ${en?.title ?? collection.title},
+      ${collection.descriptionHtml || null}, ${en?.descriptionHtml || null},
+      ${collection.seo?.title || null}, ${en?.seo?.title || null},
+      ${collection.seo?.description || null}, ${en?.seo?.description || null},
+      ${image?.url ?? null}, ${image?.pathname ?? null}, ${source}, ${collection.image?.altText ?? null},
+      ${collection.image?.width ?? null}, ${collection.image?.height ?? null},
+      ${collection.updatedAt}, now(), ${position}
+    )
+    on conflict (handle) do update set
+      shopify_collection_id = excluded.shopify_collection_id,
+      title_sv = excluded.title_sv, title_en = excluded.title_en,
+      description_html = excluded.description_html,
+      description_html_en = excluded.description_html_en,
+      seo_title = excluded.seo_title, seo_title_en = excluded.seo_title_en,
+      seo_description = excluded.seo_description,
+      seo_description_en = excluded.seo_description_en,
+      image_url = coalesce(excluded.image_url, collections.image_url),
+      image_blob_pathname = coalesce(excluded.image_blob_pathname, collections.image_blob_pathname),
+      image_source_url = coalesce(excluded.image_source_url, collections.image_source_url),
+      image_alt_text = excluded.image_alt_text,
+      image_width = excluded.image_width, image_height = excluded.image_height,
+      shopify_updated_at = excluded.shopify_updated_at,
+      source_synced_at = now(), updated_at = now()
+    returning id`;
+
+  for (const member of collection.products.nodes) {
+    const dbProduct = dbProductByHandle.get(member.handle);
+    if (!dbProduct) continue;
+    const isPrimary = !primaryByProduct.has(member.handle);
+    if (isPrimary) primaryByProduct.add(member.handle);
+    await sql`insert into product_collections (product_id, collection_id, is_primary, position)
+      values (${dbProduct.id}, ${row.id}, ${isPrimary}, ${position})
+      on conflict (product_id, collection_id) do update set position = excluded.position`;
+  }
+}
 
 console.log(
-  `\n${dbProducts.length} produkter genomgångna. ` +
-    `${movedImages} bilder flyttade (${(movedBytes / 1024 / 1024).toFixed(1)} MB).`
+  `\n${productsSv.length} produkter och ${collectionsSv.length} kategorier genomgångna. ` +
+    `${copiedImages} nya bilder kopierade (${(copiedBytes / 1024 / 1024).toFixed(1)} MB).`
 );
-
-if (missing.length) {
-  console.log('\nLuckor att titta på innan produktsidan kopplas om till Neon:');
-  for (const line of missing) console.log(`  - ${line}`);
+if (warnings.length) {
+  console.log('\nLuckor att kontrollera:');
+  for (const warning of warnings) console.log(`  - ${warning}`);
 }
-
-if (apply) {
-  const [{ count }] = await sql`select count(*)::int as count from product_images
-    where url like '%shopify%'`;
-  // Kontrollen som avgör om flytten faktiskt blev en flytt: en enda kvarvarande
-  // Shopify-URL betyder att sajten fortfarande hänger ihop med butiken.
-  console.log(
-    count === 0
-      ? '\nInga bild-URL:er pekar på Shopify. Bilderna är våra.'
-      : `\n! ${count} bild-URL:er pekar fortfarande på Shopify.`
-  );
-} else {
-  console.log('\nKör om med --apply för att skriva.');
-}
+if (!apply) console.log('\nKör om med --apply för att skriva.');

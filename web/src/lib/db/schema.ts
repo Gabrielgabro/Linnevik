@@ -111,9 +111,17 @@ export const products = pgTable(
     tags: text('tags').array().notNull().default([]),
     productType: text('product_type'),
     vendor: text('vendor'),
+    // Vem vi köper produkten av. Skild från `vendor`, som är varumärket kunden
+    // ser. 'unknown' tills leverantören är utredd — aldrig NULL.
+    supplier: text('supplier').notNull().default('unknown'),
     seoTitle: text('seo_title'),
     seoDescription: text('seo_description'),
+    seoTitleEn: text('seo_title_en'),
+    seoDescriptionEn: text('seo_description_en'),
+    shopifyUpdatedAt: timestamp('shopify_updated_at', { withTimezone: true }),
     stripeProductId: text('stripe_product_id'),
+    status: text('status').notNull().default('active'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
     active: boolean('active').notNull().default(true),
     source: text('source').notNull().default('linnevik'),
     sourceSyncedAt: timestamp('source_synced_at', { withTimezone: true }),
@@ -127,6 +135,10 @@ export const products = pgTable(
       .on(table.shopifyProductId)
       .where(isNotNull(table.shopifyProductId)),
     uniqueIndex('products_handle_key').on(table.handle),
+    index('products_supplier_idx').on(table.supplier),
+    index('products_status_idx').on(table.status),
+    check('products_supplier_check', sql`length(btrim(${table.supplier})) > 0`),
+    check('products_status_check', sql`${table.status} in ('active', 'draft', 'archived')`),
   ]
 );
 
@@ -193,11 +205,19 @@ export const productImages = pgTable(
     }),
     url: text('url').notNull(),
     blobPathname: text('blob_pathname').notNull(),
+    sourceUrl: text('source_url'),
     altText: text('alt_text'),
+    width: integer('width'),
+    height: integer('height'),
     position: integer('position').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  table => [index('product_images_product_id_position_idx').on(table.productId, table.position)]
+  table => [
+    index('product_images_product_id_position_idx').on(table.productId, table.position),
+    uniqueIndex('product_images_product_source_key')
+      .on(table.productId, table.sourceUrl)
+      .where(isNotNull(table.sourceUrl)),
+  ]
 );
 
 // Kategoriträdet. Egen tabell därför att brödsmulorna ska överleva Shopify:
@@ -212,6 +232,19 @@ export const collections = pgTable(
     handle: text('handle').notNull(),
     titleSv: text('title_sv').notNull(),
     titleEn: text('title_en').notNull(),
+    descriptionHtml: text('description_html'),
+    descriptionHtmlEn: text('description_html_en'),
+    seoTitle: text('seo_title'),
+    seoTitleEn: text('seo_title_en'),
+    seoDescription: text('seo_description'),
+    seoDescriptionEn: text('seo_description_en'),
+    imageUrl: text('image_url'),
+    imageBlobPathname: text('image_blob_pathname'),
+    imageSourceUrl: text('image_source_url'),
+    imageAltText: text('image_alt_text'),
+    imageWidth: integer('image_width'),
+    imageHeight: integer('image_height'),
+    shopifyUpdatedAt: timestamp('shopify_updated_at', { withTimezone: true }),
     parentId: integer('parent_id').references((): AnyPgColumn => collections.id, {
       onDelete: 'restrict',
     }),
@@ -306,6 +339,86 @@ export const cartItems = pgTable(
 export type CartRow = typeof carts.$inferSelect;
 export type CartItemRow = typeof cartItems.$inferSelect;
 
+export const customers = pgTable(
+  'customers',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    email: text('email').notNull(),
+    stripeCustomerId: text('stripe_customer_id'),
+    shopifyCustomerId: text('shopify_customer_id'),
+    customerNo: text('customer_no'),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    company: text('company'),
+    phone: text('phone'),
+    taxId: text('tax_id'),
+    defaultBillingAddress: jsonb('default_billing_address').$type<Record<string, string | null>>(),
+    defaultShippingAddress: jsonb('default_shipping_address').$type<Record<string, string | null>>(),
+    acceptsMarketing: boolean('accepts_marketing').notNull().default(false),
+    status: text('status').notNull().default('active'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('customers_email_key').on(sql`lower(${table.email})`),
+    uniqueIndex('customers_stripe_customer_id_key')
+      .on(table.stripeCustomerId)
+      .where(isNotNull(table.stripeCustomerId)),
+    uniqueIndex('customers_shopify_customer_id_key')
+      .on(table.shopifyCustomerId)
+      .where(isNotNull(table.shopifyCustomerId)),
+    index('customers_customer_no_idx').on(table.customerNo),
+  ]
+);
+
+export const discountCodes = pgTable(
+  'discount_codes',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    code: text('code').notNull(),
+    title: text('title').notNull(),
+    kind: text('kind').notNull(),
+    value: integer('value').notNull().default(0),
+    currency: text('currency').notNull().default('sek'),
+    minimumSubtotalMinor: integer('minimum_subtotal_minor').notNull().default(0),
+    usageLimit: integer('usage_limit'),
+    usageLimitPerCustomer: integer('usage_limit_per_customer'),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    active: boolean('active').notNull().default(true),
+    stripeCouponId: text('stripe_coupon_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('discount_codes_code_key').on(sql`upper(${table.code})`),
+    check('discount_codes_kind_check', sql`${table.kind} in ('percentage', 'fixed_amount', 'free_shipping')`),
+  ]
+);
+
+export const shippingRules = pgTable(
+  'shipping_rules',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    name: text('name').notNull(),
+    countryCodes: text('country_codes').array().notNull().default(['SE']),
+    postalCodePrefixes: text('postal_code_prefixes').array().notNull().default([]),
+    minimumSubtotalMinor: integer('minimum_subtotal_minor').notNull().default(0),
+    maximumSubtotalMinor: integer('maximum_subtotal_minor'),
+    priceMinor: integer('price_minor').notNull().default(0),
+    freeAboveMinor: integer('free_above_minor'),
+    currency: text('currency').notNull().default('sek'),
+    estimatedMinDays: integer('estimated_min_days'),
+    estimatedMaxDays: integer('estimated_max_days'),
+    priority: integer('priority').notNull().default(0),
+    active: boolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [index('shipping_rules_active_priority_idx').on(table.active, table.priority)]
+);
+
 // Ordrar. Stripe äger betalningen, vi äger ordern: beloppen skrivs av från
 // sessionen så att en order går att läsa utan att fråga Stripe, och
 // `stripeSessionId` är unik så att en omsänd webhook inte skapar en dubblett.
@@ -318,22 +431,40 @@ export const orders = pgTable(
     cartId: text('cart_id').references(() => carts.id, { onDelete: 'set null' }),
     cartVersion: integer('cart_version'),
     status: text('status').notNull().default('pending'),
+    paymentStatus: text('payment_status').notNull().default('pending'),
+    fulfillmentStatus: text('fulfillment_status').notNull().default('unfulfilled'),
+    customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
     email: text('email'),
     customerName: text('customer_name'),
     // Sparad som den kom från Stripe: en adress ska visa vad kunden angav vid
     // köptillfället, inte vad den ändrats till efteråt.
     shippingAddress: jsonb('shipping_address').$type<Record<string, string | null>>(),
     subtotalMinor: integer('subtotal_minor').notNull().default(0),
+    discountCodeId: integer('discount_code_id').references(() => discountCodes.id, {
+      onDelete: 'set null',
+    }),
+    discountCode: text('discount_code'),
+    discountMinor: integer('discount_minor').notNull().default(0),
+    shippingRuleId: integer('shipping_rule_id').references(() => shippingRules.id, {
+      onDelete: 'set null',
+    }),
+    shippingMethod: text('shipping_method'),
+    shippingMinor: integer('shipping_minor').notNull().default(0),
     taxMinor: integer('tax_minor').notNull().default(0),
     totalMinor: integer('total_minor').notNull().default(0),
+    refundedMinor: integer('refunded_minor').notNull().default(0),
     currency: text('currency').notNull().default('sek'),
     locale: text('locale'),
+    notes: text('notes'),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   table => [
     uniqueIndex('orders_stripe_session_id_key').on(table.stripeSessionId),
     index('orders_status_idx').on(table.status),
+    index('orders_customer_id_idx').on(table.customerId),
+    index('orders_fulfillment_status_idx').on(table.fulfillmentStatus),
     uniqueIndex('orders_cart_version_key')
       .on(table.cartId, table.cartVersion)
       .where(sql`${table.cartId} is not null and ${table.cartVersion} is not null`),
@@ -361,6 +492,102 @@ export const orderItems = pgTable(
   table => [index('order_items_order_id_idx').on(table.orderId)]
 );
 
+export const discountRedemptions = pgTable(
+  'discount_redemptions',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    discountCodeId: integer('discount_code_id')
+      .notNull()
+      .references(() => discountCodes.id, { onDelete: 'restrict' }),
+    orderId: integer('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+    email: text('email'),
+    amountMinor: integer('amount_minor').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('discount_redemptions_order_key').on(table.orderId),
+    index('discount_redemptions_code_idx').on(table.discountCodeId),
+  ]
+);
+
+export const refunds = pgTable(
+  'refunds',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+    stripeRefundId: text('stripe_refund_id').notNull(),
+    amountMinor: integer('amount_minor').notNull(),
+    currency: text('currency').notNull().default('sek'),
+    reason: text('reason'),
+    status: text('status').notNull().default('pending'),
+    note: text('note'),
+    actor: text('actor').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('refunds_stripe_refund_id_key').on(table.stripeRefundId),
+    index('refunds_order_id_idx').on(table.orderId),
+  ]
+);
+
+export const fulfillments = pgTable(
+  'fulfillments',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+    status: text('status').notNull().default('pending'),
+    carrier: text('carrier'),
+    trackingNumber: text('tracking_number'),
+    trackingUrl: text('tracking_url'),
+    note: text('note'),
+    shippedAt: timestamp('shipped_at', { withTimezone: true }),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    createdBy: text('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [index('fulfillments_order_id_idx').on(table.orderId)]
+);
+
+export const fulfillmentItems = pgTable(
+  'fulfillment_items',
+  {
+    fulfillmentId: integer('fulfillment_id').notNull().references(() => fulfillments.id, { onDelete: 'cascade' }),
+    orderItemId: integer('order_item_id').notNull().references(() => orderItems.id, { onDelete: 'restrict' }),
+    quantity: integer('quantity').notNull(),
+  },
+  table => [primaryKey({ columns: [table.fulfillmentId, table.orderItemId] })]
+);
+
+export const orderEvents = pgTable(
+  'order_events',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    actor: text('actor').notNull(),
+    detail: jsonb('detail').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [index('order_events_order_id_idx').on(table.orderId, table.createdAt)]
+);
+
+export const stripeWebhookEvents = pgTable(
+  'stripe_webhook_events',
+  {
+    eventId: text('event_id').primaryKey(),
+    eventType: text('event_type').notNull(),
+    status: text('status').notNull().default('processing'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+  },
+  table => [index('stripe_webhook_events_status_idx').on(table.status, table.createdAt)]
+);
+
 export type ProductRow = typeof products.$inferSelect;
 export type ProductVariantRow = typeof productVariants.$inferSelect;
 export type ProductImageRow = typeof productImages.$inferSelect;
@@ -368,3 +595,9 @@ export type CollectionRow = typeof collections.$inferSelect;
 export type ProductCollectionRow = typeof productCollections.$inferSelect;
 export type OrderRow = typeof orders.$inferSelect;
 export type OrderItemRow = typeof orderItems.$inferSelect;
+export type CustomerRow = typeof customers.$inferSelect;
+export type DiscountCodeRow = typeof discountCodes.$inferSelect;
+export type ShippingRuleRow = typeof shippingRules.$inferSelect;
+export type RefundRow = typeof refunds.$inferSelect;
+export type FulfillmentRow = typeof fulfillments.$inferSelect;
+export type OrderEventRow = typeof orderEvents.$inferSelect;

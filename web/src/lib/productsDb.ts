@@ -30,8 +30,10 @@ export type ProductListRow = {
   handle: string;
   title: string;
   active: boolean;
+  status: string;
   stripeProductId: string | null;
   tags: string[];
+  supplier: string;
   variantCount: number;
   priceMinMinor: number | null;
   priceMaxMinor: number | null;
@@ -59,8 +61,10 @@ export async function listProductsForAdmin(): Promise<ProductListRow[]> {
       handle: products.handle,
       title: products.title,
       active: products.active,
+      status: products.status,
       stripeProductId: products.stripeProductId,
       tags: products.tags,
+      supplier: products.supplier,
       variantCount: sql<number>`count(${productVariants.id})::int`,
       priceMinMinor: sql<number | null>`min(${productVariants.priceMinor})::int`,
       priceMaxMinor: sql<number | null>`max(${productVariants.priceMinor})::int`,
@@ -203,25 +207,44 @@ export type ProductInput = Partial<
     | 'tags'
     | 'productType'
     | 'vendor'
+    | 'supplier'
     | 'seoTitle'
     | 'seoDescription'
+    | 'status'
+    | 'publishedAt'
     | 'active'
   >
 >;
 
 export async function createProduct(input: ProductInput & { title: string }): Promise<ProductRow> {
   const handle = input.handle ? slugify(input.handle) : await availableHandle(input.title);
+  const status = input.status ?? (input.active === false ? 'draft' : 'active');
   const [row] = await getDb()
     .insert(products)
-    .values({ ...input, handle, title: input.title, source: 'linnevik' })
+    .values({
+      ...input,
+      handle,
+      title: input.title,
+      status,
+      active: status === 'active',
+      publishedAt: status === 'active' ? (input.publishedAt ?? new Date()) : null,
+      source: 'linnevik',
+    })
     .returning();
   return row;
 }
 
 export async function updateProduct(id: number, patch: ProductInput): Promise<ProductRow | null> {
+  const statusPatch = patch.status
+    ? {
+        status: patch.status,
+        active: patch.status === 'active',
+        ...(patch.status === 'active' ? { publishedAt: patch.publishedAt ?? new Date() } : {}),
+      }
+    : {};
   const [row] = await getDb()
     .update(products)
-    .set({ ...patch, updatedAt: new Date() })
+    .set({ ...patch, ...statusPatch, updatedAt: new Date() })
     .where(eq(products.id, id))
     .returning();
   return row ?? null;
@@ -396,6 +419,14 @@ export type CollectionListRow = {
   handle: string;
   titleSv: string;
   titleEn: string;
+  descriptionHtml: string | null;
+  descriptionHtmlEn: string | null;
+  seoTitle: string | null;
+  seoTitleEn: string | null;
+  seoDescription: string | null;
+  seoDescriptionEn: string | null;
+  imageUrl: string | null;
+  imageAltText: string | null;
   parentId: number | null;
   position: number;
   active: boolean;
@@ -410,6 +441,14 @@ export async function listCollectionsForAdmin(): Promise<CollectionListRow[]> {
       handle: collections.handle,
       titleSv: collections.titleSv,
       titleEn: collections.titleEn,
+      descriptionHtml: collections.descriptionHtml,
+      descriptionHtmlEn: collections.descriptionHtmlEn,
+      seoTitle: collections.seoTitle,
+      seoTitleEn: collections.seoTitleEn,
+      seoDescription: collections.seoDescription,
+      seoDescriptionEn: collections.seoDescriptionEn,
+      imageUrl: collections.imageUrl,
+      imageAltText: collections.imageAltText,
       parentId: collections.parentId,
       position: collections.position,
       active: collections.active,
@@ -424,6 +463,12 @@ export async function listCollectionsForAdmin(): Promise<CollectionListRow[]> {
 export type CollectionInput = {
   titleSv?: string;
   titleEn?: string;
+  descriptionHtml?: string | null;
+  descriptionHtmlEn?: string | null;
+  seoTitle?: string | null;
+  seoTitleEn?: string | null;
+  seoDescription?: string | null;
+  seoDescriptionEn?: string | null;
   handle?: string;
   parentId?: number | null;
   position?: number;
