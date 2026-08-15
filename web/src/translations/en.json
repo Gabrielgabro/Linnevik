@@ -359,7 +359,16 @@
       "FULFILLED": "Fulfilled",
       "UNFULFILLED": "Unfulfilled"
     },
-    "fallbackName": "User"
+    "fallbackName": "User",
+    "samplesHeading": "Sample requests",
+    "samplesSubheading": "Samples you have requested from us.",
+    "sampleNumber": "Sample request #{number}",
+    "sampleStatuses": {
+      "new": "Received",
+      "in_progress": "In progress",
+      "sent": "Sent",
+      "declined": "Declined"
+    }
   },
   "activation": {
     "metadata": {

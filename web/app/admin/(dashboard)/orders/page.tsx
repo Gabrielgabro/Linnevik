@@ -32,11 +32,16 @@ const tone = (status: string) => ORDER_TONE[status] ?? 'var(--viz-ink-3)';
 
 export default async function OrdersPage() {
   const orders = await listRecentOrders(200);
+  const testCount = orders.filter(order => order.testMode).length;
 
   return (
     <>
       <PageHeader
-        kicker={`${orders.length} senaste ordrarna`}
+        kicker={
+          testCount > 0
+            ? `${orders.length} senaste ordrarna · ${testCount} i testläge`
+            : `${orders.length} senaste ordrarna`
+        }
         title="Ordrar"
         accent={accentFor('/admin/orders')}
         description="Betalning, rabatt, frakt, återbetalning och fulfillment i ett orderregister."
@@ -64,12 +69,15 @@ export default async function OrdersPage() {
             {orders.map(order => (
               <Tr key={order.id}>
                 <Td numeric>
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    className="text-brand-text hover:underline"
-                  >
-                    #{order.id}
-                  </Link>
+                  <span className="inline-flex items-center gap-2">
+                    <Link
+                      href={`/admin/orders/${order.id}`}
+                      className="text-brand-text hover:underline"
+                    >
+                      #{order.id}
+                    </Link>
+                    {order.testMode && <Tag color="var(--adm-warn)">TEST</Tag>}
+                  </span>
                 </Td>
                 <Td className="text-ink">{order.customerName ?? order.email ?? '—'}</Td>
                 <Td>

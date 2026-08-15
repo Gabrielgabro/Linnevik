@@ -44,7 +44,8 @@ export type AdminAction =
   | 'discount.created'
   | 'discount.updated'
   | 'shipping.created'
-  | 'shipping.updated';
+  | 'shipping.updated'
+  | 'sample_request.updated';
 
 /** Svenska etiketter för vyn. Nycklarna i databasen förblir stabila. */
 export const ACTION_LABELS: Record<AdminAction, string> = {
@@ -77,6 +78,7 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'discount.updated': 'Ändrade rabattkod',
   'shipping.created': 'La till fraktregel',
   'shipping.updated': 'Ändrade fraktregel',
+  'sample_request.updated': 'Hanterade provförfrågan',
 };
 
 export function actionLabel(action: string): string {

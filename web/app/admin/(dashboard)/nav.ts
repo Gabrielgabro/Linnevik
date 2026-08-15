@@ -4,6 +4,7 @@ import {
   FolderTree,
   LineChart,
   Package,
+  PackageOpen,
   Settings2,
   ShoppingCart,
   Users,
@@ -48,6 +49,7 @@ export const NAV: NavGroup[] = [
     label: 'Försäljning',
     items: [
       { href: '/admin/orders', label: 'Ordrar', icon: ShoppingCart, accent: 'var(--viz-s2)' },
+      { href: '/admin/prover', label: 'Prover', icon: PackageOpen, accent: 'var(--viz-s3)' },
       {
         href: '/admin/customers',
         label: 'Handelskunder',

@@ -7,12 +7,21 @@ import type { CustomerOrder } from '@/lib/customerAccount';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
 
+/** Serialiserad form: datum går som ISO-sträng över server/klient-gränsen. */
+export type AccountSampleRequest = {
+    id: number;
+    status: string;
+    createdAt: string;
+    items: { title: string; variantLabel: string | null }[];
+};
+
 type Props = {
     initialEmail?: string;
     initialFirstName?: string | null;
     initialLastName?: string | null;
     initialVatNumber?: string;
     orders?: CustomerOrder[];
+    sampleRequests?: AccountSampleRequest[];
 };
 
 export default function AccountClient({
@@ -20,7 +29,8 @@ export default function AccountClient({
     initialFirstName,
     initialLastName,
     initialVatNumber,
-    orders = []
+    orders = [],
+    sampleRequests = []
 }: Props) {
     const router = useRouter();
     const { t, locale } = useTranslation();
@@ -223,6 +233,68 @@ export default function AccountClient({
                         </div>
                     )}
                 </div>
+
+                {/* Samples Section — visas bara när kunden faktiskt bett om prover. */}
+                {isLoggedIn && sampleRequests.length > 0 && (
+                    <div className="rounded-2xl border border-light bg-white dark:bg-[#1f2937] p-8 shadow-sm">
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-semibold text-primary">{t.account.samplesHeading}</h2>
+                            <p className="text-secondary mt-1">{t.account.samplesSubheading}</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            {sampleRequests.map((request) => {
+                                const requestDate = new Date(request.createdAt).toLocaleDateString(
+                                    locale === 'sv' ? 'sv-SE' : 'en-US',
+                                    { year: 'numeric', month: 'long', day: 'numeric' }
+                                );
+                                const status = t.account.sampleStatuses[
+                                    request.status as keyof typeof t.account.sampleStatuses
+                                ] || request.status;
+                                const statusColor: Record<string, string> = {
+                                    new: 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20',
+                                    in_progress: 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+                                    sent: 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20',
+                                    declined: 'text-gray-700 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20',
+                                };
+
+                                return (
+                                    <div key={request.id} className="border border-light rounded-xl p-6">
+                                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4 pb-4 border-b border-light">
+                                            <div className="space-y-1">
+                                                <h3 className="text-lg font-semibold text-primary">
+                                                    {t.account.sampleNumber.replace('{number}', request.id.toString())}
+                                                </h3>
+                                                <p className="text-sm text-secondary">{requestDate}</p>
+                                            </div>
+                                            <span
+                                                className={`text-xs px-2.5 py-1 rounded-full font-medium self-start ${
+                                                    statusColor[request.status] ??
+                                                    'text-gray-700 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20'
+                                                }`}
+                                            >
+                                                {status}
+                                            </span>
+                                        </div>
+                                        <ul className="space-y-2">
+                                            {request.items.map((item, idx) => (
+                                                <li
+                                                    key={idx}
+                                                    className="flex items-center gap-3 p-3 rounded-lg bg-[#f9fafb] dark:bg-[#111827]"
+                                                >
+                                                    <span className="font-medium text-primary">{item.title}</span>
+                                                    {item.variantLabel && (
+                                                        <span className="text-sm text-secondary">{item.variantLabel}</span>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
         </main>
     );

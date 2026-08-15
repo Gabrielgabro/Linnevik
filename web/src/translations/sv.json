@@ -359,7 +359,16 @@
       "FULFILLED": "Levererad",
       "UNFULFILLED": "Ej levererad"
     },
-    "fallbackName": "Användare"
+    "fallbackName": "Användare",
+    "samplesHeading": "Provförfrågningar",
+    "samplesSubheading": "Prover du har begärt av oss.",
+    "sampleNumber": "Provförfrågan #{number}",
+    "sampleStatuses": {
+      "new": "Mottagen",
+      "in_progress": "Behandlas",
+      "sent": "Skickad",
+      "declined": "Avböjd"
+    }
   },
   "activation": {
     "metadata": {

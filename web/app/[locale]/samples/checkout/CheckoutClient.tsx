@@ -84,6 +84,7 @@ export default function CheckoutClient() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    locale,
                     products: selectedProducts.map(p => ({
                         id: p.id,
                         title: p.title,

@@ -19,14 +19,51 @@ import {
 } from '@/lib/db/schema';
 import type { PricedLine } from '@/lib/pricing';
 import { upsertCustomerFromCheckout } from '@/lib/commerceOperations';
+import { stripeTestMode } from '@/lib/stripe';
 import { fulfillReservedStock, recordInventoryReturn, releaseOrderStock, reserveOrderStock } from '@/lib/inventoryDb';
 
 export type OrderWithItems = OrderRow & { items: OrderItemRow[] };
-export type OrderDetail = OrderWithItems & {
+
+/** Orderrad med hur mycket av den som redan gått ut genom dörren. */
+export type OrderItemProgress = OrderItemRow & {
+  fulfilledQuantity: number;
+  remainingQuantity: number;
+};
+
+// Omit: en ren korsning hade gett `items` typen OrderItemRow[] & OrderItemProgress[],
+// och då plockar TypeScript elementtypen ur den första — fälten nedan syns inte.
+export type OrderDetail = Omit<OrderWithItems, 'items'> & {
+  items: OrderItemProgress[];
   refunds: RefundRow[];
   fulfillments: FulfillmentRow[];
   events: OrderEventRow[];
 };
+
+/**
+ * Hur många enheter per orderrad som redan är levererade. Makulerade
+ * försändelser räknas inte — de har lämnat tillbaka sitt utrymme.
+ *
+ * Både spärren i `createFulfillment` och adminformuläret läser härifrån. Ligger
+ * de på var sitt uttryck börjar de förr eller senare svara olika, och då visar
+ * formuläret en ruta som servern sedan nekar.
+ */
+async function fulfilledPerItem(orderId: number): Promise<Map<number, number>> {
+  const result = await getDb().execute(sql`
+    select oi.id,
+      coalesce(sum(fi.quantity) filter (where f.status <> 'cancelled'), 0)::int as fulfilled
+    from order_items oi
+    left join fulfillment_items fi on fi.order_item_id = oi.id
+    left join fulfillments f on f.id = fi.fulfillment_id
+    where oi.order_id = ${orderId}
+    group by oi.id
+  `);
+  return new Map(
+    (result.rows as Array<{ id: number; fulfilled: number }>).map(row => [
+      Number(row.id),
+      Number(row.fulfilled),
+    ])
+  );
+}
 
 export type OrderSnapshot = {
   customerNo?: string | null;
@@ -77,13 +114,13 @@ export async function createPendingOrder(
         stripe_session_id, status, payment_status, subtotal_minor,
         discount_code_id, discount_code, discount_minor,
         shipping_rule_id, shipping_method, shipping_minor,
-        total_minor, currency, locale, cart_id, cart_version
+        total_minor, currency, locale, cart_id, cart_version, test_mode
       )
       select ${pendingSessionId}, 'pending', 'pending', ${subtotal},
              ${snapshot.discount?.id ?? null}, ${snapshot.discount?.code ?? null}, ${discountMinor},
              ${snapshot.shipping?.id ?? null}, ${snapshot.shipping?.name ?? null}, ${shippingMinor},
              ${total}, ${lines[0].currency}, ${locale},
-             ${cart?.id ?? null}, ${cart?.version ?? null}
+             ${cart?.id ?? null}, ${cart?.version ?? null}, ${stripeTestMode()}
       where ${cart?.id ?? null}::text is null
          or exists (select 1 from eligible_cart)
       on conflict (cart_id, cart_version)
@@ -258,13 +295,28 @@ export async function listRecentOrders(limit = 50): Promise<OrderRow[]> {
 export async function getOrderById(id: number): Promise<OrderDetail | null> {
   const [order] = await getDb().select().from(orders).where(eq(orders.id, id)).limit(1);
   if (!order) return null;
-  const [items, orderRefunds, orderFulfillments, events] = await Promise.all([
+  const [items, orderRefunds, orderFulfillments, events, fulfilled] = await Promise.all([
     getDb().select().from(orderItems).where(eq(orderItems.orderId, id)),
     getDb().select().from(refunds).where(eq(refunds.orderId, id)).orderBy(desc(refunds.createdAt)),
     getDb().select().from(fulfillments).where(eq(fulfillments.orderId, id)).orderBy(desc(fulfillments.createdAt)),
     getDb().select().from(orderEvents).where(eq(orderEvents.orderId, id)).orderBy(desc(orderEvents.createdAt)),
+    fulfilledPerItem(id),
   ]);
-  return { ...order, items, refunds: orderRefunds, fulfillments: orderFulfillments, events };
+  const withProgress: OrderItemProgress[] = items.map(item => {
+    const fulfilledQuantity = fulfilled.get(item.id) ?? 0;
+    return {
+      ...item,
+      fulfilledQuantity,
+      remainingQuantity: Math.max(0, item.quantity - fulfilledQuantity),
+    };
+  });
+  return {
+    ...order,
+    items: withProgress,
+    refunds: orderRefunds,
+    fulfillments: orderFulfillments,
+    events,
+  };
 }
 
 export async function updateOrderManagement(
@@ -385,20 +437,15 @@ export async function createFulfillment(input: {
     }
     requested.set(item.orderItemId, (requested.get(item.orderItemId) ?? 0) + item.quantity);
   }
-  const availability = await getDb().execute(sql`
-    select oi.id, oi.quantity,
-      coalesce(sum(fi.quantity) filter (where f.status <> 'cancelled'), 0)::int as fulfilled
-    from order_items oi
-    left join fulfillment_items fi on fi.order_item_id = oi.id
-    left join fulfillments f on f.id = fi.fulfillment_id
-    where oi.order_id = ${input.orderId}
-    group by oi.id, oi.quantity
-  `);
+  const [orderLines, fulfilled] = await Promise.all([
+    getDb()
+      .select({ id: orderItems.id, quantity: orderItems.quantity })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, input.orderId)),
+    fulfilledPerItem(input.orderId),
+  ]);
   const remaining = new Map(
-    (availability.rows as Array<{ id: number; quantity: number; fulfilled: number }>).map(row => [
-      Number(row.id),
-      Number(row.quantity) - Number(row.fulfilled),
-    ])
+    orderLines.map(line => [line.id, line.quantity - (fulfilled.get(line.id) ?? 0)])
   );
   for (const [id, quantity] of requested) {
     if (!remaining.has(id) || quantity > (remaining.get(id) ?? 0)) {

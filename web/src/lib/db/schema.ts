@@ -459,6 +459,10 @@ export const orders = pgTable(
     currency: text('currency').notNull().default('sek'),
     locale: text('locale'),
     notes: text('notes'),
+    // Sant när ordern skapades med en Stripe-nyckel i testläge. Sätts en gång,
+    // vid skapandet, och beskriver nyckeln som användes då — inte vilket läge
+    // appen står i när någon läser raden.
+    testMode: boolean('test_mode').notNull().default(false),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -468,6 +472,7 @@ export const orders = pgTable(
     index('orders_status_idx').on(table.status),
     index('orders_customer_id_idx').on(table.customerId),
     index('orders_fulfillment_status_idx').on(table.fulfillmentStatus),
+    index('orders_test_mode_idx').on(table.testMode, table.createdAt),
     uniqueIndex('orders_cart_version_key')
       .on(table.cartId, table.cartVersion)
       .where(sql`${table.cartId} is not null and ${table.cartVersion} is not null`),
@@ -676,6 +681,61 @@ export const stripeWebhookEvents = pgTable(
   table => [index('stripe_webhook_events_status_idx').on(table.status, table.createdAt)]
 );
 
+// Provförfrågningar från /samples. Formuläret kräver ingen inloggning — den som
+// ber om prover är oftast ännu inte kund — så `customerId` fylls bara när
+// adressen råkar matcha ett konto.
+export const sampleRequests = pgTable(
+  'sample_requests',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('new'),
+    contactName: text('contact_name').notNull(),
+    organizationName: text('organization_name').notNull(),
+    organizationNumber: text('organization_number').notNull(),
+    email: text('email').notNull(),
+    phone: text('phone').notNull(),
+    address: text('address').notNull(),
+    postalCode: text('postal_code').notNull(),
+    city: text('city').notNull(),
+    country: text('country').notNull(),
+    notes: text('notes'),
+    locale: text('locale'),
+    internalNote: text('internal_note'),
+    handledBy: text('handled_by'),
+    handledAt: timestamp('handled_at', { withTimezone: true }),
+    // Om aviseringsmejlet gick fram. Posten finns kvar oavsett.
+    emailed: boolean('emailed').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    check(
+      'sample_requests_status_check',
+      sql`${table.status} in ('new', 'in_progress', 'sent', 'declined')`
+    ),
+    index('sample_requests_status_idx').on(table.status, table.createdAt),
+    index('sample_requests_customer_id_idx').on(table.customerId),
+  ]
+);
+
+// Titeln sparas även när produkten går att koppla, så att posten står kvar
+// oförändrad om varan döps om eller utgår.
+export const sampleRequestItems = pgTable(
+  'sample_request_items',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    requestId: integer('request_id')
+      .notNull()
+      .references(() => sampleRequests.id, { onDelete: 'cascade' }),
+    productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+    externalProductId: text('external_product_id'),
+    title: text('title').notNull(),
+    variantLabel: text('variant_label'),
+  },
+  table => [index('sample_request_items_request_id_idx').on(table.requestId)]
+);
+
 export type ProductRow = typeof products.$inferSelect;
 export type ProductVariantRow = typeof productVariants.$inferSelect;
 export type ProductImageRow = typeof productImages.$inferSelect;
@@ -692,3 +752,5 @@ export type OrderEventRow = typeof orderEvents.$inferSelect;
 export type InventoryReservationRow = typeof inventoryReservations.$inferSelect;
 export type InventoryMovementRow = typeof inventoryMovements.$inferSelect;
 export type CustomerLoginTokenRow = typeof customerLoginTokens.$inferSelect;
+export type SampleRequestRow = typeof sampleRequests.$inferSelect;
+export type SampleRequestItemRow = typeof sampleRequestItems.$inferSelect;

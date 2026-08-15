@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import OrderActions from '@/components/admin/OrderActions';
+import { Tag } from '@/components/admin/ui';
 import { getOrderById } from '@/lib/ordersDb';
 import { formatMinor } from '@/lib/money';
 
@@ -11,7 +12,10 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <header className="border-t-2 pt-5" style={{ borderColor: 'var(--viz-ink)' }}>
-        <p className="font-mono text-xs uppercase" style={{ color: 'var(--viz-ink-3)' }}>Order #{order.id} · {order.paymentStatus} · {order.fulfillmentStatus}</p>
+        <p className="flex items-center gap-2 font-mono text-xs uppercase" style={{ color: 'var(--viz-ink-3)' }}>
+          <span>Order #{order.id} · {order.paymentStatus} · {order.fulfillmentStatus}</span>
+          {order.testMode && <Tag color="var(--adm-warn)">TEST</Tag>}
+        </p>
         <h1 className="mt-2 font-heading text-4xl">{order.customerName ?? order.email ?? 'Okänd kund'}</h1>
         <p className="mt-2 text-sm">{order.email} · {formatMinor(order.totalMinor, order.currency)}</p>
       </header>

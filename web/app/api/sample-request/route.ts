@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { escapeHtml, mailTo, sendEmail } from '@/lib/mailer';
+import { createSampleRequest, markSampleRequestEmailed } from '@/lib/sampleRequestsDb';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
     try {
@@ -26,10 +29,35 @@ export async function POST(request: NextRequest) {
         const country = escapeHtml(body.country);
         const notes = escapeHtml(body.notes);
 
+        // Sparas före utskicket. Posten är facit — mejlet är bara aviseringen —
+        // så en förfrågan får aldrig gå förlorad för att SMTP ligger nere.
+        const selected: Array<{ id?: string; title?: string; variant?: string }> =
+            Array.isArray(products) ? products : [];
+        const requestId = await createSampleRequest({
+            contactName: String(body.contactName),
+            organizationName: String(body.organizationName),
+            organizationNumber: String(body.organizationNumber),
+            email: String(body.email),
+            phone: String(body.phone),
+            address: String(body.address),
+            postalCode: String(body.postalCode),
+            city: String(body.city),
+            country: String(body.country),
+            notes: body.notes ? String(body.notes) : null,
+            locale: body.locale ? String(body.locale) : null,
+            items: selected.map(product => ({
+                externalProductId: product.id ? String(product.id) : null,
+                title: product.title ? String(product.title) : 'Okänd produkt',
+                variantLabel: product.variant ? String(product.variant) : null,
+            })),
+        });
+
         const recipient = mailTo();
         if (!recipient) {
-            console.error('[sample-request] CONTACT_EMAIL_TO/SMTP_USER saknas — kan inte ta emot formuläret.');
-            return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
+            // Förfrågan ligger kvar i /admin/prover även utan mottagaradress, så
+            // det här är inte längre ett fel mot kunden — bara en tyst avisering.
+            console.error('[sample-request] CONTACT_EMAIL_TO/SMTP_USER saknas — ingen avisering skickad.');
+            return NextResponse.json({ success: true, id: requestId });
         }
 
         // Create products list HTML
@@ -99,14 +127,13 @@ export async function POST(request: NextRequest) {
         });
 
         if (result.success) {
-            return NextResponse.json({ success: true });
+            await markSampleRequestEmailed(requestId);
         } else {
-            console.error('Failed to send email:', result.error);
-            return NextResponse.json(
-                { error: 'Failed to send email' },
-                { status: 500 }
-            );
+            // Loggas och syns som "ej aviserad" i adminvyn. Kunden ska inte få
+            // ett felmeddelande och skicka om — förfrågan är redan mottagen.
+            console.error('[sample-request] Avisering misslyckades:', result.error);
         }
+        return NextResponse.json({ success: true, id: requestId });
     } catch (error) {
         console.error('Error processing sample request:', error);
         return NextResponse.json(
