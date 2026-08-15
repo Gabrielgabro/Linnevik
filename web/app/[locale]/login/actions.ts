@@ -8,6 +8,7 @@ import {
     setCustomerVatMetafield,
     deleteCustomer,
 } from '@/lib/shopifyAdmin';
+import { verifyCode } from '@/lib/emailVerification';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
 
@@ -278,16 +279,30 @@ export async function logout(): Promise<void> {
     cookieStore.delete('customer_access_token');
 }
 
+/**
+ * Kontrollerar en verifieringskod mot den kod som faktiskt skickades ut.
+ *
+ * Tidigare returnerade den här funktionen `success` för vilka sex siffror som
+ * helst — "för UX-kontinuitet" — vilket gjorde verifieringen till en attrapp.
+ * Den godkänner numera bara en kod som stämmer mot den utfärdade.
+ *
+ * Observera: ingenting utfärdar koder ännu. Registreringen går via Shopifys
+ * aktiveringsmejl (se handleRegister), så verifyCode saknar alltid en sparad
+ * kod att jämföra mot och det här svarar konsekvent med "sessionen har gått
+ * ut". Det är avsiktligt — den ska fela stängt tills ett riktigt utfärdande
+ * finns på plats. Se lib/emailVerification.ts.
+ */
 export async function handleVerifyEmail(code: string): Promise<{ status: 'success' | 'error'; message?: string }> {
     const t = await getActionTranslations();
 
-    if (!code || code.length !== 6) {
+    if (!code || !/^\d{6}$/.test(code)) {
         return { status: 'error', message: t.verifyEmail.genericError };
     }
 
-    // Verification flow is not wired to a backend store yet; return a friendly success for UX continuity
-    return {
-        status: 'success',
-        message: t.verifyEmail.success,
-    };
+    const result = await verifyCode(code);
+    if (!result.success) {
+        return { status: 'error', message: t.verifyEmail.genericError };
+    }
+
+    return { status: 'success', message: t.verifyEmail.success };
 }

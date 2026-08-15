@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/mailer';
+import { escapeHtml, mailTo, sendEmail } from '@/lib/mailer';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { name, company, email, phone, message } = body;
+        // Fälten går rakt in i mejlets HTML, så de escapas här. Utan det kan
+        // innehållet i ett fält bryta ut och skriva egen markup i mejlet.
+        const name = escapeHtml(body.name);
+        const company = escapeHtml(body.company);
+        const email = escapeHtml(body.email);
+        const phone = escapeHtml(body.phone);
+        const message = escapeHtml(body.message);
 
         // Validate required fields
-        if (!name || !email || !message) {
+        if (!body.name || !body.email || !body.message) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
             );
+        }
+
+        const recipient = mailTo();
+        if (!recipient) {
+            console.error('[contact] CONTACT_EMAIL_TO/SMTP_USER saknas — kan inte ta emot formuläret.');
+            return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
         }
 
         // Create email HTML
@@ -45,10 +57,10 @@ export async function POST(request: NextRequest) {
 
         // Send email
         const result = await sendEmail({
-            to: process.env.SMTP_USER || 'Gabriel.1440.g@outlook.com',
-            subject: `New Contact Form Submission from ${name}`,
+            to: recipient,
+            subject: `New Contact Form Submission from ${body.name}`,
             html: emailHtml,
-            replyTo: email,
+            replyTo: String(body.email),
         });
 
         if (result.success) {

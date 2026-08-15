@@ -1,10 +1,35 @@
 /**
  * Email Verification System
  * Generates and manages verification codes for new customer accounts
+ *
+ * ---------------------------------------------------------------------------
+ * STATUS: modulen är inte i drift, och ska inte tas i drift som den ser ut.
+ *
+ * Ingenting utfärdar koder. Registreringen (login/actions.ts handleRegister)
+ * går via Shopifys aktiveringsmejl, och sidan /login/verify-email har ingen
+ * inlänk. sendVerificationEmail nedan skickar riktig post, men det finns inget
+ * flöde som anropar den.
+ *
+ * Två saker måste lösas innan den kan användas:
+ *
+ * 1. Kodlagringen håller inte. storeVerificationCode lägger koden i klartext i
+ *    en cookie hos samma användare som ska bevisa att hen äger inkorgen.
+ *    httpOnly hindrar JavaScript, men inte användaren: koden går att läsa i
+ *    webbläsarens utvecklarverktyg utan att mejlet någonsin öppnas. Det gör
+ *    verifieringen meningslös. Koden hör hemma i databasen, hashad, knuten till
+ *    e-postadressen och med ett försöksräknare-tak.
+ *
+ * 2. Sexsiffriga koder är inte den planerade lösningen. Enligt migrationsplanen
+ *    ska Shopify-inloggningen ersättas med signerade, engångs-, utgående
+ *    magiclinks. Den här modulen är ett spår från ett annat upplägg och bör
+ *    antagligen skrotas snarare än kopplas in.
+ * ---------------------------------------------------------------------------
  */
 
 import { cookies } from 'next/headers';
 import { setCustomerMetafield } from './shopifyAdmin';
+import { mailConfigured, sendEmail } from './mailer';
+import { verificationEmail } from './emailTemplates';
 
 const VERIFICATION_CODE_LENGTH = 6;
 const VERIFICATION_EXPIRY_MINUTES = 15;
@@ -109,7 +134,9 @@ export async function markCustomerAsVerified(customerId: string): Promise<void> 
 }
 
 /**
- * Send verification email (placeholder - you'll implement with your email service)
+ * Skickar verifieringskoden. Går via den egna SMTP-leverantören som allt annat
+ * utgående — se lib/mailer.ts för varför avsändaren måste ligga på linnevik.se.
+ *
  * @param email Customer email
  * @param code Verification code
  * @param name Customer name
@@ -118,42 +145,27 @@ export async function sendVerificationEmail(
     email: string,
     code: string,
     name?: string
-): Promise<void> {
-    // TODO: Implement with your email service (SendGrid, Resend, AWS SES, etc.)
-    console.log('[email-verification] Sending verification code to:', email);
-    console.log('[email-verification] Code:', code);
-    console.log('[email-verification] Name:', name);
+): Promise<{ success: boolean; error?: string }> {
+    if (!mailConfigured()) {
+        // Utan SMTP i miljön skrivs koden i loggen i stället, så att lokal
+        // registrering går att testa. Aldrig i produktion: en kod i en logg är
+        // en kod någon annan kan läsa.
+        if (process.env.NODE_ENV === 'production') {
+            console.error('[email-verification] SMTP saknas — ingen kod skickad till', email);
+            return { success: false, error: 'E-post är inte konfigurerad.' };
+        }
+        console.log(
+            `[email-verification] SMTP saknas. Kod för ${email}: ${code} ` +
+            `(giltig i ${VERIFICATION_EXPIRY_MINUTES} min)`
+        );
+        return { success: true };
+    }
 
-    // Example implementation with SendGrid:
-    /*
-    const sgMail = require('@sendgrid/mail');
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
-    const msg = {
-        to: email,
-        from: 'noreply@linnevik.com',
-        subject: 'Verify your Linnevik account',
-        text: `Your verification code is: ${code}`,
-        html: `
-            <h1>Welcome to Linnevik!</h1>
-            <p>Your verification code is:</p>
-            <h2 style="font-size: 32px; letter-spacing: 5px;">${code}</h2>
-            <p>This code will expire in 15 minutes.</p>
-        `,
-    };
-
-    await sgMail.send(msg);
-    */
-
-    // For now, just log (you'll implement email sending)
-    console.log(`
-========================================
-Email Verification Code
-========================================
-To: ${email}
-Name: ${name || 'Customer'}
-Code: ${code}
-Expires: ${VERIFICATION_EXPIRY_MINUTES} minutes
-========================================
-    `);
+    const message = verificationEmail(code, name);
+    const result = await sendEmail({ to: email, subject: message.subject, html: message.html });
+    if (!result.success) {
+        console.error('[email-verification] Kunde inte skicka koden till', email);
+        return { success: false, error: result.error };
+    }
+    return { success: true };
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
 import { createFulfillment } from '@/lib/ordersDb';
+import { sendShipmentNotice } from '@/lib/orderEmails';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,7 +32,11 @@ export async function POST(request: NextRequest, { params }: Params) {
       })),
       actor: auth.user,
     });
-    return NextResponse.json({ fulfillmentId }, { status: 201 });
+    // Aviseringen skickas bara för shipped/delivered, vilket sendShipmentNotice
+    // avgör. Den kastar inte: en försändelse är skapad även om mejlet fastnar,
+    // och utfallet hamnar i order_events.
+    const emailed = await sendShipmentNotice(orderId, fulfillmentId);
+    return NextResponse.json({ fulfillmentId, emailed }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Fulfillment failed.' }, { status: 400 });
   }

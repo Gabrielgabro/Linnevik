@@ -88,6 +88,9 @@ The launch is Sweden-only, SEK, B2B, immediate cutover, with no customer or orde
 - Invoice terms are available only after explicit staff approval; all other customers pay through Stripe.
 - Stripe Checkout Sessions, restricted keys, verified webhooks, and registration-gated Stripe Tax are the chosen payment and tax integration defaults.
 
+
+## Status 15-8
+
 ## Current backend status
 
 ### Available now
@@ -99,21 +102,35 @@ The launch is Sweden-only, SEK, B2B, immediate cutover, with no customer or orde
 - Stripe Checkout Session creation and signature-verified, idempotent Stripe webhook processing are implemented.
 - Orders are stored before checkout and can be managed through the admin interface after payment.
 - Shopify customer registration, login, activation, password recovery, storefront cart, and checkout fallback remain available during migration.
-- Automated tests currently pass: 22 of 22 tests, and TypeScript validation passes.
+- Outgoing mail is sent through Linnevik's own SMTP provider (`smtp.wsr.se`), configured by environment rather than hardcoded. The sending identity (`MAIL_FROM`) is separate from the SMTP login and must stay on `linnevik.se`, because the domain publishes SPF `-all` and DMARC `p=quarantine` with strict alignment (`aspf=s; adkim=s`).
+- Order-confirmation and shipment emails are implemented and wired. Confirmations are sent from the Stripe webhook after the event is acknowledged, so a mail failure cannot trigger a Stripe retry and a duplicate email. Shipment notices are sent from the admin fulfillment endpoint for `shipped` and `delivered` only, and list the lines in that specific shipment so partial deliveries are accurate.
+- Every send attempt is recorded in `order_events` as `email.sent` or `email.failed`, so the admin order timeline shows whether the customer was actually reached.
+- The admin interface has been redesigned: a grouped sidebar with active states replaces the flat link bar, and shared UI primitives (`PageHeader`, `Panel`, `StatusPill`, `DataTable`, `Notice`, `StatTile`) replace per-page markup.
+- Automated tests currently pass: 37 of 37 tests, and TypeScript validation and lint pass with zero errors.
 
 ### Not yet complete
 
 - The storefront still uses the Shopify cart. The owned cart API exists, but `OWNED_COMMERCE_ENABLED` is not enabled and the UI has not been connected to it.
 - Inventory is validated during cart and checkout operations, but stock is not reserved or deducted when payment succeeds, leaving an overselling risk.
-- SMTP credentials are not configured locally, so contact-form and sample-request emails cannot currently be delivered.
-- Order-confirmation and fulfillment emails have not been implemented.
-- The separate email-verification implementation is still a logging-only placeholder; current customer registration instead relies on Shopify activation.
+- SMTP credentials are still not present in the local environment, so no message has been delivered end to end. The transport, templates, and failure paths are implemented and unit-tested, but the handshake with `smtp.wsr.se` is unproven. Required variables are documented in `web/.env.example`.
+- Customer email verification has no working back end and should not be treated as a partially finished feature. Details below.
 - Stripe automatic tax remains disabled until the Swedish tax registration has been confirmed and `STRIPE_TAX_REGISTRATION_CONFIRMED` is enabled.
 - Owned checkout currently supports Swedish delivery addresses only.
 - Database integration tests and full Stripe payment, webhook, expiration, inventory, refund, and fulfillment end-to-end tests are still missing.
-- The current branch has four lint errors in the admin dashboard because the `Stat` component is referenced but not defined.
 - The connected database currently contains no owned carts, customers, orders, or processed Stripe webhook events, so the complete owned purchase flow has not yet been proven end to end.
+
+### Email verification: assessment
+
+The previous status entry described this as "a logging-only placeholder". That understated the problem. The transport was the only part that was missing, and it is now built; what is absent is everything around it.
+
+- **Nothing issues a code.** `handleRegister` creates the customer in Shopify and triggers Shopify's own activation email (`send_invite.json`). It never generates, stores, or sends a verification code. The entire `lib/emailVerification.ts` module had no callers anywhere in the codebase.
+- **The page is unreachable.** `/login/verify-email` exists and is fully built, but nothing in the application links to it. It can only be reached by typing the URL.
+- **The verifier was a rubber stamp.** `handleVerifyEmail` accepted *any* six-digit input and returned success, with a comment describing this as "UX continuity". Anyone reaching the page was verified without holding a code. This has been fixed: it now calls the real `verifyCode` and fails closed. Because nothing issues codes, it consistently answers "session expired", which is the correct behaviour until issuance exists.
+- **The code store is unsound by design.** `storeVerificationCode` puts the plaintext code in a cookie belonging to the same user who is supposed to prove they control the inbox. `httpOnly` stops JavaScript but not the person: the code is readable in browser developer tools without ever opening the email. This defeats the purpose of email verification. A real implementation needs the code hashed in the database, bound to the address, with an attempt limit.
+- **Six-digit codes are the wrong design for this project.** The migration plan specifies signed, single-use, expiring magic links as the replacement for Shopify authentication. This module is a leftover from a different approach and should most likely be deleted rather than connected.
+
+Recommendation: do not wire the existing module. Build magic-link authentication as planned, with database-backed single-use tokens, and delete `lib/emailVerification.ts` and `/login/verify-email` at that point. The mail transport and templating layer built for order emails is reusable for it as-is.
 
 ### Readiness decision
 
-The existing Shopify-backed customer journey can continue operating, and many owned backend functions are usable now. The owned backend is not yet ready to replace Shopify. The immediate priorities are connecting the owned cart to the storefront, implementing atomic inventory handling, adding transactional emails, and validating the complete Stripe flow in test mode.
+The existing Shopify-backed customer journey can continue operating, and many owned backend functions are usable now. The owned backend is not yet ready to replace Shopify. The immediate priorities are connecting the owned cart to the storefront, implementing atomic inventory handling, proving the mail path with real SMTP credentials, and validating the complete Stripe flow in test mode. Customer authentication remains on Shopify until magic links are built.

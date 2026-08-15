@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
 import { markOrderFailed, markOrderPaid, updateRefundStatus } from '@/lib/ordersDb';
+import { sendOrderConfirmation } from '@/lib/orderEmails';
 import { claimStripeEvent, completeStripeEvent, releaseStripeEvent } from '@/lib/stripeWebhookDb';
 
 export const runtime = 'nodejs';
@@ -41,6 +42,10 @@ export async function POST(request: NextRequest) {
 
   const claimed = await claimStripeEvent(event.id, event.type);
   if (!claimed) return NextResponse.json({ received: true, duplicate: true });
+
+  // Sätts när ordern blivit betald, och används först efter att händelsen är
+  // avklarad — mejlet får inte kunna fälla webhooken.
+  let confirmationFor: string | null = null;
 
   try {
     switch (event.type) {
@@ -90,6 +95,7 @@ export async function POST(request: NextRequest) {
           totalMinor: session.amount_total ?? 0,
           currency: session.currency ?? 'sek',
         });
+        confirmationFor = session.id;
         break;
       }
 
@@ -118,5 +124,13 @@ export async function POST(request: NextRequest) {
   }
 
   await completeStripeEvent(event.id);
+
+  // Först här, när händelsen är kvitterad. Skulle mejlet skickas innanför
+  // try-blocket ovan skulle ett SMTP-fel ge 500, Stripe skulle skicka om
+  // händelsen, och kunden riskera en andra bekräftelse på samma order.
+  // sendOrderConfirmation kastar inte, men await:as ändå: serverless-funktionen
+  // kan frysas så fort svaret gått ut.
+  if (confirmationFor) await sendOrderConfirmation(confirmationFor);
+
   return NextResponse.json({ received: true });
 }

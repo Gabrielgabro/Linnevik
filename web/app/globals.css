@@ -318,6 +318,18 @@ a:hover {
   color: var(--brand-green);
 }
 
+/* Adminvyn har egna länkfärger (--adm-*), styrda via .admin-viz i
+   tailwind.config.js. Utan denna regel vinner den globala a-regeln ovan
+   över de nedärvda admin-färgerna, vilket t.ex. gjorde sidomenyns länkar
+   nästan oläsliga (mörkblå text på mörkgrön botten). */
+.admin-viz a {
+  color: inherit;
+}
+
+.admin-viz a:hover {
+  color: inherit;
+}
+
 /* Buttons - should use body font */
 button,
 .btn {

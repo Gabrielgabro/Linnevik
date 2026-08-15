@@ -1,36 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/mailer';
+import { escapeHtml, mailTo, sendEmail } from '@/lib/mailer';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const {
-            contactName,
-            organizationName,
-            organizationNumber,
-            email,
-            phone,
-            address,
-            postalCode,
-            city,
-            country,
-            notes,
-            products,
-        } = body;
+        const { products } = body;
 
-        // Validate required fields
-        if (!contactName || !organizationName || !organizationNumber || !email || !phone || !address || !postalCode || !city || !country) {
+        // Validate required fields innan escaping — tomma strängar ska fällas.
+        if (!body.contactName || !body.organizationName || !body.organizationNumber || !body.email || !body.phone || !body.address || !body.postalCode || !body.city || !body.country) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
             );
         }
 
+        // Fälten går rakt in i mejlets HTML och escapas därför här.
+        const contactName = escapeHtml(body.contactName);
+        const organizationName = escapeHtml(body.organizationName);
+        const organizationNumber = escapeHtml(body.organizationNumber);
+        const email = escapeHtml(body.email);
+        const phone = escapeHtml(body.phone);
+        const address = escapeHtml(body.address);
+        const postalCode = escapeHtml(body.postalCode);
+        const city = escapeHtml(body.city);
+        const country = escapeHtml(body.country);
+        const notes = escapeHtml(body.notes);
+
+        const recipient = mailTo();
+        if (!recipient) {
+            console.error('[sample-request] CONTACT_EMAIL_TO/SMTP_USER saknas — kan inte ta emot formuläret.');
+            return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
+        }
+
         // Create products list HTML
         const productsHtml = products && products.length > 0
             ? products.map((p: { title: string; id: string; variant?: string }) => {
-                const variantText = p.variant ? ` <span style="color: #666; font-size: 0.9em;">(${p.variant})</span>` : '';
-                return `<li style="margin: 5px 0;">${p.title}${variantText}</li>`;
+                const variantText = p.variant ? ` <span style="color: #666; font-size: 0.9em;">(${escapeHtml(p.variant)})</span>` : '';
+                return `<li style="margin: 5px 0;">${escapeHtml(p.title)}${variantText}</li>`;
             }).join('')
             : '<li>No products selected</li>';
 
@@ -86,10 +92,10 @@ export async function POST(request: NextRequest) {
 
         // Send email
         const result = await sendEmail({
-            to: process.env.SMTP_USER || 'Gabriel.1440.g@outlook.com',
-            subject: `New Sample Request from ${organizationName}`,
+            to: recipient,
+            subject: `New Sample Request from ${body.organizationName}`,
             html: emailHtml,
-            replyTo: email,
+            replyTo: String(body.email),
         });
 
         if (result.success) {
