@@ -1,16 +1,17 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { createCustomerAccessToken, customerRecover } from '@/lib/shopify';
-import {
-    createCustomerAccount,
-    sendActivationEmail,
-    setCustomerVatMetafield,
-    deleteCustomer,
-} from '@/lib/shopifyAdmin';
-import { verifyCode } from '@/lib/emailVerification';
+import { CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
+import { registerCustomer } from '@/lib/commerceOperations';
+import { requestMagicLink } from '@/lib/magicLink';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
+
+function clientIp(headerList: Awaited<ReturnType<typeof headers>>): string | null {
+    const forwarded = headerList.get('x-forwarded-for');
+    return forwarded?.split(',')[0]?.trim() || null;
+}
 
 type LoginStatus = 'idle' | 'success' | 'error';
 
@@ -166,55 +167,46 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     }
 
     try {
-        console.log('[register] Creating customer account for:', email, 'locale:', locale);
+        console.log('[register] Creating customer for:', email);
 
-        // Create customer with Admin API (will be in DISABLED state)
-        const { id: customerId } = await createCustomerAccount(email, firstName, lastName, locale);
-        console.log('[register] Customer created successfully:', customerId);
+        // Kunden skapas direkt i Postgres — det finns inget Shopify-konto att
+        // skapa längre. Org-numret sparas i tax_id i stället för en Shopify-
+        // metafield, så att kunddata äger ett enda system.
+        const result = await registerCustomer({
+            email,
+            firstName,
+            lastName,
+            taxId: companyRegistrationNumber,
+        });
 
-        // Store VAT metafield
-        try {
-            console.log('[register] Setting VAT metafield:', companyRegistrationNumber);
-            await setCustomerVatMetafield(customerId, companyRegistrationNumber);
-            console.log('[register] VAT metafield set successfully');
-        } catch (vatError) {
-            console.error('[register] VAT metafield update failed, rolling back customer', vatError);
-            try {
-                await deleteCustomer(customerId);
-                console.log('[register] Customer deleted successfully after VAT error');
-            } catch (cleanupError) {
-                console.error('[register] Failed to delete customer after VAT error', cleanupError);
-            }
-
+        if (result.status === 'exists') {
             return {
                 status: 'error',
-                message: t.register.errors.vatFailed,
+                message: t.register.errors.emailTaken,
                 fields,
             };
         }
 
-        // Send activation email (customer will set password via email link)
-        // Shopify will use the customer's locale to send the email in the correct language
+        console.log('[register] Customer created successfully:', result.id);
+
+        // Skicka en inloggningslänk i stället för Shopifys lösenords-
+        // aktiveringsmejl — det är den ersättande mekanismen enligt planen.
+        // Får aldrig fälla registreringen: kontot finns redan, och kunden kan
+        // alltid begära en ny länk från /login om mejlet uteblir.
         try {
-            await sendActivationEmail(customerId, email);
-            console.log('[register] Activation email sent successfully');
+            const headerList = await headers();
+            await requestMagicLink({
+                email,
+                locale: locale && isSupportedLanguage(locale) ? locale : DEFAULT_LANGUAGE,
+                ip: clientIp(headerList),
+                userAgent: headerList.get('user-agent'),
+            });
+            console.log('[register] Login link sent successfully');
         } catch (emailError) {
-            console.error('[register] Failed to send activation email, rolling back customer', emailError);
-            try {
-                await deleteCustomer(customerId);
-                console.log('[register] Customer deleted successfully after email error');
-            } catch (cleanupError) {
-                console.error('[register] Failed to delete customer after email error', cleanupError);
-            }
-
-            return {
-                status: 'error',
-                message: t.register.errors.activationFailed,
-                fields,
-            };
+            console.error('[register] Failed to send login link', emailError);
         }
 
-        console.log('[register] Registration complete. Activation email sent.');
+        console.log('[register] Registration complete.');
 
         return {
             status: 'success',
@@ -222,23 +214,8 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
             fields,
         };
     } catch (error) {
-        let message = t.register.errors.generic;
-
-        // Provide user-friendly messages for common errors
-        if (error instanceof Error) {
-            const errorMsg = error.message.toLowerCase();
-            if (errorMsg.includes('taken') || errorMsg.includes('already exists')) {
-                message = t.register.errors.emailTaken;
-            } else if (errorMsg.includes('invalid') && errorMsg.includes('email')) {
-                message = t.register.errors.invalidEmailFormat;
-            } else if (errorMsg.includes('password')) {
-                message = t.register.errors.passwordInvalid;
-            }
-            // Log original error but show user-friendly message
-            console.error('[register] customerCreate failed:', error.message);
-        }
-
-        return { status: 'error', message, fields };
+        console.error('[register] Registration failed:', error);
+        return { status: 'error', message: t.register.errors.generic, fields };
     }
 }
 
@@ -277,32 +254,7 @@ export async function logout(): Promise<void> {
     const cookieStore = await cookies();
     cookieStore.delete(COOKIE_NAME);
     cookieStore.delete('customer_access_token');
-}
-
-/**
- * Kontrollerar en verifieringskod mot den kod som faktiskt skickades ut.
- *
- * Tidigare returnerade den här funktionen `success` för vilka sex siffror som
- * helst — "för UX-kontinuitet" — vilket gjorde verifieringen till en attrapp.
- * Den godkänner numera bara en kod som stämmer mot den utfärdade.
- *
- * Observera: ingenting utfärdar koder ännu. Registreringen går via Shopifys
- * aktiveringsmejl (se handleRegister), så verifyCode saknar alltid en sparad
- * kod att jämföra mot och det här svarar konsekvent med "sessionen har gått
- * ut". Det är avsiktligt — den ska fela stängt tills ett riktigt utfärdande
- * finns på plats. Se lib/emailVerification.ts.
- */
-export async function handleVerifyEmail(code: string): Promise<{ status: 'success' | 'error'; message?: string }> {
-    const t = await getActionTranslations();
-
-    if (!code || !/^\d{6}$/.test(code)) {
-        return { status: 'error', message: t.verifyEmail.genericError };
-    }
-
-    const result = await verifyCode(code);
-    if (!result.success) {
-        return { status: 'error', message: t.verifyEmail.genericError };
-    }
-
-    return { status: 'success', message: t.verifyEmail.success };
+    // Rensar även e-postlänkssessionen (lib/customerSession.ts). Ofarligt att
+    // göra villkorslöst — kakan finns bara om kunden loggat in via länken.
+    cookieStore.delete(CUSTOMER_SESSION_COOKIE);
 }

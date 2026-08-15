@@ -204,21 +204,33 @@ export function shipmentEmail(
   };
 }
 
-/** Verifieringskod vid registrering. */
-export function verificationEmail(code: string, name?: string): { subject: string; html: string } {
+/**
+ * Inloggningslänk. Länken går till en sida som kräver ett aktivt klick på en
+ * knapp innan sessionen faktiskt löses in — se lib/magicLink.ts för varför:
+ * e-postsäkerhetsfilter (Microsoft Defender med flera) hämtar länkar i mejl
+ * automatiskt för att kontrollera dem, och en länk som loggar in vid GET
+ * skulle vara förbrukad innan mottagaren själv hunnit klicka.
+ */
+export function magicLinkEmail(url: string): { subject: string; html: string } {
   return {
-    subject: 'Din verifieringskod till Linnevik',
+    subject: 'Din inloggningslänk till Linnevik',
     html: layout({
-      title: 'Bekräfta din e-postadress',
-      preheader: 'Verifieringskoden gäller i 15 minuter.',
+      title: 'Logga in på Linnevik',
+      preheader: 'Länken gäller i 15 minuter och går bara att använda en gång.',
       body: `
-        <p style="margin:0 0 8px;">${name ? `Hej ${escapeHtml(name)},` : 'Hej,'}</p>
-        <p style="margin:0 0 8px;color:${INK_2};">Ange den här koden för att slutföra registreringen:</p>
-        <div style="margin:20px 0;padding:18px;background:${BEIGE};border-radius:8px;text-align:center;">
-          <span style="font-family:monospace;font-size:32px;letter-spacing:8px;color:${BRAND};font-weight:600;">${escapeHtml(code)}</span>
+        <p style="margin:0 0 8px;">Hej,</p>
+        <p style="margin:0 0 16px;color:${INK_2};">
+          Klicka på knappen för att logga in. Länken gäller i 15 minuter och går bara att använda en gång.
+        </p>
+        <div style="margin:20px 0;text-align:center;">
+          <a href="${escapeHtml(url)}" style="display:inline-block;padding:12px 28px;background:${BRAND};color:#F5EFE7;text-decoration:none;border-radius:6px;font-size:15px;font-weight:600;">Logga in</a>
         </div>
         <p style="margin:0;color:#8A8A8A;font-size:13px;">
-          Koden gäller i 15 minuter. Har du inte försökt registrera dig kan du bortse från det här mejlet.
+          Fungerar inte knappen? Kopiera in den här adressen i webbläsaren:<br>
+          <span style="word-break:break-all;color:${INK_2};">${escapeHtml(url)}</span>
+        </p>
+        <p style="margin:16px 0 0;color:#8A8A8A;font-size:13px;">
+          Har du inte försökt logga in kan du bortse från det här mejlet — ingen kommer in utan att klicka på länken.
         </p>`,
     }),
   };

@@ -234,7 +234,7 @@
     "subtitle": "Log in to view your tailored assortments, prices, and delivery history.",
     "formLabel": "Sign in",
     "formTitle": "Access your account",
-    "formSubtitle": "Use your Linnevik customer credentials to continue.",
+    "formSubtitle": "Enter your email and we'll send you a secure login link.",
     "fields": {
       "email": "Email",
       "password": "Password",
@@ -244,6 +244,11 @@
       "signIn": "Log in",
       "forgot": "Forgot password?",
       "create": "Create an account"
+    },
+    "magicLink": {
+      "cta": "Send login link",
+      "sending": "Sending...",
+      "sent": "If that email has a Linnevik account, we've sent a login link. Check your inbox."
     },
     "highlights": {
       "speedTitle": "Fast reorders",
@@ -282,14 +287,14 @@
     "lastNamePlaceholder": "Johansson",
     "emailLabel": "Email address",
     "emailPlaceholder": "you@example.com",
-    "emailHelper": "You will receive an email to choose a password and activate your account.",
+    "emailHelper": "You will receive an email with a secure link to sign in.",
     "submit": "Create account",
     "companyLabel": "Company registration number (EU)",
     "companyPlaceholder": "SE123456789",
     "companyHelper": "Starts with country code followed by 2-12 letters/numbers (e.g., SE123456789).",
     "backToLogin": "Back to login",
     "terms": "By creating an account you agree to our terms of use and privacy policy.",
-    "success": "Account created! Please check your email to set your password and activate your account.",
+    "success": "Account created! Check your email for a link to sign in.",
     "errors": {
       "missingFields": "Please enter email and company registration number.",
       "invalidEmailFormat": "Please enter a valid email address.",
@@ -297,33 +302,28 @@
       "firstNameInvalid": "First name must be between 1 and 100 characters.",
       "lastNameInvalid": "Last name must be between 1 and 100 characters.",
       "invalidCompanyNumber": "Enter a valid registration number starting with the country code (e.g., SE123456789).",
-      "vatFailed": "We could not complete your registration right now. Please try again.",
-      "activationFailed": "We could not send the activation email. Please try again.",
       "generic": "Account creation failed. Please try again.",
-      "emailTaken": "An account with this email already exists. Please log in instead.",
-      "passwordInvalid": "Password does not meet requirements. Please try a different password."
+      "emailTaken": "An account with this email already exists. Please log in instead."
     },
     "metadata": {
       "title": "Create Account | Linnevik",
       "description": "Create a new Linnevik account for B2B customers."
     }
   },
-  "verifyEmail": {
-    "title": "Verify your email",
-    "subtitle": "We have sent a 6-digit code to your email",
-    "codeLabel": "Verification code",
-    "codePlaceholder": "000000",
-    "codeHelper": "Enter the 6-digit code from your email",
-    "submit": "Verify email",
-    "submitting": "Verifying...",
-    "backToRegister": "Back to registration",
-    "codeInfo": "The code is valid for 15 minutes",
-    "success": "Email verified! Redirecting to login...",
+  "magicLinkVerify": {
+    "title": "Log in to Linnevik",
+    "subtitle": "Click the button to log in with the link from your email.",
+    "confirm": "Log in",
+    "confirming": "Logging in...",
+    "success": "Logged in! Redirecting...",
+    "missingToken": "This link is missing a valid token. Request a new login link.",
+    "invalid": "This link is invalid. Request a new login link.",
+    "expired": "This link has expired or was already used. Request a new one.",
     "genericError": "Something went wrong. Please try again.",
-    "footer": "Can’t find the email? Check your spam folder.",
+    "requestNew": "Request a new link",
     "metadata": {
-      "title": "Verify Email | Linnevik",
-      "description": "Verify your email address to complete registration."
+      "title": "Log in | Linnevik",
+      "description": "Complete your login with the emailed link."
     }
   },
   "account": {

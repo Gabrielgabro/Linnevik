@@ -160,6 +160,22 @@ async function requireVariant(variantId: number, quantity: number) {
   return variant;
 }
 
+/**
+ * Produktsidorna läser fortfarande katalogen (titel, bilder, options) från
+ * Shopify — det är en egen, större migrering och ingår inte här. Varianterna
+ * är redan speglade i product_variants med sitt Shopify-id sparat, så korgen
+ * kan slå upp vårt numeriska variant-id från det utan att produktsidan
+ * behöver ändras.
+ */
+export async function resolveVariantIdByShopifyId(shopifyVariantId: string): Promise<number | null> {
+  const [variant] = await getDb()
+    .select({ id: productVariants.id })
+    .from(productVariants)
+    .where(eq(productVariants.shopifyVariantId, shopifyVariantId))
+    .limit(1);
+  return variant?.id ?? null;
+}
+
 export async function setOwnedCartItem(cartId: string, variantId: number, quantity: number) {
   const cart = await requireEditableCart(cartId);
   await requireVariant(variantId, quantity);

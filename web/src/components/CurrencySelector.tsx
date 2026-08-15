@@ -17,12 +17,15 @@ interface CurrencySelectorProps {
 export default function CurrencySelector({ variant = 'header' }: CurrencySelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { updateCartCountry, refreshCart } = useCart();
+  const { updateCartCountry, refreshCart, isOwnedCommerce } = useCart();
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // The owned checkout is Sweden/SEK-only — no currency to switch.
+    if (isOwnedCommerce) return;
+
     let mounted = true;
     const load = async () => {
       try {
@@ -37,7 +40,7 @@ export default function CurrencySelector({ variant = 'header' }: CurrencySelecto
     };
     load();
     return () => { mounted = false; };
-  }, []);
+  }, [isOwnedCommerce]);
 
   const onChange = async (country: string) => {
     if (!country || country === selected) return;

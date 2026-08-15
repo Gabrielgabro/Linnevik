@@ -8,6 +8,7 @@ import GoogleAnalytics from "@/components/GoogleAnalytics";
 import VisitLogger from "@/components/VisitLogger";
 import { headers } from 'next/headers';
 import { SITE_URL } from '@/lib/site';
+import { ownedCommerceEnabled } from '@/lib/commerceConfig';
 
 // Serif font for headings - elegant and refined
 const libreBaskerville = Libre_Baskerville({
@@ -60,7 +61,7 @@ export default async function RootLayout({
     return (
         <html lang={locale} dir="ltr" suppressHydrationWarning>
             <body className={`${libreBaskerville.variable} ${inter.variable}`}>
-                <CartProvider>
+                <CartProvider ownedCommerceEnabled={ownedCommerceEnabled()}>
                     {children}
                 </CartProvider>
                 <SpeedInsights />

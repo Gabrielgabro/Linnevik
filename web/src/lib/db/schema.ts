@@ -576,6 +576,35 @@ export const orderEvents = pgTable(
   table => [index('order_events_order_id_idx').on(table.orderId, table.createdAt)]
 );
 
+// Engångstoken för e-postlänksinloggning. Bara hashen sparas — en läckt rad ur
+// databasen ska aldrig kunna växlas mot en session. Consumed_at sätts atomiskt
+// vid inlösen (se magicLink.ts), aldrig läst-och-sedan-skrivet, så att ett
+// dubbelklick eller en samtidig förfrågan inte kan lösa in samma token två gånger.
+export const customerLoginTokens = pgTable(
+  'customer_login_tokens',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    customerId: integer('customer_id')
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    email: text('email').notNull(),
+    requestedIp: text('requested_ip'),
+    userAgent: text('user_agent'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('customer_login_tokens_hash_key').on(table.tokenHash),
+    index('customer_login_tokens_customer_id_idx').on(table.customerId),
+    // Ratbegränsning slår upp mot de här: hur många tokens har den här
+    // adressen respektive den här avsändar-IP:n begärt nyligen.
+    index('customer_login_tokens_email_created_idx').on(table.email, table.createdAt),
+    index('customer_login_tokens_ip_created_idx').on(table.requestedIp, table.createdAt),
+  ]
+);
+
 export const stripeWebhookEvents = pgTable(
   'stripe_webhook_events',
   {
@@ -601,3 +630,4 @@ export type ShippingRuleRow = typeof shippingRules.$inferSelect;
 export type RefundRow = typeof refunds.$inferSelect;
 export type FulfillmentRow = typeof fulfillments.$inferSelect;
 export type OrderEventRow = typeof orderEvents.$inferSelect;
+export type CustomerLoginTokenRow = typeof customerLoginTokens.$inferSelect;

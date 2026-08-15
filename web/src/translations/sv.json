@@ -234,7 +234,7 @@
     "subtitle": "Logga in för att se dina avtalade sortiment, priser och leveranser.",
     "formLabel": "Logga in",
     "formTitle": "Öppna ditt konto",
-    "formSubtitle": "Använd dina Linnevik-uppgifter för att fortsätta.",
+    "formSubtitle": "Ange din e-postadress så skickar vi en säker inloggningslänk.",
     "fields": {
       "email": "E-post",
       "password": "Lösenord",
@@ -244,6 +244,11 @@
       "signIn": "Logga in",
       "forgot": "Glömt lösenordet?",
       "create": "Skapa konto"
+    },
+    "magicLink": {
+      "cta": "Skicka inloggningslänk",
+      "sending": "Skickar...",
+      "sent": "Om adressen tillhör ett Linnevik-konto har vi skickat en inloggningslänk. Kolla din inkorg."
     },
     "highlights": {
       "speedTitle": "Snabba ombeställningar",
@@ -282,14 +287,14 @@
     "lastNamePlaceholder": "Johansson",
     "emailLabel": "E-postadress",
     "emailPlaceholder": "du@example.com",
-    "emailHelper": "Du kommer att få ett e-postmeddelande för att välja lösenord och aktivera ditt konto.",
+    "emailHelper": "Du kommer att få ett e-postmeddelande med en säker länk för att logga in.",
     "submit": "Skapa konto",
     "companyLabel": "Företagsregistreringsnummer (EU)",
     "companyPlaceholder": "SE123456789",
     "companyHelper": "Börjar med landskod följt av 2-12 siffror/bokstäver (t.ex. SE123456789).",
     "backToLogin": "Tillbaka till inloggning",
     "terms": "Genom att skapa ett konto godkänner du våra användarvillkor och integritetspolicy.",
-    "success": "Konto skapat! Kontrollera din e-post för att välja lösenord och aktivera kontot.",
+    "success": "Konto skapat! Kontrollera din e-post för en länk att logga in med.",
     "errors": {
       "missingFields": "Ange e-post och organisationsnummer.",
       "invalidEmailFormat": "Ange en giltig e-postadress.",
@@ -297,33 +302,28 @@
       "firstNameInvalid": "Förnamn måste vara mellan 1 och 100 tecken.",
       "lastNameInvalid": "Efternamn måste vara mellan 1 och 100 tecken.",
       "invalidCompanyNumber": "Ange ett giltigt organisationsnummer som börjar med landskod (t.ex. SE123456789).",
-      "vatFailed": "Vi kunde inte slutföra din registrering just nu. Försök igen.",
-      "activationFailed": "Vi kunde inte skicka aktiveringsmejlet. Försök igen.",
       "generic": "Kontoskapandet misslyckades. Försök igen.",
-      "emailTaken": "Ett konto med den här e-posten finns redan. Logga in istället.",
-      "passwordInvalid": "Lösenordet uppfyller inte kraven. Försök med ett annat."
+      "emailTaken": "Ett konto med den här e-posten finns redan. Logga in istället."
     },
     "metadata": {
       "title": "Skapa konto | Linnevik",
       "description": "Skapa ett nytt Linnevik-konto för B2B-kunder."
     }
   },
-  "verifyEmail": {
-    "title": "Verifiera din e-post",
-    "subtitle": "Vi har skickat en 6-siffrig kod till din e-post",
-    "codeLabel": "Verifieringskod",
-    "codePlaceholder": "000000",
-    "codeHelper": "Ange 6-siffrig kod från din e-post",
-    "submit": "Verifiera e-post",
-    "submitting": "Verifierar...",
-    "backToRegister": "Tillbaka till registrering",
-    "codeInfo": "Koden gäller i 15 minuter",
-    "success": "E-post verifierad! Omdirigerar till inloggning...",
+  "magicLinkVerify": {
+    "title": "Logga in på Linnevik",
+    "subtitle": "Klicka på knappen för att logga in med länken från ditt mejl.",
+    "confirm": "Logga in",
+    "confirming": "Loggar in...",
+    "success": "Inloggad! Omdirigerar...",
+    "missingToken": "Länken saknar en giltig token. Begär en ny inloggningslänk.",
+    "invalid": "Länken är ogiltig. Begär en ny inloggningslänk.",
+    "expired": "Länken har gått ut eller redan använts. Begär en ny.",
     "genericError": "Ett fel uppstod. Försök igen.",
-    "footer": "Hittar du inte e-postmeddelandet? Kolla din skräppost.",
+    "requestNew": "Begär en ny länk",
     "metadata": {
-      "title": "Verifiera e-post | Linnevik",
-      "description": "Verifiera din e-postadress för att slutföra registreringen."
+      "title": "Logga in | Linnevik",
+      "description": "Slutför inloggningen med din e-postlänk."
     }
   },
   "account": {

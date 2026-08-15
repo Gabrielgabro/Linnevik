@@ -9,7 +9,7 @@ import { useState } from 'react';
 
 export default function CartClient() {
     const { t } = useTranslation();
-    const { cart, isLoading, updateItem, removeItem } = useCart();
+    const { cart, isLoading, isOwnedCommerce, updateItem, removeItem } = useCart();
     const [discountCode, setDiscountCode] = useState('');
 
     if (isLoading) {
@@ -178,11 +178,16 @@ export default function CartClient() {
                     </label>
 
                     <CheckoutButton
-                        lines={(cart?.lines.edges ?? []).map(({ node }) => ({
-                            shopifyVariantId: node.merchandise.id,
-                            quantity: node.quantity,
-                        }))}
-                        fallbackUrl={cart?.checkoutUrl}
+                        cartId={isOwnedCommerce ? cart?.id : undefined}
+                        lines={
+                            isOwnedCommerce
+                                ? undefined
+                                : (cart?.lines.edges ?? []).map(({ node }) => ({
+                                      shopifyVariantId: node.merchandise.id,
+                                      quantity: node.quantity,
+                                  }))
+                        }
+                        fallbackUrl={isOwnedCommerce ? undefined : cart?.checkoutUrl}
                         label={t.cart.summary.checkout}
                         pendingLabel={t.cart.summary.checkoutPending}
                         errorLabel={t.cart.summary.checkoutError}

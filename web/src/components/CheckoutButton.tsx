@@ -14,7 +14,9 @@ type CheckoutLine = {
 };
 
 type Props = {
-    lines: CheckoutLine[];
+    /** Ägd korg: skickas i stället för `lines` när OWNED_COMMERCE_ENABLED är på. */
+    cartId?: string;
+    lines?: CheckoutLine[];
     /** Shopifys kassa, som reserv. */
     fallbackUrl?: string | null;
     label: string;
@@ -24,6 +26,7 @@ type Props = {
 };
 
 export default function CheckoutButton({
+    cartId,
     lines,
     fallbackUrl,
     label,
@@ -33,9 +36,10 @@ export default function CheckoutButton({
 }: Props) {
     const [isPending, setIsPending] = useState(false);
     const [hasError, setHasError] = useState(false);
+    const hasContent = Boolean(cartId) || Boolean(lines?.length);
 
     async function startCheckout() {
-        if (isPending || !lines.length) return;
+        if (isPending || !hasContent) return;
         setIsPending(true);
         setHasError(false);
 
@@ -43,7 +47,7 @@ export default function CheckoutButton({
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lines, discountCode }),
+                body: JSON.stringify(cartId ? { cartId, discountCode } : { lines, discountCode }),
             });
             const data = await response.json();
 
@@ -75,7 +79,7 @@ export default function CheckoutButton({
             <button
                 type="button"
                 onClick={startCheckout}
-                disabled={isPending || !lines.length}
+                disabled={isPending || !hasContent}
                 className="block w-full py-3 px-6 text-center rounded-full bg-accent text-color-accent-primary font-semibold hover:bg-accent/90 transition-colors disabled:opacity-60"
             >
                 {isPending ? pendingLabel : label}

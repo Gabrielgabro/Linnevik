@@ -54,7 +54,7 @@ const countryNames: Record<string, string> = {
 
 export default function RegionSelectorModal() {
     const router = useRouter();
-    const { updateCartCountry } = useCart();
+    const { updateCartCountry, isOwnedCommerce } = useCart();
     const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const [countries, setCountries] = useState<CountryOption[]>([]);
@@ -63,6 +63,10 @@ export default function RegionSelectorModal() {
 
     // Check if user has already selected a region
     useEffect(() => {
+        // The owned checkout is Sweden/SEK-only — offering other regions here
+        // would promise something checkout can't deliver.
+        if (isOwnedCommerce) return;
+
         const checkRegion = async () => {
             // Check if SHOP_COUNTRY cookie exists by calling the API
             try {
@@ -86,7 +90,7 @@ export default function RegionSelectorModal() {
         // Small delay to prevent flash on page load
         const timer = setTimeout(checkRegion, 500);
         return () => clearTimeout(timer);
-    }, []);
+    }, [isOwnedCommerce]);
 
     const handleSelectCountry = async (country: CountryOption) => {
         setLoading(true);

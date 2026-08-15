@@ -165,6 +165,36 @@ export async function upsertCustomerFromCheckout(input: {
   return Number((result.rows[0] as { id: number }).id);
 }
 
+export type RegisterCustomerResult =
+  | { status: 'created'; id: number }
+  | { status: 'exists' };
+
+/**
+ * Skapar kundraden direkt i Postgres. Det här är hela registreringen — det
+ * finns inget Shopify-konto att skapa längre (se handleRegister). VAT/org-
+ * numret sparas i tax_id på kunden i stället för en Shopify-metafield, så att
+ * det finns ett enda ägande system för kunddata.
+ *
+ * Misslyckas tyst mot dubbletter (unique-indexet på lower(email)) i stället
+ * för att kasta, så att anroparen kan ge ett vanligt "kontot finns redan"-fel.
+ */
+export async function registerCustomer(input: {
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  taxId?: string | null;
+}): Promise<RegisterCustomerResult> {
+  const email = input.email.trim().toLowerCase();
+  const result = await getDb().execute(sql`
+    insert into customers (email, first_name, last_name, tax_id)
+    values (${email}, ${input.firstName ?? null}, ${input.lastName ?? null}, ${input.taxId ?? null})
+    on conflict (lower(email)) do nothing
+    returning id
+  `);
+  const row = result.rows[0] as { id: number } | undefined;
+  return row ? { status: 'created', id: Number(row.id) } : { status: 'exists' };
+}
+
 export type CustomerInput = Partial<Omit<CustomerRow, 'id' | 'createdAt' | 'updatedAt'>> & {
   email?: string;
 };

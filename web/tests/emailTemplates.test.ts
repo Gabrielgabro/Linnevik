@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { escapeHtml } from '@/lib/mailer';
-import { orderConfirmationEmail, shipmentEmail, verificationEmail } from '@/lib/emailTemplates';
+import { magicLinkEmail, orderConfirmationEmail, shipmentEmail } from '@/lib/emailTemplates';
 
 const order = {
   id: 1042,
@@ -127,13 +127,18 @@ describe('shipment notice', () => {
   });
 });
 
-describe('verification email', () => {
-  it('carries the code', () => {
-    expect(verificationEmail('123456', 'Anna').html).toContain('123456');
+describe('magic link email', () => {
+  const url = 'https://linnevik.se/sv/login/verify?token=abc123';
+
+  it('includes the link as both the button target and the plain-text fallback', () => {
+    const { html } = magicLinkEmail(url);
+    expect(html).toContain(`href="${url}"`);
+    expect(html).toContain(url);
   });
 
-  it('works without a name', () => {
-    const { html } = verificationEmail('123456');
-    expect(html).toContain('Hej,');
+  it('escapes the url so it cannot break out of the href attribute', () => {
+    const hostile = 'https://linnevik.se/sv/login/verify?token=" onload="evil()';
+    const { html } = magicLinkEmail(hostile);
+    expect(html).not.toContain('" onload="evil()');
   });
 });
