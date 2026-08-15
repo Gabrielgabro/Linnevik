@@ -6,7 +6,12 @@ import { getDb } from '@/lib/db';
 import { products } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { deleteProduct, setProductCollections, updateProduct } from '@/lib/productsDb';
-import { InputError, parseIdList, parseProductInput } from '@/lib/productsInput';
+import {
+  InputError,
+  parseIdList,
+  parsePrimaryCollectionId,
+  parseProductInput,
+} from '@/lib/productsInput';
 
 export const runtime = 'nodejs';
 
@@ -48,8 +53,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (body.collectionIds !== undefined) {
     try {
       const collectionIds = parseIdList(body, 'collectionIds');
-      const primary = body.primaryCollectionId == null ? null : Number(body.primaryCollectionId);
-      await setProductCollections(id, collectionIds, Number.isInteger(primary) ? primary : null);
+      const primary = parsePrimaryCollectionId(body, collectionIds);
+      await setProductCollections(id, collectionIds, primary);
     } catch (error) {
       const message = error instanceof InputError ? error.message : 'Kunde inte spara kategorierna.';
       return NextResponse.json({ error: message }, { status: 400 });

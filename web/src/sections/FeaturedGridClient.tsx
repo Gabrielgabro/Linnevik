@@ -9,7 +9,8 @@ type Product = {
     handle: string;
     title: string;
     images: { edges: { node: { url: string; altText: string | null } }[] };
-    priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
+    // Utelämnat när varan inte går att beställa hos oss, se FeaturedGrid.
+    priceRange?: { minVariantPrice: { amount: string; currencyCode: string } };
 };
 
 export default function FeaturedGridClient({ products }: { products: Product[] }) {
@@ -46,10 +47,12 @@ export default function FeaturedGridClient({ products }: { products: Product[] }
                                         <h3 className="font-medium text-primary text-sm md:text-base line-clamp-2 md:line-clamp-none leading-snug">
                                             {p.title}
                                         </h3>
-                                        {price?.amount && (
+                                        {price?.amount ? (
                                             <p className="text-xs md:text-sm text-secondary">
                                                 {t.home.featuredGrid.from} {Number(price.amount).toLocaleString(locale === 'sv' ? 'sv-SE' : 'en-US')} {price.currencyCode}
                                             </p>
+                                        ) : (
+                                            <p className="text-xs md:text-sm text-muted">{t.product.unavailable}</p>
                                         )}
                                     </div>
                                 </article>

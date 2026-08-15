@@ -111,7 +111,7 @@ The launch is Sweden-only, SEK, B2B, immediate cutover, with no customer or orde
 
 ### Not yet complete
 
-- The product catalog itself (title, options, images, descriptions on `/products/[handle]`) is still read from Shopify's GraphQL API, not the owned `products`/`productVariants` tables — that is a separate, larger migration and was deliberately left alone. The owned cart resolves the Shopify variant id it's handed back to its own numeric variant id via `productVariants.shopifyVariantId` (see `resolveVariantIdByShopifyId` in `lib/cartDb.ts`), so cart/checkout could be cut over without waiting on the catalog-read migration.
+- The product catalog itself (title, options, images, descriptions on `/products/[handle]`) and search are still read from Shopify’s GraphQL API, not the owned `products`/`productVariants` tables — that is a separate, larger migration and was deliberately left alone. The owned cart resolves the Shopify variant id it's handed back to its own numeric variant id via `productVariants.shopifyVariantId` (see `resolveVariantIdByShopifyId` in `lib/cartDb.ts`), so cart/checkout could be cut over without waiting on the catalog-read migration.
 - Inventory is validated during cart and checkout operations, but stock is not reserved or deducted when payment succeeds, leaving an overselling risk.
 - SMTP credentials are still not present in the local environment, so no message has been delivered end to end — this includes the magic-link email, not only order mail. The transport, templates, and failure paths are implemented and unit-tested, but the handshake with `smtp.wsr.se` is unproven. Required variables are documented in `web/.env.example`.
 - No end-to-end test has exercised the magic-link flow against a real database (request → email → click → session cookie → account access). Unit tests cover token hashing/expiry logic, email/rate-limit input validation, and session cookie signing in isolation.
@@ -144,6 +144,48 @@ The four remaining gaps between "login works" and "our own backend accounts, mat
 - **Order history on `/account` reads from the owned `orders`/`order_items` tables** for anyone signed in via the magic-link session (`getOwnedCustomerOrders` in `lib/customerAccount.ts`), shaped into the same structure the page already rendered. Shopify GraphQL is now only consulted as a fallback for customers still on the legacy Shopify cookie.
 - **The storefront cart and checkout are wired to the owned backend behind `OWNED_COMMERCE_ENABLED`** (default `false`, documented in `web/.env.example`). `CartProvider` (`src/contexts/CartContext.tsx`) takes the flag as a prop from the root layout and, when it's on, talks to `/api/store/cart/*` instead of the Shopify-backed `/api/cart`, adapting the response into the same `Cart` shape every consumer (`Header`, `CartClient`, `ProductForm`, `CheckoutButton`) already expected — none of those components needed to change their own logic. `CheckoutButton` now sends `cartId` straight through to the already-owned-aware `/api/checkout` route instead of rebuilding a Shopify line-items array. The region/currency selectors hide themselves when the flag is on, since owned checkout is Sweden/SEK-only.
 - Flipping `OWNED_COMMERCE_ENABLED=true` is still the one deliberate step left before any of this serves real traffic — see "Not yet complete" above for what hasn't been proven end to end yet (SMTP, inventory reservation, a live database run).
+
+### Update 15-8: kategorierna, och en tyst dataförlust som de avslöjade
+
+Symptomet var att påslakan saknade kategori och att det inte gick att sätta den till Sängkläder. Två skilda fel låg bakom, och det ena hade förstört data.
+
+- **Kategorikopplingen fanns, men `is_primary` var falsk.** Brödsmulan bygger på just den flaggan (`getProductBreadcrumb`), så produkten såg kopplad ut i admin och kategorilös på sajten. Aktivitetsloggen visar att sparningen gick igenom utan fel — klienten skickade `primaryCollectionId: null`. Orsaken satt i gränssnittet: kryssrutan och radioknappen "Primär" var två skilda klick, och radioknappen låg låst tills rutan var ikryssad, så ett klick i fel ordning försvann tyst. `CollectionPanel` väljer nu primär åt användaren — första ikryssade kategorin blir primär, och kryssar man ur den flyttas märket — och `parsePrimaryCollectionId` avvisar numera både en primär utanför urvalet och ett urval helt utan primär, i stället för att som förr släppa den tyst.
+- **`parseProductInput` nollade varje fält som anropet inte skickade med.** `text()` svarar `null` både för "tomrensat" och för "aldrig skickat", och Drizzle skriver `null` men hoppar över `undefined`. Kategoripanelen skickar bara sina kategori-id:n, så varje sparning där tömde engelsk titel, båda beskrivningarna, varumärke, typ och SEO-fälten. Det är exakt vad som hände påslakan 15-8 kl. 13:33. Systerparsrarna `parseCollectionInput` och `parseVariantInput` hade redan rätt vakt; produktparsern har den nu också, med regressionstest i `tests/productsInput.test.ts`.
+- **Påslakan är återställd** från Shopify med `scripts/restore-paslakan.mjs` — samma kolumner och samma källa som `catalog:migrate` skriver. Ingen produkt saknar längre primär kategori.
+- **`seo_title_en` och `seo_description_en` gick inte att redigera alls** — kolumnerna fanns, men varken formuläret eller parsern kände till dem. Båda finns nu i `ContentPanel`.
+
+**Kategoriträdet når nu sajten.** `listCollections` i `catalogDb.ts` hade noll anropare: hela trädet som redigeras i admin — förälder, ordning, tvåspråkiga titlar, `active` — var skrivet men aldrig inkopplat, och varje kategorisida på sajten lästes fortfarande från Shopify. Därför gjorde `parent_id` ingen skillnad för någon besökare. Nu läser `/collections`, `/collections/[handle]`, `CategoriesTeaser` och `getCollectionStaticParams` ur våra egna tabeller:
+
+- Översikten ritar rötterna med sina barn under sig, och antalet produkter räknas över hela underträdet.
+- En kategorisida visar sina underkategorier och produkterna i hela underträdet, så en förälder är något annat än en tom rubrik. Verifierat genom att tillfälligt lägga Sängkläder under Kuddar & Täcken: översikten nästlade, antalet gick 6 → 11, och brödsmulan blev `Kuddar & Täcken › Sängkläder › Påslakan`. Trädet är återställt till fem rötter.
+- Sidbrytningen gick från Shopifys markör (`?after=`) till `?page=N`.
+
+Produktsidan och sökningen läser fortfarande katalogen från Shopify — det är samma separata migrering som förut, se "Ännu inte klart".
+
+### Update 15-8: sortimentsspärren, engelskan och handlen
+
+Tre saker som stod som öppna ovan är nu stängda. Den första var feldiagnostiserad i en tidigare version av det här stycket, och rättelsen är värd att skriva ut.
+
+- **`product_variants.active` är inte trasig — den är ett beslut.** En enda sats 14-8 kl. 18:07:04.873 satte `active = false` på 35 varianter, och de sex produkter som blev kvar är exakt de sex i `src/data/landedCost.ts`, alltså de vi lagerför. `available_for_sale` kommer från Shopify och betyder "finns i lager"; `active` är vårt eget beslut om att varan går att beställa hos oss alls. `cartRules` kräver båda, och det är rätt.
+
+  Felet var i stället att sajten erbjöd de tio andra produkterna ändå — pris i listorna och en aktiv köpknapp för något kassan skulle neka. Nu går alla säljytor efter samma villkor som `cartRules`:
+  - `getCollectionPage` räknar "från"-pris bara på varianter som är både `active` och `available_for_sale`. Produkten listas fortfarande — den är verklig och har en sida — men utan pris.
+  - Produktsidan väger in `getPurchasableShopifyVariantIds` innan den skickar varianterna vidare, så knappen säger "Kan inte beställas" i stället för att vara avstängd utan förklaring. Samma tillgänglighet går in i den strukturerade datan, som annars hade påstått "InStock" om något vi inte säljer.
+  - `FeaturedGrid` filtrerar på samma sätt via `filterPurchasableHandles`.
+
+  Kopplingen produkt → Shopify-variant är komplett: alla 55 varianter har `shopify_variant_id`.
+
+- **Kategoriernas engelska texter var svenska.** Shopify har ingen engelsk översättning av kategorierna, så `@inContext(language: EN)` svarade med den svenska texten och importen skrev in den. Migrering `0012` sätter riktiga engelska titlar och beskrivningar, villkorat på att engelskan fortfarande är identisk med svenskan så att en handskriven rättelse aldrig skrivs över.
+
+- **Kategorin med handle `madrasskydd` hette `Badrum`.** Den döptes om i Shopify utan att handlen följde med — Shopify behåller handlen vid namnbyte — och handlen är adressen. `0012` byter den till `badrum`, och `next.config.ts` har en permanent omdirigering från den gamla adressen på båda språken.
+
+- **Importen skriver inte längre över det vi äger.** `catalog:migrate` nycklade på `handle`, vilket efter namnbytet hade skapat en dubblettkategori i stället för att hitta raden den redan har — och den skrev över `title_en`/`description_html_en` med den svenska texten vid varje körning, alltså återinförde felet `0012` just rättat. Upserten nycklar nu på `shopify_collection_id`, rör inte handlen, och fyller de engelska kolumnerna bara när de är tomma. Verifierat mot databasen: samma upsert träffar rad 1, behåller `badrum` och `Bathroom`, och antalet kategorier står kvar på fem.
+
+### Ännu inte klart efter den här omgången
+
+- Produktsidan och sökningen läser fortfarande katalogtexten från Shopify. Det är samma separata migrering som förut.
+- `title_en` och `description_html_en` på **produkterna** är fortfarande svenska av samma skäl som kategorierna var det. Bara kategorierna är översatta hittills.
+- Kategorisidan visar beskrivningen som ren text, precis som Shopify-versionen gjorde, så kontaktlänken i Sängkläders beskrivning renderas inte som en länk.
 
 ### Readiness decision
 

@@ -1,5 +1,6 @@
 import { SUPPORTED_LANGUAGES, toShopifyLanguage } from './languageConfig';
-import { getAllProducts, getAllCollections } from './shopify';
+import { getAllProducts } from './shopify';
+import { listCollectionHandles } from './catalogDb';
 
 export async function getStaticLocaleParams() {
     return SUPPORTED_LANGUAGES.map((lang) => ({
@@ -26,20 +27,13 @@ export async function getProductStaticParams() {
     return params;
 }
 
+// Kategorierna kommer ur vår egen tabell — samma källa som sidan sedan läser.
+// Handlarna är språkoberoende, så listan hämtas en gång och paras ihop med
+// varje språk.
 export async function getCollectionStaticParams() {
-    const params: { locale: string; handle: string }[] = [];
+    const handles = await listCollectionHandles();
 
-    for (const lang of SUPPORTED_LANGUAGES) {
-        const shopifyLang = toShopifyLanguage(lang.code);
-        const collections = await getAllCollections(250, shopifyLang);
-
-        for (const collection of collections) {
-            params.push({
-                locale: lang.code,
-                handle: collection.handle,
-            });
-        }
-    }
-
-    return params;
+    return SUPPORTED_LANGUAGES.flatMap((lang) =>
+        handles.map((handle) => ({ locale: lang.code, handle }))
+    );
 }

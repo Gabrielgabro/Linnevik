@@ -12,6 +12,19 @@ const nextConfig: NextConfig = {
     },
     async redirects() {
         return [
+            // Kategorin "Badrum" låg på handlen `madrasskydd` — den döptes om i
+            // Shopify utan att handlen följde med, och handlen är adressen.
+            // Bytt i 0012; den gamla adressen finns i sökmotorer och länkar.
+            {
+                source: '/:locale(sv|en)/collections/madrasskydd',
+                destination: '/:locale/collections/badrum',
+                permanent: true,
+            },
+            {
+                source: '/collections/madrasskydd',
+                destination: '/sv/collections/badrum',
+                permanent: true,
+            },
             // Redirect /products to /collections for both locales
             {
                 source: '/:locale(sv|en)/products',

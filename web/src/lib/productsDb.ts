@@ -210,6 +210,8 @@ export type ProductInput = Partial<
     | 'supplier'
     | 'seoTitle'
     | 'seoDescription'
+    | 'seoTitleEn'
+    | 'seoDescriptionEn'
     | 'status'
     | 'publishedAt'
     | 'active'

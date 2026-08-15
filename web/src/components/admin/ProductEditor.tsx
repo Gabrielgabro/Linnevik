@@ -109,8 +109,14 @@ function ContentPanel({ detail }: { detail: ProductDetail }) {
       />
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
-        <Field label="SEO-titel" name="seoTitle" defaultValue={product.seoTitle} />
-        <Field label="SEO-beskrivning" name="seoDescription" defaultValue={product.seoDescription} />
+        <Field label="SEO-titel (sv)" name="seoTitle" defaultValue={product.seoTitle} />
+        <Field label="SEO-titel (en)" name="seoTitleEn" defaultValue={product.seoTitleEn} />
+        <Field label="SEO-beskrivning (sv)" name="seoDescription" defaultValue={product.seoDescription} />
+        <Field
+          label="SEO-beskrivning (en)"
+          name="seoDescriptionEn"
+          defaultValue={product.seoDescriptionEn}
+        />
       </div>
 
       <Select
@@ -622,16 +628,30 @@ function CollectionPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const toggle = (id: number) =>
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (!next.delete(id)) next.add(id);
-      // Den primära måste vara en av de valda, annars blir brödsmulan tom.
-      if (primary !== null && !next.has(primary)) setPrimary(null);
-      return next;
-    });
+  // Brödsmulan på sajten går efter den primära kategorin, inte efter kryssen.
+  // Att sätta den var förr ett eget klick på en radioknapp som satt låst tills
+  // rutan var ikryssad — ett klick i fel ordning försvann tyst, och produkten
+  // sparades kopplad men utan primär, alltså utan brödsmula. Den väljs därför
+  // åt en nu: första ikryssade kategorin blir primär, och kryssar man ur den
+  // som var primär flyttas märket till en av dem som är kvar.
+  const toggle = (id: number) => {
+    const next = new Set(selected);
+    if (!next.delete(id)) next.add(id);
+    setSelected(next);
+    if (primary === null || !next.has(primary)) {
+      // Faller tillbaka i listans ordning, inte i klickordning, så att samma
+      // urval alltid ger samma primär.
+      setPrimary(collections.find(collection => next.has(collection.id))?.id ?? null);
+    }
+  };
 
   const save = async () => {
+    // Kan inte nås från gränssnittet så länge toggle håller ihop de två, men
+    // en produkt utan primär är exakt det fel vi är här för att laga.
+    if (selected.size > 0 && primary === null) {
+      setError('Välj en primär kategori — det är den brödsmulan på sajten går efter.');
+      return;
+    }
     setBusy(true);
     setError(null);
     const response = await fetch(`/api/admin/products/${detail.product.id}`, {
@@ -698,9 +718,9 @@ function CollectionPanel({
         <Button type="button" onClick={save} disabled={busy}>
           {busy ? 'Sparar…' : 'Spara kategorier'}
         </Button>
-        {primary === null && selected.size > 0 && (
+        {selected.size === 0 && (
           <span className="text-[12.5px]" style={{ color: 'var(--viz-flag)' }}>
-            Utan primär kategori blir brödsmulan på sajten tom.
+            Utan kategori blir brödsmulan på sajten tom.
           </span>
         )}
       </div>

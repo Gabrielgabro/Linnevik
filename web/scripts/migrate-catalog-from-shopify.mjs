@@ -222,8 +222,12 @@ for (const [position, collection] of collectionsSv.entries()) {
   );
   if (!apply) continue;
 
+  // Slås upp på Shopifys id av samma skäl som upserten nedan: handlen kan ha
+  // döpts om här, och med handlen som nyckel hade bilden kopierats på nytt vid
+  // varje körning.
   const [current] = await sql`
-    select id, image_source_url from collections where handle = ${collection.handle} limit 1`;
+    select id, image_source_url from collections
+     where shopify_collection_id = ${collection.id} limit 1`;
   let image = null;
   if (source && cleanSource(current?.image_source_url) !== source) {
     try {
@@ -251,14 +255,24 @@ for (const [position, collection] of collectionsSv.entries()) {
       ${collection.image?.width ?? null}, ${collection.image?.height ?? null},
       ${collection.updatedAt}, now(), ${position}
     )
-    on conflict (handle) do update set
-      shopify_collection_id = excluded.shopify_collection_id,
-      title_sv = excluded.title_sv, title_en = excluded.title_en,
+    -- Nyckeln är Shopifys id, inte handlen. Handlen är vår adress på sajten
+    -- och kan ha döpts om här (se 0012, madrasskydd -> badrum); med
+    -- handlen som nyckel hade en omkörning skapat en dubblett i stället för
+    -- att hitta raden den redan har. Därför skrivs handlen heller inte över.
+    on conflict (shopify_collection_id) where shopify_collection_id is not null
+    do update set
+      title_sv = excluded.title_sv,
       description_html = excluded.description_html,
-      description_html_en = excluded.description_html_en,
-      seo_title = excluded.seo_title, seo_title_en = excluded.seo_title_en,
+      -- Shopify har ingen engelsk översättning av kategorierna, så en EN-fråga
+      -- svarar med den svenska texten. Att skriva över en engelska vi själva
+      -- fyllt i vore att återinföra felet 0012 rättade. Tom kolumn fylls, ifylld
+      -- lämnas.
+      title_en = coalesce(collections.title_en, excluded.title_en),
+      description_html_en = coalesce(collections.description_html_en, excluded.description_html_en),
+      seo_title = excluded.seo_title,
+      seo_title_en = coalesce(collections.seo_title_en, excluded.seo_title_en),
       seo_description = excluded.seo_description,
-      seo_description_en = excluded.seo_description_en,
+      seo_description_en = coalesce(collections.seo_description_en, excluded.seo_description_en),
       image_url = coalesce(excluded.image_url, collections.image_url),
       image_blob_pathname = coalesce(excluded.image_blob_pathname, collections.image_blob_pathname),
       image_source_url = coalesce(excluded.image_source_url, collections.image_source_url),

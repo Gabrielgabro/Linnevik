@@ -176,7 +176,14 @@ export default function ProductForm({
                     onClick={handleAddToCart}
                     className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-none font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
                 >
-                    {addingToCart ? t.product.addingToCart : t.product.addToCart}
+                    {/* En avstängd knapp utan förklaring läser som ett fel på
+                        sajten. Säg i stället att varianten inte går att
+                        beställa. */}
+                    {!active?.availableForSale
+                        ? t.product.unavailable
+                        : addingToCart
+                            ? t.product.addingToCart
+                            : t.product.addToCart}
                 </button>
             )}
 

@@ -4,7 +4,7 @@ import Breadcrumbs from '@/components/Breadcrumbs';
 import { Metadata } from 'next';
 
 import { getProductByHandle } from '@/lib/shopify';
-import { getProductBreadcrumb } from '@/lib/catalogDb';
+import { getProductBreadcrumb, getPurchasableShopifyVariantIds } from '@/lib/catalogDb';
 import { getHreflang } from '@/lib/metadata';
 import { SITE_URL, getSiteUrl } from '@/lib/site';
 import { toShopifyLanguage } from '@/lib/languageConfig';
@@ -85,7 +85,18 @@ export default async function ProductPage({ params }: Props) {
     if (!product) notFound();
 
     const images = product.images.edges.map(e => e.node);
-    const variants = product.variants.edges.map(e => e.node);
+
+    // Shopify säger om varan finns i lager. Vi säger om den går att beställa
+    // hos oss alls — bara de sex lagerförda produkterna är släppta, resten är
+    // avmarkerade sedan 14-8. Kassan (`cartRules`) kräver båda, så knappen här
+    // måste kräva båda den också. Saknas produkten i vår katalog finns inget
+    // eget beslut att väga in, och Shopify får bestämma ensam.
+    const purchasable = await getPurchasableShopifyVariantIds(handle);
+    const variants = product.variants.edges.map(e => e.node).map(variant => ({
+        ...variant,
+        availableForSale:
+            variant.availableForSale && (purchasable === null || purchasable.has(variant.id)),
+    }));
     const moq = product.moq?.value ? Number(product.moq.value) : null;
     const packSize = product.packSize?.value ? Number(product.packSize.value) : null;
     const hasMTOTag = product.tags?.includes('MTO') ?? false;
@@ -124,7 +135,10 @@ export default async function ProductPage({ params }: Props) {
                     description: product.descriptionHtml?.replace(/<[^>]*>/g, '') || undefined,
                     images: product.images,
                     options: product.options,
-                    variants: product.variants,
+                    // Samma överskrivna tillgänglighet som knappen går efter.
+                    // Strukturerad data får inte påstå "i lager" om något vi
+                    // inte tänker sälja.
+                    variants: { edges: variants.map(node => ({ node })) },
                     moq,
                     packSize,
                 }} url={getSiteUrl(`${locale}/products/${handle}`)} />

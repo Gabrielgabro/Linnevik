@@ -68,24 +68,45 @@ function tags(body: Body, key: string): string[] | undefined {
   return [...new Set(cleaned)];
 }
 
+/**
+ * De fria textfälten på en produkt, med sin längdgräns. Beskrivningarna är
+ * HTML från Shopify och får vara långa. De renderas med
+ * dangerouslySetInnerHTML på produktsidan, så de kommer bara härifrån —
+ * fälten ligger bakom adminspärren och skrivs av oss, inte av kunder.
+ */
+const PRODUCT_TEXT_FIELDS = {
+  titleEn: 200,
+  descriptionHtml: 20_000,
+  descriptionHtmlEn: 20_000,
+  productType: 120,
+  vendor: 120,
+  seoTitle: 200,
+  seoDescription: 400,
+  seoTitleEn: 200,
+  seoDescriptionEn: 400,
+} as const;
+
 export function parseProductInput(body: Body, { partial = false } = {}): ProductInput {
   const title = text(body, 'title', 200);
   if (!partial && !title) throw new InputError('Produkten behöver en titel.');
 
-  const input: ProductInput = {
-    titleEn: text(body, 'titleEn', 200),
-    handle: text(body, 'handle', 80) ?? undefined,
-    // Beskrivningen är HTML från Shopify och får vara lång. Den renderas med
-    // dangerouslySetInnerHTML på produktsidan, så den kommer bara härifrån —
-    // fältet ligger bakom adminspärren och skrivs av oss, inte av kunder.
-    descriptionHtml: text(body, 'descriptionHtml', 20_000),
-    descriptionHtmlEn: text(body, 'descriptionHtmlEn', 20_000),
-    productType: text(body, 'productType', 120),
-    vendor: text(body, 'vendor', 120),
-    seoTitle: text(body, 'seoTitle', 200),
-    seoDescription: text(body, 'seoDescription', 400),
-  };
+  const input: ProductInput = {};
   if (title) input.title = title;
+
+  // Ett fält som inte skickades med får inte röras. text() svarar null både för
+  // "tomrensat" och för "aldrig skickat", så nyckeln måste kollas för sig —
+  // annars nollar varje delvist formulär allt det inte råkade skicka med.
+  // Kategoripanelen skickar bara sina kategori-id:n, och tömde på så vis
+  // engelsk titel, båda beskrivningarna och varumärket på produkten den
+  // sparade. Samma vakt som i parseCollectionInput och parseVariantInput.
+  for (const key of Object.keys(PRODUCT_TEXT_FIELDS) as (keyof typeof PRODUCT_TEXT_FIELDS)[]) {
+    if (body[key] !== undefined) input[key] = text(body, key, PRODUCT_TEXT_FIELDS[key]);
+  }
+
+  // Handlen är NOT NULL. En tomrensad handle betyder "behåll den du har", inte
+  // "ta bort den" — den kan inte vara null och ska aldrig gissas här.
+  const handle = text(body, 'handle', 80);
+  if (handle) input.handle = handle;
 
   // Leverantören är NOT NULL i databasen. Ett tomrensat fält betyder därför
   // "vi vet inte" och blir 'unknown', inte null.
@@ -195,6 +216,33 @@ export function parseCollectionInput(body: Body, { partial = false } = {}): Coll
   if (active !== undefined) input.active = active;
 
   return input;
+}
+
+/**
+ * Den primära kategorin, kontrollerad mot de valda.
+ *
+ * Kastar hellre än att tyst släppa den. Brödsmulan på produktsidan finns bara
+ * om `is_primary` är satt, så en primär som försvinner på vägen in ger en
+ * produkt som ser kopplad ut i admin men saknar kategori på sajten — vilket
+ * inte syns förrän någon tittar på sidan.
+ */
+export function parsePrimaryCollectionId(body: Body, collectionIds: number[]): number | null {
+  const value = body.primaryCollectionId;
+  if (value === undefined || value === null) {
+    if (collectionIds.length > 0) {
+      throw new InputError('Välj en primär kategori — det är den brödsmulan på sajten går efter.');
+    }
+    return null;
+  }
+
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new InputError('primaryCollectionId är inget giltigt id.');
+  }
+  if (!collectionIds.includes(id)) {
+    throw new InputError('Den primära kategorin måste vara en av de valda kategorierna.');
+  }
+  return id;
 }
 
 /** Lista av id:n, för kategorikopplingar och bildordning. */

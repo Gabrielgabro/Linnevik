@@ -11,6 +11,9 @@ type ProductCardProps = {
     };
     fromLabel?: string;
     noImageLabel?: string;
+    /** Sätts av listor som vet att ett saknat pris betyder "går inte att
+     *  beställa". Utan den lämnas raden tom, som förut. */
+    unavailableLabel?: string;
     locale?: string;
 };
 
@@ -18,6 +21,7 @@ export default function ProductCard({
     product,
     fromLabel = "from",
     noImageLabel = "No image",
+    unavailableLabel,
     locale = "en",
 }: ProductCardProps) {
     const img = product.images?.edges?.[0]?.node;
@@ -39,11 +43,13 @@ export default function ProductCard({
                 )}
             </div>
             <h3 className="mt-3 font-medium">{product.title}</h3>
-            {price?.amount && (
+            {price?.amount ? (
                 <p className="text-sm text-gray-600">
                     {fromLabel} {Number(price.amount).toLocaleString(numberLocale)} {price.currencyCode}
                 </p>
-            )}
+            ) : unavailableLabel ? (
+                <p className="text-sm text-gray-500">{unavailableLabel}</p>
+            ) : null}
         </LocaleLink>
     );
 }

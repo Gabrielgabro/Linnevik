@@ -79,7 +79,8 @@
     "noImage": "No image",
     "notFound": "Product not found.",
     "leadTime": "Lead time",
-    "informationHeading": "Product information"
+    "informationHeading": "Product information",
+    "unavailable": "Not available to order"
   },
   "mto": {
     "priceEstimate": {
@@ -660,8 +661,12 @@
       "emptyTitle": "Nothing here!",
       "emptyBody": "There are no products in this category yet.",
       "loadMore": "Show more",
-      "allLoaded": "You’ve seen all products"
-    }
+      "allLoaded": "You’ve seen all products",
+      "subcategories": "Subcategories",
+      "showingOf": "Showing {count} of {total} products",
+      "previous": "Previous"
+    },
+    "productCount": "{count} products"
   },
   "cart": {
     "metadata": {

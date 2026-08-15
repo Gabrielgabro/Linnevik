@@ -79,7 +79,8 @@
     "noImage": "Ingen bild",
     "notFound": "Produkten hittades inte.",
     "leadTime": "Leveranstid",
-    "informationHeading": "Produktinformation"
+    "informationHeading": "Produktinformation",
+    "unavailable": "Kan inte beställas"
   },
   "mto": {
     "priceEstimate": {
@@ -660,8 +661,12 @@
       "emptyTitle": "Tomt här!",
       "emptyBody": "Det finns inga produkter i denna kategori än.",
       "loadMore": "Visa fler",
-      "allLoaded": "Du har sett alla produkter"
-    }
+      "allLoaded": "Du har sett alla produkter",
+      "subcategories": "Underkategorier",
+      "showingOf": "Visar {count} av {total} produkter",
+      "previous": "Föregående"
+    },
+    "productCount": "{count} produkter"
   },
   "cart": {
     "metadata": {
