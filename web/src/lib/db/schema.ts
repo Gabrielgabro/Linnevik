@@ -158,6 +158,9 @@ export const productVariants = pgTable(
     priceMinor: integer('price_minor').notNull(),
     currency: text('currency').notNull().default('sek'),
     inventoryQuantity: integer('inventory_quantity').notNull().default(0),
+    // Enheter bundna av aktiva reservationer (betalda men ej plockade ordrar).
+    // Vad som går att sälja just nu är inventoryQuantity - inventoryReserved.
+    inventoryReserved: integer('inventory_reserved').notNull().default(0),
     minimumOrderQuantity: integer('minimum_order_quantity').notNull().default(1),
     orderIncrement: integer('order_increment').notNull().default(1),
     inventoryTracked: boolean('inventory_tracked').notNull().default(true),
@@ -576,6 +579,62 @@ export const orderEvents = pgTable(
   table => [index('order_events_order_id_idx').on(table.orderId, table.createdAt)]
 );
 
+// Ett lagerhåll per orderrad: enheterna binds när en order betalas (eller en
+// faktura godkänns) och släpps antingen vid plock (consumed) eller vid
+// makulering/utgång (released). En orderrad har högst en reservation.
+export const inventoryReservations = pgTable(
+  'inventory_reservations',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    variantId: integer('variant_id')
+      .notNull()
+      .references(() => productVariants.id, { onDelete: 'restrict' }),
+    orderId: integer('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    orderItemId: integer('order_item_id')
+      .notNull()
+      .references(() => orderItems.id, { onDelete: 'cascade' }),
+    quantity: integer('quantity').notNull(),
+    status: text('status').notNull().default('active'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('inventory_reservations_order_item_key').on(table.orderItemId),
+    index('inventory_reservations_variant_id_idx').on(table.variantId),
+    index('inventory_reservations_status_idx').on(table.status, table.expiresAt),
+  ]
+);
+
+// Fullständig lagerhistorik — varje ändring av inventoryQuantity/inventoryReserved
+// loggas här, så att lagersaldot alltid kan förklaras i efterhand.
+export const inventoryMovements = pgTable(
+  'inventory_movements',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    variantId: integer('variant_id')
+      .notNull()
+      .references(() => productVariants.id, { onDelete: 'restrict' }),
+    type: text('type').notNull(),
+    quantity: integer('quantity').notNull(),
+    orderId: integer('order_id').references(() => orders.id, { onDelete: 'set null' }),
+    orderItemId: integer('order_item_id').references(() => orderItems.id, { onDelete: 'set null' }),
+    fulfillmentId: integer('fulfillment_id').references(() => fulfillments.id, { onDelete: 'set null' }),
+    reservationId: integer('reservation_id').references(() => inventoryReservations.id, {
+      onDelete: 'set null',
+    }),
+    note: text('note'),
+    actor: text('actor').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    index('inventory_movements_variant_id_idx').on(table.variantId, table.createdAt),
+    index('inventory_movements_order_id_idx').on(table.orderId),
+  ]
+);
+
 // Engångstoken för e-postlänksinloggning. Bara hashen sparas — en läckt rad ur
 // databasen ska aldrig kunna växlas mot en session. Consumed_at sätts atomiskt
 // vid inlösen (se magicLink.ts), aldrig läst-och-sedan-skrivet, så att ett
@@ -630,4 +689,6 @@ export type ShippingRuleRow = typeof shippingRules.$inferSelect;
 export type RefundRow = typeof refunds.$inferSelect;
 export type FulfillmentRow = typeof fulfillments.$inferSelect;
 export type OrderEventRow = typeof orderEvents.$inferSelect;
+export type InventoryReservationRow = typeof inventoryReservations.$inferSelect;
+export type InventoryMovementRow = typeof inventoryMovements.$inferSelect;
 export type CustomerLoginTokenRow = typeof customerLoginTokens.$inferSelect;

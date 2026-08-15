@@ -5,6 +5,9 @@ import { getCustomerVatById, setCustomerVatStatus } from '@/lib/shopifyAdmin';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { cookies } from 'next/headers';
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
+import { getDb } from '@/lib/db';
+import { customers } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export type VatState = {
     status: 'idle' | 'success' | 'error';
@@ -29,6 +32,18 @@ async function getSessionCustomer() {
         return null;
     }
     return customer;
+}
+
+async function getOwnedCustomerVat(customerId: number): Promise<{ vatNumber?: string; vatProvided: boolean } | null> {
+    const db = getDb();
+    const [row] = await db.select({ taxId: customers.taxId }).from(customers).where(eq(customers.id, customerId)).limit(1);
+    if (!row) return null;
+    return { vatNumber: row.taxId || undefined, vatProvided: Boolean(row.taxId) };
+}
+
+async function setOwnedCustomerVat(customerId: number, vatNumber: string | null): Promise<void> {
+    const db = getDb();
+    await db.update(customers).set({ taxId: vatNumber, updatedAt: new Date() }).where(eq(customers.id, customerId));
 }
 
 export async function saveVatStatus(_: VatState, formData: FormData): Promise<VatState> {
@@ -56,7 +71,11 @@ export async function saveVatStatus(_: VatState, formData: FormData): Promise<Va
     }
 
     try {
-        await setCustomerVatStatus(customer.id, hasVat ? normalizedVat : null, hasVat);
+        if (customer.source === 'owned') {
+            await setOwnedCustomerVat(Number(customer.id), hasVat ? normalizedVat : null);
+        } else {
+            await setCustomerVatStatus(customer.id, hasVat ? normalizedVat : null, hasVat);
+        }
 
         return {
             status: 'success',
@@ -88,7 +107,9 @@ export async function loadVatStatus(_: VatState): Promise<VatState> {
     }
 
     try {
-        const vatInfo = await getCustomerVatById(customer.id);
+        const vatInfo = customer.source === 'owned'
+            ? await getOwnedCustomerVat(Number(customer.id))
+            : await getCustomerVatById(customer.id);
 
         return {
             status: 'success',

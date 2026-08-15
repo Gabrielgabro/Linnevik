@@ -19,6 +19,7 @@ import {
 } from '@/lib/db/schema';
 import type { PricedLine } from '@/lib/pricing';
 import { upsertCustomerFromCheckout } from '@/lib/commerceOperations';
+import { fulfillReservedStock, releaseOrderStock, reserveOrderStock } from '@/lib/inventoryDb';
 
 export type OrderWithItems = OrderRow & { items: OrderItemRow[] };
 export type OrderDetail = OrderWithItems & {
@@ -156,7 +157,7 @@ export async function markOrderPaid(input: {
         shippingAddress: input.shippingAddress,
       })
     : null;
-  await getDb().execute(sql`
+  const result = await getDb().execute(sql`
     with updated_order as (
       update orders set
         status = 'paid',
@@ -187,14 +188,21 @@ export async function markOrderPaid(input: {
       select id, 'payment.paid', 'stripe',
              jsonb_build_object('payment_intent_id', ${input.paymentIntentId})
       from updated_order
+    ), cart_update as (
+      update carts set status = 'converted', updated_at = now()
+      where id in (select cart_id from updated_order where cart_id is not null)
     )
-    update carts set status = 'converted', updated_at = now()
-    where id in (select cart_id from updated_order where cart_id is not null)
+    select id from updated_order
   `);
+  const row = result.rows[0] as { id: number } | undefined;
+  // Lagret binds efter att ordern är kvitterad som betald, inte innan — annars
+  // hade en misslyckad reservation kunnat lämna ordern i limbo. En order utan
+  // träff (t.ex. en omsänd webhook för en okänd session) har inget att reservera.
+  if (row) await reserveOrderStock(Number(row.id), 'stripe');
 }
 
 export async function markOrderFailed(sessionId: string, status: 'expired' | 'failed'): Promise<void> {
-  await getDb().execute(sql`
+  const result = await getDb().execute(sql`
     with updated_order as (
       update orders set status = ${status}, payment_status = ${status}, updated_at = now()
       where stripe_session_id = ${sessionId} and status <> 'paid'
@@ -202,14 +210,21 @@ export async function markOrderFailed(sessionId: string, status: 'expired' | 'fa
     ), event as (
       insert into order_events (order_id, kind, actor, detail)
       select id, ${`payment.${status}`}, 'stripe', '{}'::jsonb from updated_order
+    ), cart_update as (
+      update carts set
+        status = 'active',
+        version = version + 1,
+        checkout_started_at = null,
+        updated_at = now()
+      where id in (select cart_id from updated_order where cart_id is not null)
     )
-    update carts set
-      status = 'active',
-      version = version + 1,
-      checkout_started_at = null,
-      updated_at = now()
-    where id in (select cart_id from updated_order where cart_id is not null)
+    select id from updated_order
   `);
+  const row = result.rows[0] as { id: number } | undefined;
+  // Ingen reservation finns normalt vid det här laget (den görs först när
+  // ordern betalas), men det kostar inget att släppa idempotent om en
+  // godkänd faktura ändå hann binda lager innan den gick ut/misslyckades.
+  if (row) await releaseOrderStock(Number(row.id), 'stripe', `Payment ${status}`);
 }
 
 export async function getOrderBySession(sessionId: string): Promise<OrderWithItems | null> {

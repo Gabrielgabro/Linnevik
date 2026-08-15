@@ -10,6 +10,7 @@ const TOKEN_COOKIE_NAMES = ['shopify_customer_token', 'customer_access_token'];
 
 type CurrentCustomer = {
     id: string;
+    source: 'owned' | 'shopify';
     email: string;
     firstName: string | null;
     lastName: string | null;
@@ -41,6 +42,7 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
 
         return {
             id: String(customerId),
+            source: 'owned',
             email: row.email,
             firstName: row.first_name,
             lastName: row.last_name,
@@ -68,6 +70,7 @@ export async function getCurrentCustomerFromCookies(): Promise<CurrentCustomer |
         return customer
             ? {
                 id: customer.id,
+                source: 'shopify',
                 email: customer.email,
                 firstName: customer.firstName,
                 lastName: customer.lastName,
