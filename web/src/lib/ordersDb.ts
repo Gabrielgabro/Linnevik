@@ -19,7 +19,7 @@ import {
 } from '@/lib/db/schema';
 import type { PricedLine } from '@/lib/pricing';
 import { upsertCustomerFromCheckout } from '@/lib/commerceOperations';
-import { fulfillReservedStock, releaseOrderStock, reserveOrderStock } from '@/lib/inventoryDb';
+import { fulfillReservedStock, recordInventoryReturn, releaseOrderStock, reserveOrderStock } from '@/lib/inventoryDb';
 
 export type OrderWithItems = OrderRow & { items: OrderItemRow[] };
 export type OrderDetail = OrderWithItems & {
@@ -286,6 +286,9 @@ export async function updateOrderManagement(
       actor,
       detail: patch,
     });
+    if (patch.status === 'cancelled') {
+      await releaseOrderStock(id, actor, 'Order cancelled');
+    }
   }
   return row ?? null;
 }
@@ -433,5 +436,36 @@ export async function createFulfillment(input: {
   `);
   const row = result.rows[0] as { id: number } | undefined;
   if (!row) throw new Error('Order could not be fulfilled.');
-  return Number(row.id);
+  const fulfillmentId = Number(row.id);
+  // Drar av det fysiska saldot och konsumerar reservationen nu när enheterna
+  // faktiskt lämnar lagret — inte tidigare, för en kan finnas kvar och plockas
+  // om något annat i beställningen makuleras innan avsändning.
+  await fulfillReservedStock({ orderId: input.orderId, fulfillmentId, items: input.items, actor: input.actor });
+  return fulfillmentId;
+}
+
+/**
+ * Returnerade enheter — separat från en Stripe-återbetalning, som bara rör
+ * pengar. `restock` avgör om enheterna går tillbaka till säljbart saldo.
+ */
+export async function returnOrderItems(input: {
+  orderId: number;
+  items: Array<{ orderItemId: number; quantity: number }>;
+  restock: boolean;
+  actor: string;
+  note?: string | null;
+}): Promise<void> {
+  if (!input.items.length) throw new Error('At least one return item is required.');
+  for (const item of input.items) {
+    if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+      throw new Error('Return quantities must be positive integers.');
+    }
+  }
+  await recordInventoryReturn(input);
+  await getDb().insert(orderEvents).values({
+    orderId: input.orderId,
+    kind: 'inventory.returned',
+    actor: input.actor,
+    detail: { items: input.items, restock: input.restock, note: input.note ?? null },
+  });
 }

@@ -147,7 +147,7 @@ async function requireVariant(variantId: number, quantity: number) {
       active: productVariants.active,
       availableForSale: productVariants.availableForSale,
       inventoryTracked: productVariants.inventoryTracked,
-      inventoryQuantity: productVariants.inventoryQuantity,
+      inventoryQuantity: sql<number>`${productVariants.inventoryQuantity} - ${productVariants.inventoryReserved}`,
       minimumOrderQuantity: productVariants.minimumOrderQuantity,
       orderIncrement: productVariants.orderIncrement,
     })
