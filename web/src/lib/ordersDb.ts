@@ -186,7 +186,10 @@ export async function markOrderPaid(input: {
     ), event as (
       insert into order_events (order_id, kind, actor, detail)
       select id, 'payment.paid', 'stripe',
-             jsonb_build_object('payment_intent_id', ${input.paymentIntentId})
+             -- Explicit ::text: jsonb_build_object tar "any", och Postgres kan
+             -- inte härleda typen på en obunden parameter där. Utan casten
+             -- faller hela satsen på "could not determine data type".
+             jsonb_build_object('payment_intent_id', ${input.paymentIntentId}::text)
       from updated_order
     ), cart_update as (
       update carts set status = 'converted', updated_at = now()
@@ -430,7 +433,8 @@ export async function createFulfillment(input: {
     ), event as (
       insert into order_events (order_id, kind, actor, detail)
       values (${input.orderId}, 'fulfillment.created', ${input.actor},
-              jsonb_build_object('status', ${input.status}, 'tracking_number', ${input.trackingNumber ?? null}))
+              -- Samma casterna som i markOrderPaid, av samma skäl.
+              jsonb_build_object('status', ${input.status}::text, 'tracking_number', ${input.trackingNumber ?? null}::text))
     )
     select id from new_fulfillment
   `);
