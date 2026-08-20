@@ -90,6 +90,9 @@ export default async function ProductPage({ params }: Props) {
     const variants = product.variants.edges.map(e => e.node);
     const { moq, packSize } = product;
     const hasMTOTag = product.tags.includes('MTO');
+    // Kan inte säljas styckvis — bara prov och en priskalkyl, aldrig
+    // "Lägg i varukorgen". Se cartDb.ts requireVariant för samma spärr i korgen.
+    const hasSampleOnlyTag = product.tags.includes('SAMPLE_ONLY');
 
     // Samma prislogik som korgen och kassan räknar med, skickad ned så att
     // förhandsvisningen inte kan gå isär från det som debiteras. Kräver logiken
@@ -165,6 +168,7 @@ export default async function ProductPage({ params }: Props) {
                             moq={moq}
                             packSize={packSize}
                             hasMTOTag={hasMTOTag}
+                            hasSampleOnlyTag={hasSampleOnlyTag}
                             productId={product.id}
                             pricingConfig={clientPricingConfig}
                         />

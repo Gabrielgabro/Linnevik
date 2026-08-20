@@ -80,7 +80,13 @@
     "notFound": "Produkten hittades inte.",
     "leadTime": "Leveranstid",
     "informationHeading": "Produktinformation",
-    "unavailable": "Kan inte beställas"
+    "unavailable": "Kan inte beställas",
+    "pricingTableTitle": "Priser per volym",
+    "pricingTableFrom": "Antal",
+    "pricingTableUnits": "st",
+    "pricingTableUnitPrice": "Pris/st",
+    "pricingTableSavings": "Rabatt",
+    "sampleOnlyNote": "Den här produkten säljs inte styckvis. Beställ ett kostnadsfritt prov för att bedöma kvaliteten, eller kontakta oss för en offert på volym."
   },
   "mto": {
     "priceEstimate": {

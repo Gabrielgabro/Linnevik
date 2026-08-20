@@ -178,12 +178,19 @@ async function requireVariant(variantId: number, quantity: number) {
       inventoryQuantity: sql<number>`${productVariants.inventoryQuantity} - ${productVariants.inventoryReserved}`,
       minimumOrderQuantity: productVariants.minimumOrderQuantity,
       orderIncrement: productVariants.orderIncrement,
+      tags: products.tags,
     })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
     .where(and(eq(productVariants.id, variantId), eq(products.active, true)))
     .limit(1);
   if (!variant) throw new CartError('Varianten finns inte.', 404);
+  // SAMPLE_ONLY-produkter går bara att beställa som prov, aldrig genom korgen.
+  // Produktsidan visar redan ingen köpknapp för dem — spärren här stänger
+  // vägen förbi den, t.ex. ett direktanrop mot /api/store/cart.
+  if (variant.tags?.includes('SAMPLE_ONLY')) {
+    throw new CartError(`${variant.sku} går bara att beställa som prov.`, 409);
+  }
   assertOrderable(variant, quantity);
   return variant;
 }

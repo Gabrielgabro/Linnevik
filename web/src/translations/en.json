@@ -80,7 +80,13 @@
     "notFound": "Product not found.",
     "leadTime": "Lead time",
     "informationHeading": "Product information",
-    "unavailable": "Not available to order"
+    "unavailable": "Not available to order",
+    "pricingTableTitle": "Volume pricing",
+    "pricingTableFrom": "Quantity",
+    "pricingTableUnits": "units",
+    "pricingTableUnitPrice": "Price/unit",
+    "pricingTableSavings": "Discount",
+    "sampleOnlyNote": "This product isn't sold as a single unit. Order a free sample to evaluate quality, or contact us for a volume quote."
   },
   "mto": {
     "priceEstimate": {

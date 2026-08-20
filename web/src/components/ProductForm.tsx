@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
+import PricingTiersTable from '@/components/PricingTiersTable';
 import {
     DEFAULT_PRICING_CONFIG,
     priceLine,
@@ -24,6 +25,7 @@ export default function ProductForm({
     moq,
     packSize,
     hasMTOTag = false,
+    hasSampleOnlyTag = false,
     productId,
     pricingConfig,
 }: {
@@ -32,6 +34,13 @@ export default function ProductForm({
     moq?: number | null;
     packSize?: number | null;
     hasMTOTag?: boolean;
+    /**
+     * Går inte att sälja styckvis — bara prov och en priskalkyl per volym,
+     * aldrig en köpknapp. `cartDb.ts` (`requireVariant`) spärrar samma sak i
+     * korgen, så det här är bara UI:t som matchar vad servern ändå skulle
+     * neka.
+     */
+    hasSampleOnlyTag?: boolean;
     productId?: string;
     /**
      * Prislogiken servern räknar med. Skickas med av produktsidan så att den
@@ -112,21 +121,36 @@ export default function ProductForm({
                 <div className="pb-6 border-b border-[#E7EDF1] dark:border-[#374151]">
                     <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-3xl font-semibold text-primary">
-                            {formatNumber(hasMTOTag ? mtoUnitPrice : unitPrice)} {active.price.currencyCode}
+                            {hasSampleOnlyTag ? `${t.product.from} ` : ''}
+                            {formatNumber(hasMTOTag && !hasSampleOnlyTag ? mtoUnitPrice : unitPrice)} {active.price.currencyCode}
                         </span>
                         <span className="text-sm text-secondary">{t.product.perUnit} ({t.product.excludingVat})</span>
-                        {hasMTOTag && currentTier && currentTier.discountPercent > 0 && (
+                        {hasMTOTag && !hasSampleOnlyTag && currentTier && currentTier.discountPercent > 0 && (
                             <span className="text-sm font-medium text-[#0B3D2E] dark:text-[#379E7D]">
                                 -{currentTier.discountPercent}% {t.product.volumeDiscount}
                             </span>
                         )}
                     </div>
-                    {hasMTOTag && (
+                    {hasMTOTag && !hasSampleOnlyTag && (
                         <p className="text-xs text-secondary mt-2">
                             {t.product.priceNote.replace('{quantity}', String(effectiveQty))}
                         </p>
                     )}
                 </div>
+            )}
+
+            {/* Priser per volym — bara för produkter som inte säljs styckvis */}
+            {hasSampleOnlyTag && config && active?.price && (
+                <PricingTiersTable
+                    config={config}
+                    listPriceMinor={Math.round(unitPrice * 100)}
+                    currency={active.price.currencyCode}
+                    title={t.product.pricingTableTitle}
+                    fromLabel={t.product.pricingTableFrom}
+                    unitsLabel={t.product.pricingTableUnits}
+                    unitPriceLabel={t.product.pricingTableUnitPrice}
+                    savingsLabel={t.product.pricingTableSavings}
+                />
             )}
 
             {/* Options */}
@@ -154,37 +178,39 @@ export default function ProductForm({
                 </div>
             ))}
 
-            {/* Quantity */}
-            <div className="space-y-3">
-                <label className="block text-sm font-medium text-primary uppercase tracking-wide">
-                    {t.product.quantityLabel} {packSize ? `(${t.product.packOf.replace('{size}', String(packSize))})` : ''}
-                </label>
-                <input
-                    type="number"
-                    min={minQty}
-                    step={packSize || (hasMTOTag ? 10 : 1)}
-                    value={qtyInput}
-                    onChange={e => setQtyInput(e.target.value)}
-                    onBlur={() => {
-                        const num = Number(qtyInput) || minQty;
-                        setQtyInput(String(Math.max(minQty, num)));
-                    }}
-                    className="w-full px-4 py-3 rounded-none border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#145C45] transition-colors"
-                />
-                <div className="flex items-center gap-4 text-xs text-secondary">
-                    {hasMTOTag ? (
-                        <span>{t.product.mtoMinOrder.replace('{quantity}', String(config?.minimumOrderQuantity ?? minQty))}</span>
-                    ) : (
-                        moq && <span>{t.product.minOrder.replace('{quantity}', String(moq))}</span>
-                    )}
-                    {packSize && qty !== totalUnits && (
-                        <span>{t.product.adjustedTo.replace('{quantity}', String(totalUnits))}</span>
-                    )}
+            {/* Quantity — utelämnas för produkter som bara går att beställa som prov */}
+            {!hasSampleOnlyTag && (
+                <div className="space-y-3">
+                    <label className="block text-sm font-medium text-primary uppercase tracking-wide">
+                        {t.product.quantityLabel} {packSize ? `(${t.product.packOf.replace('{size}', String(packSize))})` : ''}
+                    </label>
+                    <input
+                        type="number"
+                        min={minQty}
+                        step={packSize || (hasMTOTag ? 10 : 1)}
+                        value={qtyInput}
+                        onChange={e => setQtyInput(e.target.value)}
+                        onBlur={() => {
+                            const num = Number(qtyInput) || minQty;
+                            setQtyInput(String(Math.max(minQty, num)));
+                        }}
+                        className="w-full px-4 py-3 rounded-none border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#145C45] transition-colors"
+                    />
+                    <div className="flex items-center gap-4 text-xs text-secondary">
+                        {hasMTOTag ? (
+                            <span>{t.product.mtoMinOrder.replace('{quantity}', String(config?.minimumOrderQuantity ?? minQty))}</span>
+                        ) : (
+                            moq && <span>{t.product.minOrder.replace('{quantity}', String(moq))}</span>
+                        )}
+                        {packSize && qty !== totalUnits && (
+                            <span>{t.product.adjustedTo.replace('{quantity}', String(totalUnits))}</span>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* Button - Sample Order for MTO products, Add to Cart for others */}
-            {hasMTOTag && productId ? (
+            {/* Button - Sample Order for products that can't be sold as a single unit, Add to Cart for others */}
+            {hasSampleOnlyTag && productId ? (
                 <LocaleLink
                     href={`/samples?preselect=${encodeURIComponent(productId)}&variant=${encodeURIComponent(active?.selectedOptions.map(o => o.value).join(' / ') || '')}`}
                     className="w-full inline-flex items-center justify-center gap-2 bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-none font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
@@ -194,7 +220,11 @@ export default function ProductForm({
                     </svg>
                     {t.product.orderSample}
                 </LocaleLink>
-            ) : (
+            ) : null}
+            {hasSampleOnlyTag && (
+                <p className="text-xs text-secondary -mt-4">{t.product.sampleOnlyNote}</p>
+            )}
+            {!hasSampleOnlyTag && (
                 <button
                     type="button"
                     disabled={!active?.availableForSale || addingToCart || isLoading}
@@ -213,7 +243,7 @@ export default function ProductForm({
             )}
 
             {/* Total Price Summary for MTO */}
-            {hasMTOTag && active?.price && effectiveQty > 0 && (
+            {hasMTOTag && !hasSampleOnlyTag && active?.price && effectiveQty > 0 && (
                 <div className="p-5 bg-[#F3EDE4] dark:bg-[#1f2937] border border-[#EBDCCB] dark:border-[#374151]">
                     <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-medium text-primary uppercase tracking-wide">{t.product.priceEstimate}</span>
