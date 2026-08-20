@@ -7,6 +7,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import {
   fulfillments,
+  customers,
   orderEvents,
   orderItems,
   orders,
@@ -18,6 +19,7 @@ import {
   type RefundRow,
 } from '@/lib/db/schema';
 import type { PricedLine } from '@/lib/pricing';
+import { vatOn } from '@/lib/vat';
 import { upsertCustomerFromCheckout } from '@/lib/commerceOperations';
 import { stripeTestMode } from '@/lib/stripe';
 import { fulfillReservedStock, recordInventoryReturn, releaseOrderStock, reserveOrderStock } from '@/lib/inventoryDb';
@@ -33,6 +35,7 @@ export type OrderItemProgress = OrderItemRow & {
 // Omit: en ren korsning hade gett `items` typen OrderItemRow[] & OrderItemProgress[],
 // och då plockar TypeScript elementtypen ur den första — fälten nedan syns inte.
 export type OrderDetail = Omit<OrderWithItems, 'items'> & {
+  clientId: number | null;
   items: OrderItemProgress[];
   refunds: RefundRow[];
   fulfillments: FulfillmentRow[];
@@ -86,7 +89,12 @@ export async function createPendingOrder(
   const subtotal = lines.reduce((sum, line) => sum + line.unitAmountMinor * line.quantity, 0);
   const discountMinor = snapshot.discount?.amountMinor ?? 0;
   const shippingMinor = snapshot.shipping?.amountMinor ?? 0;
-  const total = Math.max(0, subtotal - discountMinor + shippingMinor);
+  const netMinor = Math.max(0, subtotal - discountMinor + shippingMinor);
+  // Beloppen är exklusive moms. Den förväntade momsen skrivs in redan här så
+  // att en obetald order inte påstår att den är momsfri; webhooken skriver
+  // sedan över med Stripes faktiska `amount_tax` när betalningen är gjord.
+  const taxMinor = vatOn(netMinor);
+  const total = netMinor + taxMinor;
   const pendingSessionId = `pending_${crypto.randomUUID()}`;
   const payload = JSON.stringify(
     lines.map(line => ({
@@ -114,12 +122,12 @@ export async function createPendingOrder(
         stripe_session_id, status, payment_status, subtotal_minor,
         discount_code_id, discount_code, discount_minor,
         shipping_rule_id, shipping_method, shipping_minor,
-        total_minor, currency, locale, cart_id, cart_version, test_mode
+        tax_minor, total_minor, currency, locale, cart_id, cart_version, test_mode
       )
       select ${pendingSessionId}, 'pending', 'pending', ${subtotal},
              ${snapshot.discount?.id ?? null}, ${snapshot.discount?.code ?? null}, ${discountMinor},
              ${snapshot.shipping?.id ?? null}, ${snapshot.shipping?.name ?? null}, ${shippingMinor},
-             ${total}, ${lines[0].currency}, ${locale},
+             ${taxMinor}, ${total}, ${lines[0].currency}, ${locale},
              ${cart?.id ?? null}, ${cart?.version ?? null}, ${stripeTestMode()}
       where ${cart?.id ?? null}::text is null
          or exists (select 1 from eligible_cart)
@@ -295,12 +303,19 @@ export async function listRecentOrders(limit = 50): Promise<OrderRow[]> {
 export async function getOrderById(id: number): Promise<OrderDetail | null> {
   const [order] = await getDb().select().from(orders).where(eq(orders.id, id)).limit(1);
   if (!order) return null;
-  const [items, orderRefunds, orderFulfillments, events, fulfilled] = await Promise.all([
+  const [items, orderRefunds, orderFulfillments, events, fulfilled, customer] = await Promise.all([
     getDb().select().from(orderItems).where(eq(orderItems.orderId, id)),
     getDb().select().from(refunds).where(eq(refunds.orderId, id)).orderBy(desc(refunds.createdAt)),
     getDb().select().from(fulfillments).where(eq(fulfillments.orderId, id)).orderBy(desc(fulfillments.createdAt)),
     getDb().select().from(orderEvents).where(eq(orderEvents.orderId, id)).orderBy(desc(orderEvents.createdAt)),
     fulfilledPerItem(id),
+    order.customerId
+      ? getDb()
+          .select({ clientId: customers.clientId })
+          .from(customers)
+          .where(eq(customers.id, order.customerId))
+          .limit(1)
+      : Promise.resolve([]),
   ]);
   const withProgress: OrderItemProgress[] = items.map(item => {
     const fulfilledQuantity = fulfilled.get(item.id) ?? 0;
@@ -312,6 +327,7 @@ export async function getOrderById(id: number): Promise<OrderDetail | null> {
   });
   return {
     ...order,
+    clientId: customer[0]?.clientId ?? null,
     items: withProgress,
     refunds: orderRefunds,
     fulfillments: orderFulfillments,

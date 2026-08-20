@@ -11,7 +11,7 @@ export default async function AdminClientsPage() {
   const clients = await listClients();
 
   const contacts = clients.reduce((sum, c) => sum + c.contactCount, 0);
-  const worked = clients.reduce((sum, c) => sum + c.workedCount, 0);
+  const commerceCustomers = clients.reduce((sum, c) => sum + c.commerceCustomerCount, 0);
 
   return (
     <>
@@ -19,8 +19,8 @@ export default async function AdminClientsPage() {
         kicker={`${clients.length} företag · ${contacts} kontaktpersoner`}
         title="Kundregister"
         accent={accentFor('/admin/clients')}
-        description="Företagen ur tvätteriets arkivlista, med kontaktpersonerna vi bearbetar dem
-          genom. Ett företag kan ha flera personer — statusen sitter på personen."
+        description="Alla företag samlade på ett ställe: kontaktpersoner, säljarbete, webbkonton
+          och orderhistorik. Ett företag kan ha flera personer och webbkonton."
         actions={
           <Link href="/admin/clients/new" className={buttonClass('primary')}>
             <Plus size={16} strokeWidth={2} aria-hidden />
@@ -32,12 +32,7 @@ export default async function AdminClientsPage() {
       <StatRow>
         <StatTile label="Företag" value={clients.length} accent="var(--viz-s1)" />
         <StatTile label="Kontaktpersoner" value={contacts} accent="var(--adm-info)" />
-        <StatTile
-          label="Bearbetade"
-          value={worked}
-          accent="var(--adm-ok)"
-          hint={contacts > 0 ? `${Math.round((worked / contacts) * 100)} % av kontakterna` : undefined}
-        />
+        <StatTile label="Webbkonton" value={commerceCustomers} accent="var(--adm-ok)" />
       </StatRow>
 
       {!clientsConfigured() && (

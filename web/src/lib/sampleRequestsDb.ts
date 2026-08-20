@@ -49,6 +49,7 @@ export type SampleRequestInput = {
 export type SampleRequestDetail = SampleRequestRow & {
   items: SampleRequestItemRow[];
   customerEmail: string | null;
+  clientId: number | null;
 };
 
 /**
@@ -144,6 +145,7 @@ export async function listSampleRequests(limit = 200): Promise<SampleRequestDeta
     ...row,
     items: byRequest.get(row.id) ?? [],
     customerEmail: null,
+    clientId: null,
   }));
 }
 
@@ -160,7 +162,20 @@ export async function getSampleRequestById(id: number): Promise<SampleRequestDet
     .from(sampleRequestItems)
     .where(eq(sampleRequestItems.requestId, id));
 
-  return { ...row, items, customerEmail: null };
+  const [customer] = row.customerId
+    ? await getDb()
+        .select({ email: customers.email, clientId: customers.clientId })
+        .from(customers)
+        .where(eq(customers.id, row.customerId))
+        .limit(1)
+    : [];
+
+  return {
+    ...row,
+    items,
+    customerEmail: customer?.email ?? null,
+    clientId: customer?.clientId ?? null,
+  };
 }
 
 /** Statusbyte och intern anteckning från adminvyn. */
@@ -225,5 +240,10 @@ export async function getSampleRequestsForCustomer(
     byRequest.set(item.requestId, list);
   }
 
-  return rows.map(row => ({ ...row, items: byRequest.get(row.id) ?? [], customerEmail: row.email }));
+  return rows.map(row => ({
+    ...row,
+    items: byRequest.get(row.id) ?? [],
+    customerEmail: row.email,
+    clientId: null,
+  }));
 }

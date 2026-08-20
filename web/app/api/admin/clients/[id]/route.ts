@@ -4,7 +4,7 @@ import { record } from '@/lib/adminActivity';
 import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
 import { diff, InputError, parseClientInput } from '@/lib/clientsInput';
 import { getDb } from '@/lib/db';
-import { clients } from '@/lib/db/schema';
+import { clients, customers } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 
@@ -47,6 +47,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       })
       .where(eq(clients.id, id))
       .returning();
+    // Företagsnamn och kundnummer ägs av Kunder. Webbkontona speglar dem så
+    // att checkout, orderhistorik och kundvyn aldrig visar en gammal kopia.
+    await db
+      .update(customers)
+      .set({ customerNo: row.customerNo, company: row.name, updatedAt: new Date() })
+      .where(eq(customers.clientId, row.id));
   } catch (error) {
     if (String(error).includes('clients_customer_no_key')) {
       return NextResponse.json(
@@ -76,6 +82,18 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const db = getDb();
   const [existing] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
   if (!existing) return NextResponse.json({ error: 'Okänd kund.' }, { status: 404 });
+
+  const [commerceCustomer] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(eq(customers.clientId, id))
+    .limit(1);
+  if (commerceCustomer) {
+    return NextResponse.json(
+      { error: 'Kunden har webbkonto eller orderhistorik och kan inte tas bort.' },
+      { status: 409 }
+    );
+  }
 
   await db.delete(clients).where(eq(clients.id, id));
 

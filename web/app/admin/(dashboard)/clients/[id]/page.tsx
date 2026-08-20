@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import ClientForm from '@/components/admin/ClientForm';
 import ContactList from '@/components/admin/ContactList';
+import CommerceCustomerPanel from '@/components/admin/CommerceCustomerPanel';
 import { Notice, PageHeader, StatusPill } from '@/components/admin/ui';
 import { accentFor } from '../../nav';
 import { getClient } from '@/lib/clientsDb';
@@ -18,7 +19,7 @@ export default async function ClientDetailPage({
   const data = Number.isInteger(id) ? await getClient(id) : null;
   if (!data) notFound();
 
-  const { client, contacts } = data;
+  const { client, contacts, commerceCustomers, orders } = data;
 
   return (
     <>
@@ -55,6 +56,12 @@ export default async function ClientDetailPage({
       <ClientForm mode="edit" client={client} />
 
       <ContactList clientId={client.id} contacts={contacts} />
+
+      <CommerceCustomerPanel
+        clientId={client.id}
+        customers={commerceCustomers}
+        orders={orders}
+      />
     </>
   );
 }

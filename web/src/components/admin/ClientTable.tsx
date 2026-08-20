@@ -277,7 +277,7 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
               </span>
             </span>
             <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3 max-[620px]:hidden">
-              Kontakter · Bearbetade
+              Kontakter · Ordrar
             </span>
           </div>
 
@@ -310,9 +310,12 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
                     <span className="text-[14px] text-ink">{client.name}</span>
                     {client.segment && <Tag>{client.segment}</Tag>}
                     <StatusPill status={client.status} />
+                    {client.commerceCustomerCount > 0 && (
+                      <Tag color="var(--adm-ok)">Webbhandel</Tag>
+                    )}
                   </span>
                   <span className="font-mono text-[12px] tabular-nums text-ink-3 max-[620px]:hidden">
-                    {client.contactCount} · {client.workedCount}
+                    {client.contactCount} · {client.orderCount}
                   </span>
                 </Link>
               </li>

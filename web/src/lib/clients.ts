@@ -106,6 +106,8 @@ export function toneStyle(status: string): { color: string; background: string; 
 export type ClientWithCounts = ClientRow & {
   contactCount: number;
   workedCount: number;
+  commerceCustomerCount: number;
+  orderCount: number;
   lastContactedAt: string | null;
 };
 

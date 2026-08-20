@@ -1,6 +1,5 @@
 import {
   Activity,
-  Building2,
   FolderTree,
   LineChart,
   Package,
@@ -49,12 +48,11 @@ export const NAV: NavGroup[] = [
     label: 'Försäljning',
     items: [
       { href: '/admin/orders', label: 'Ordrar', icon: ShoppingCart, accent: 'var(--viz-s2)' },
-      { href: '/admin/prover', label: 'Prover', icon: PackageOpen, accent: 'var(--viz-s3)' },
       {
-        href: '/admin/customers',
-        label: 'Handelskunder',
-        icon: Building2,
-        accent: 'var(--adm-warn)',
+        href: '/admin/prover',
+        label: 'Provbeställningar',
+        icon: PackageOpen,
+        accent: 'var(--viz-s3)',
       },
       { href: '/admin/commerce', label: 'Handel', icon: Settings2, accent: 'var(--adm-warn)' },
     ],

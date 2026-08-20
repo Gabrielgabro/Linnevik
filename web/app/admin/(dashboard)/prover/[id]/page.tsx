@@ -57,12 +57,12 @@ export default async function SampleRequestPage({
             <dd>{request.organizationNumber}</dd>
             <dt style={{ color: 'var(--viz-ink-3)' }}>Konto</dt>
             <dd>
-              {request.customerId ? (
+              {request.clientId ? (
                 <Link
-                  href={`/admin/customers?id=${request.customerId}`}
+                  href={`/admin/clients/${request.clientId}`}
                   className="text-brand-text hover:underline"
                 >
-                  Kopplad kund #{request.customerId}
+                  Öppna i Kunder
                 </Link>
               ) : (
                 'Ingen registrerad kund'

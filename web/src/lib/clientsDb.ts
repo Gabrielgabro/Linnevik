@@ -4,10 +4,19 @@
  * följa med ut i webbläsarpaketet.
  */
 
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, desc, eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import type { ClientWithCounts } from '@/lib/clients';
-import { clientContacts, clients, type ClientContactRow, type ClientRow } from '@/lib/db/schema';
+import {
+  clientContacts,
+  clients,
+  customers,
+  orders,
+  type ClientContactRow,
+  type ClientRow,
+  type CustomerRow,
+  type OrderRow,
+} from '@/lib/db/schema';
 
 export function clientsConfigured(): boolean {
   return Boolean(process.env.DATABASE_URL);
@@ -25,6 +34,14 @@ export async function listClients(): Promise<ClientWithCounts[]> {
       client: clients,
       contactCount: sql<number>`count(${clientContacts.id})::int`,
       workedCount: sql<number>`count(${clientContacts.id}) filter (where ${clientContacts.status} <> 'Ej kontaktad')::int`,
+      commerceCustomerCount: sql<number>`(
+        select count(*)::int from ${customers} c where c.client_id = ${clients.id}
+      )`,
+      orderCount: sql<number>`(
+        select count(*)::int from ${orders} o
+        inner join ${customers} c on c.id = o.customer_id
+        where c.client_id = ${clients.id}
+      )`,
       lastContactedAt: sql<string | null>`max(${clientContacts.lastContactedAt})::text`,
     })
     .from(clients)
@@ -36,23 +53,39 @@ export async function listClients(): Promise<ClientWithCounts[]> {
     ...r.client,
     contactCount: r.contactCount,
     workedCount: r.workedCount,
+    commerceCustomerCount: r.commerceCustomerCount,
+    orderCount: r.orderCount,
     lastContactedAt: r.lastContactedAt,
   }));
 }
 
 export async function getClient(
   id: number
-): Promise<{ client: ClientRow; contacts: ClientContactRow[] } | null> {
+): Promise<{
+  client: ClientRow;
+  contacts: ClientContactRow[];
+  commerceCustomers: CustomerRow[];
+  orders: OrderRow[];
+} | null> {
   if (!clientsConfigured()) return null;
   const db = getDb();
   const [client] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
   if (!client) return null;
-  const contacts = await db
-    .select()
-    .from(clientContacts)
-    .where(eq(clientContacts.clientId, id))
-    .orderBy(asc(clientContacts.id));
-  return { client, contacts };
+  const [contacts, commerceCustomers, clientOrders] = await Promise.all([
+    db
+      .select()
+      .from(clientContacts)
+      .where(eq(clientContacts.clientId, id))
+      .orderBy(asc(clientContacts.id)),
+    db.select().from(customers).where(eq(customers.clientId, id)).orderBy(asc(customers.email)),
+    db
+      .select({ order: orders })
+      .from(orders)
+      .innerJoin(customers, eq(customers.id, orders.customerId))
+      .where(eq(customers.clientId, id))
+      .orderBy(desc(orders.createdAt)),
+  ]);
+  return { client, contacts, commerceCustomers, orders: clientOrders.map(row => row.order) };
 }
 
 /** Kundnummer för nya kunder som inte kommer ur arkivlistan. */

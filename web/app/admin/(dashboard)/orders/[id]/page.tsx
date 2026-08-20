@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import OrderActions from '@/components/admin/OrderActions';
 import { Tag } from '@/components/admin/ui';
@@ -17,7 +18,16 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           {order.testMode && <Tag color="var(--adm-warn)">TEST</Tag>}
         </p>
         <h1 className="mt-2 font-heading text-4xl">{order.customerName ?? order.email ?? 'Okänd kund'}</h1>
-        <p className="mt-2 text-sm">{order.email} · {formatMinor(order.totalMinor, order.currency)}</p>
+        <p className="mt-2 text-sm">
+          {order.clientId ? (
+            <Link href={`/admin/clients/${order.clientId}`} className="text-brand-text hover:underline">
+              Öppna kund
+            </Link>
+          ) : (
+            order.email
+          )}{' '}
+          · {formatMinor(order.totalMinor, order.currency)}
+        </p>
       </header>
       <section>
         <h2 className="mb-3 font-heading text-xl">Orderrader</h2>

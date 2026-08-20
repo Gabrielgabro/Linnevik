@@ -1,15 +1,19 @@
 import { and, asc, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import {
+  clientContacts,
+  clients,
   customers,
   discountCodes,
   discountRedemptions,
   shippingRules,
   type CustomerRow,
+  type ClientRow,
   type DiscountCodeRow,
   type ShippingRuleRow,
 } from '@/lib/db/schema';
 import { discountAmount, normalizeDiscountCode, shippingAmount } from '@/lib/commerceRules';
+import { commerceCustomerNo } from '@/lib/commerceCustomer';
 import { getStripe } from '@/lib/stripe';
 
 export type AppliedDiscount = {
@@ -143,20 +147,30 @@ export async function upsertCustomerFromCheckout(input: {
   const names = (input.name ?? '').trim().split(/\s+/).filter(Boolean);
   const firstName = names.shift() ?? null;
   const lastName = names.join(' ') || null;
+  const client = await ensureClientForCommerceCustomer({
+    email,
+    customerNo: input.customerNo,
+    firstName,
+    lastName,
+    phone: input.phone,
+    status: 'active',
+  });
   const result = await getDb().execute(sql`
     insert into customers (
-      email, stripe_customer_id, customer_no, first_name, last_name, phone,
+      client_id, email, stripe_customer_id, customer_no, first_name, last_name, company, phone,
       default_shipping_address
     ) values (
-      ${email}, ${input.stripeCustomerId ?? null}, ${input.customerNo ?? null},
-      ${firstName}, ${lastName}, ${input.phone ?? null},
+      ${client.id}, ${email}, ${input.stripeCustomerId ?? null}, ${client.customerNo},
+      ${firstName}, ${lastName}, ${client.name}, ${input.phone ?? null},
       ${JSON.stringify(input.shippingAddress ?? null)}::jsonb
     )
     on conflict (lower(email)) do update set
+      client_id = excluded.client_id,
       stripe_customer_id = coalesce(excluded.stripe_customer_id, customers.stripe_customer_id),
-      customer_no = coalesce(excluded.customer_no, customers.customer_no),
+      customer_no = excluded.customer_no,
       first_name = coalesce(excluded.first_name, customers.first_name),
       last_name = coalesce(excluded.last_name, customers.last_name),
+      company = excluded.company,
       phone = coalesce(excluded.phone, customers.phone),
       default_shipping_address = coalesce(excluded.default_shipping_address, customers.default_shipping_address),
       updated_at = now()
@@ -185,9 +199,18 @@ export async function registerCustomer(input: {
   taxId?: string | null;
 }): Promise<RegisterCustomerResult> {
   const email = input.email.trim().toLowerCase();
+  const client = await ensureClientForCommerceCustomer({
+    email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    status: 'active',
+  });
   const result = await getDb().execute(sql`
-    insert into customers (email, first_name, last_name, tax_id)
-    values (${email}, ${input.firstName ?? null}, ${input.lastName ?? null}, ${input.taxId ?? null})
+    insert into customers (client_id, email, customer_no, first_name, last_name, company, tax_id)
+    values (
+      ${client.id}, ${email}, ${client.customerNo}, ${input.firstName ?? null},
+      ${input.lastName ?? null}, ${client.name}, ${input.taxId ?? null}
+    )
     on conflict (lower(email)) do nothing
     returning id
   `);
@@ -195,7 +218,9 @@ export async function registerCustomer(input: {
   return row ? { status: 'created', id: Number(row.id) } : { status: 'exists' };
 }
 
-export type CustomerInput = Partial<Omit<CustomerRow, 'id' | 'createdAt' | 'updatedAt'>> & {
+export type CustomerInput = Partial<
+  Omit<CustomerRow, 'id' | 'clientId' | 'createdAt' | 'updatedAt'>
+> & {
   email?: string;
 };
 
@@ -203,21 +228,169 @@ export async function listCustomers(limit = 200): Promise<CustomerRow[]> {
   return getDb().select().from(customers).orderBy(desc(customers.updatedAt)).limit(limit);
 }
 
-export async function createCustomer(input: CustomerInput & { email: string }): Promise<CustomerRow> {
+export async function createCustomer(
+  clientId: number,
+  input: CustomerInput & { email: string }
+): Promise<CustomerRow> {
+  const client = await ensureClientForCommerceCustomer({
+    preferredClientId: clientId,
+    email: input.email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    phone: input.phone,
+    status: input.status,
+  });
   const [row] = await getDb()
     .insert(customers)
-    .values({ ...input, email: input.email.trim().toLowerCase() })
+    .values({
+      ...input,
+      clientId: client.id,
+      customerNo: client.customerNo,
+      company: client.name,
+      email: input.email.trim().toLowerCase(),
+    })
     .returning();
   return row;
 }
 
 export async function updateCustomer(id: number, input: CustomerInput): Promise<CustomerRow | null> {
+  const db = getDb();
+  const [before] = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+  if (!before) return null;
   const [row] = await getDb()
     .update(customers)
     .set({ ...input, email: input.email?.trim().toLowerCase(), updatedAt: new Date() })
     .where(eq(customers.id, id))
     .returning();
-  return row ?? null;
+  if (!row) return null;
+
+  const [contact] = await db
+    .select()
+    .from(clientContacts)
+    .where(
+      and(
+        eq(clientContacts.clientId, row.clientId),
+        or(
+          sql`lower(${clientContacts.email}) = ${before.email.toLowerCase()}`,
+          sql`lower(${clientContacts.email}) = ${row.email.toLowerCase()}`
+        )
+      )
+    )
+    .limit(1);
+  if (contact) {
+    await db
+      .update(clientContacts)
+      .set({
+        email: row.email,
+        firstName: input.firstName?.trim() || contact.firstName,
+        lastName: input.lastName === undefined ? contact.lastName : input.lastName,
+        phone: input.phone === undefined ? contact.phone : input.phone,
+        updatedAt: new Date(),
+      })
+      .where(eq(clientContacts.id, contact.id));
+  } else {
+    await db.insert(clientContacts).values({
+      clientId: row.clientId,
+      firstName: row.firstName?.trim() || row.email.split('@')[0],
+      lastName: row.lastName,
+      email: row.email,
+      phone: row.phone,
+      status: row.status === 'active' ? 'Vunnen' : 'Ej kontaktad',
+    });
+  }
+  return row;
+}
+
+type CommerceClientIdentity = {
+  preferredClientId?: number;
+  email: string;
+  customerNo?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  status?: string | null;
+};
+
+/**
+ * Kopplar webbkontot till Kunder. Kundnummer vinner över mejl, eftersom flera
+ * personer kan beställa för samma företag. Saknas en träff skapas en stabil
+ * WEB-post som sedan kan kompletteras i admin utan att orderkopplingen bryts.
+ */
+async function ensureClientForCommerceCustomer(
+  input: CommerceClientIdentity
+): Promise<ClientRow> {
+  const db = getDb();
+  const email = input.email.trim().toLowerCase();
+  let client: ClientRow | undefined;
+
+  if (input.preferredClientId) {
+    [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, input.preferredClientId))
+      .limit(1);
+  }
+  if (!client && input.customerNo) {
+    [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.customerNo, input.customerNo.trim()))
+      .limit(1);
+  }
+  if (!client) {
+    const [match] = await db
+      .select({ client: clients })
+      .from(clientContacts)
+      .innerJoin(clients, eq(clients.id, clientContacts.clientId))
+      .where(sql`lower(${clientContacts.email}) = ${email}`)
+      .limit(1);
+    client = match?.client;
+  }
+
+  if (!client) {
+    // Hashen används bara till ett deterministiskt internt kundnummer, inte
+    // till säkerhet. Samma mejl kan därför inte skapa två CRM-poster vid samtidiga anrop.
+    const customerNo = commerceCustomerNo(email);
+    const name =
+      [input.firstName, input.lastName].filter(Boolean).join(' ').trim() || email;
+    [client] = await db
+      .insert(clients)
+      .values({
+        customerNo,
+        name,
+        status: input.status === 'active' ? 'Aktiv kund' : 'Vilande',
+      })
+      .onConflictDoNothing({ target: clients.customerNo })
+      .returning();
+    if (!client) {
+      [client] = await db.select().from(clients).where(eq(clients.customerNo, customerNo)).limit(1);
+    }
+  }
+
+  if (!client) throw new Error('Kunde inte koppla webbkontot till kundregistret.');
+
+  const [existingContact] = await db
+    .select({ id: clientContacts.id })
+    .from(clientContacts)
+    .where(
+      and(
+        eq(clientContacts.clientId, client.id),
+        sql`lower(${clientContacts.email}) = ${email}`
+      )
+    )
+    .limit(1);
+  if (!existingContact) {
+    await db.insert(clientContacts).values({
+      clientId: client.id,
+      firstName: input.firstName?.trim() || email.split('@')[0],
+      lastName: input.lastName?.trim() || null,
+      email,
+      phone: input.phone?.trim() || null,
+      status: input.status === 'active' ? 'Vunnen' : 'Ej kontaktad',
+    });
+  }
+
+  return client;
 }
 
 export type DiscountInput = Partial<Omit<DiscountCodeRow, 'id' | 'createdAt' | 'updatedAt'>> & {

@@ -65,7 +65,8 @@ export default function ClientForm(props: Props) {
     setError(null);
     const response = await fetch(`/api/admin/clients/${client.id}`, { method: 'DELETE' });
     if (!response.ok) {
-      setError('Kunde inte ta bort kunden.');
+      const data = await response.json().catch(() => ({}));
+      setError(data.error ?? 'Kunde inte ta bort kunden.');
       setBusy(false);
       return;
     }

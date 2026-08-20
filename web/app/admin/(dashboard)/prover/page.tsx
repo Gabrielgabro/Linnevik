@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { PackageOpen } from 'lucide-react';
+import ClickableTableRow from '@/components/admin/ui/ClickableTableRow';
 import {
   EmptyState,
   PageHeader,
@@ -9,7 +9,6 @@ import {
   TableShell,
   Td,
   Th,
-  Tr,
 } from '@/components/admin/ui';
 import { accentFor } from '../nav';
 import { listSampleRequests } from '@/lib/sampleRequestsDb';
@@ -41,7 +40,7 @@ export default async function SampleRequestsPage() {
     <>
       <PageHeader
         kicker={`${requests.length} provförfrågningar`}
-        title="Prover"
+        title="Provbeställningar"
         accent={accentFor('/admin/prover')}
         description="Förfrågningar från formuläret på sajten. Posten sparas i databasen — mejlet är bara en avisering."
       />
@@ -73,15 +72,14 @@ export default async function SampleRequestsPage() {
             </thead>
             <tbody>
               {requests.map(request => (
-                <Tr key={request.id}>
+                <ClickableTableRow
+                  key={request.id}
+                  href={`/admin/prover/${request.id}`}
+                  label={`Öppna provbeställning ${request.id} från ${request.organizationName}`}
+                >
                   <Td numeric>
                     <span className="inline-flex items-center gap-2">
-                      <Link
-                        href={`/admin/prover/${request.id}`}
-                        className="text-brand-text hover:underline"
-                      >
-                        #{request.id}
-                      </Link>
+                      <span className="text-brand-text">#{request.id}</span>
                       {/* Aviseringen kan ha fallerat utan att förfrågan gjort det. */}
                       {!request.emailed && <Tag color="var(--adm-danger)">ej aviserad</Tag>}
                     </span>
@@ -101,7 +99,7 @@ export default async function SampleRequestsPage() {
                   <Td numeric align="right" className="text-ink-3">
                     {request.createdAt.toLocaleDateString('sv-SE')}
                   </Td>
-                </Tr>
+                </ClickableTableRow>
               ))}
             </tbody>
           </TableShell>
