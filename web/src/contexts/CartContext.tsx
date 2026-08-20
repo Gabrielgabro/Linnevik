@@ -68,6 +68,8 @@ type OwnedCart = {
     lines: OwnedCartLine[];
     subtotalMinor: number;
     totalMinor: number;
+    vatMinor: number;
+    totalIncVatMinor: number;
 };
 
 function money(minor: number, currency: string) {
@@ -85,7 +87,11 @@ function adaptOwnedCart(owned: OwnedCart): Cart {
         checkoutUrl: '',
         totalQuantity: owned.lines.reduce((sum, line) => sum + line.quantity, 0),
         cost: {
-            totalAmount: money(owned.totalMinor, owned.currency),
+            // Korgsidan visar "Delsumma exkl. moms" och "Totalt inkl. moms" och
+            // räknar momsen som skillnaden mellan de två. Totalen måste därför
+            // vara inklusive moms — annars står det "inkl. moms" över ett belopp
+            // utan moms, och kassan drar ett högre.
+            totalAmount: money(owned.totalIncVatMinor, owned.currency),
             subtotalAmount: money(owned.subtotalMinor, owned.currency),
         },
         lines: {
@@ -225,13 +231,21 @@ export function CartProvider({
                 }
                 if (!id) throw new Error('Failed to create cart');
 
-                // Product pages still resolve variants against Shopify's catalog
-                // (that migration is separate), so the owned cart looks up its own
-                // numeric variant id from the Shopify id server-side.
+                // Produktsidan läser numera vår egen katalog, men lämnar ifrån
+                // sig Shopifys variant-id så länge det finns — Shopify-korgen
+                // kräver det så länge OWNED_COMMERCE_ENABLED kan stå av, och
+                // korgen slår upp sin egen numeriska variant ur det. En variant
+                // som skapats i admin har inget Shopify-id och kommer i stället
+                // med vårt eget prefix (se OWNED_VARIANT_PREFIX i catalogDb).
+                const owned = variantId.startsWith('linnevik:');
                 const response = await fetch(`/api/store/cart/${id}/items`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ shopifyVariantId: variantId, quantity }),
+                    body: JSON.stringify(
+                        owned
+                            ? { variantId: Number(variantId.slice('linnevik:'.length)), quantity }
+                            : { shopifyVariantId: variantId, quantity }
+                    ),
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error || 'Failed to add item');

@@ -1,21 +1,35 @@
 /**
- * Vad en variant kostar för en viss köpare, just nu.
+ * Serversidan av prissättningen: slår upp varianten, hämtar konfigurationen och
+ * lämnar över räknandet till `pricingRules.ts`.
  *
- * Det här är den enda platsen som avgör ett belopp. Stripe har medvetet inga
- * prisobjekt: beloppen räknas fram här och skickas in som `price_data` när
- * kassan skapas. Listpriset i `product_variants.price_minor` är utgångsläget,
- * och rabatterna läggs ovanpå.
+ * Själva logiken bor inte här, utan i den rena modulen, därför att produktsidan
+ * måste kunna räkna exakt samma sak i webbläsaren när kunden ändrar antal. Två
+ * uppsättningar trappor är precis vad som gick fel förut — se pricingRules.ts.
  *
- * Alla belopp är i minorenheter (öre) och inklusive moms — svensk B2C-prissättning.
+ * Stripe har medvetet inga prisobjekt: beloppen räknas fram här och skickas in
+ * som `price_data` när kassan skapas.
+ *
+ * Alla belopp är i minorenheter (öre) och **exklusive moms**. Momsen läggs på i
+ * kassan, se lib/vat.ts.
  */
 
 import { inArray, or } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { productVariants } from '@/lib/db/schema';
+import {
+  DEFAULT_PRICING_CONFIG,
+  priceLine,
+  type PricingConfig,
+} from '@/lib/pricingRules';
+import { landedCostMinorForSku } from '@/lib/landedCostLookup';
 
 export type PricingContext = {
   /** Kundnummer ur `clients`, när köparen är ett avtalskonto. */
   customerNo?: string | null;
+  /** Sant för produkter taggade MTO — mängdrabatten gäller bara dem som standard. */
+  isMto?: boolean;
+  /** SKU:n, för att kunna slå upp landad kostnad när marginallogiken används. */
+  sku?: string;
 };
 
 export type PricedLine = {
@@ -38,31 +52,35 @@ export type PriceableRequest = {
   quantity: number;
 };
 
-/** Mängdrabatt. Trapporna är medvetet grova — hotellen köper i kartong. */
-const QUANTITY_BREAKS: Array<{ min: number; discount: number }> = [
-  { min: 100, discount: 0.15 },
-  { min: 50, discount: 0.1 },
-  { min: 20, discount: 0.05 },
-];
-
-function quantityDiscount(quantity: number): number {
-  return QUANTITY_BREAKS.find(step => quantity >= step.min)?.discount ?? 0;
+/**
+ * Konfigurationen som gäller just nu.
+ *
+ * Ligger i koden tills prislogiksidan i /admin finns; då läses den ur databasen
+ * i stället och den här funktionen blir asynkron. Allt som kallar den går redan
+ * via `getPricingConfig()` så att bytet blir ett ställe.
+ */
+export function getPricingConfig(): PricingConfig {
+  return DEFAULT_PRICING_CONFIG;
 }
 
 /**
- * Priset för en rad. Avrundas till hela ören och kan aldrig bli negativt.
+ * Priset för en rad, exklusive moms.
  *
  * Avtalspriser per kund finns ännu inte — `context.customerNo` tas emot men
- * används inte förrän prislogiken i /admin skrivits om till en delad modul.
- * Kroken sitter här så att anropsvägen inte behöver ändras när den kommer.
+ * används inte förrän prislogiksidan finns. Kroken sitter här så att
+ * anropsvägen inte behöver ändras när den kommer.
  */
 export function resolveUnitAmount(
   listPriceMinor: number,
   quantity: number,
-  _context: PricingContext = {}
+  context: PricingContext = {}
 ): number {
-  const discounted = listPriceMinor * (1 - quantityDiscount(quantity));
-  return Math.max(0, Math.round(discounted));
+  return priceLine(getPricingConfig(), {
+    listPriceMinor,
+    quantity,
+    isMto: context.isMto ?? false,
+    landedCostMinor: context.sku ? landedCostMinorForSku(context.sku) : null,
+  }).unitAmountMinor;
 }
 
 /**
@@ -122,7 +140,12 @@ export async function priceLines(
 
   const { products } = await import('@/lib/db/schema');
   const productRows = await getDb()
-    .select({ id: products.id, title: products.title, stripeProductId: products.stripeProductId })
+    .select({
+      id: products.id,
+      title: products.title,
+      tags: products.tags,
+      stripeProductId: products.stripeProductId,
+    })
     .from(products)
     .where(inArray(products.id, [...new Set(rows.map(row => row.productId))]));
   const productById = new Map(productRows.map(row => [row.id, row]));
@@ -137,7 +160,11 @@ export async function priceLines(
       sku: variant.sku,
       title: product ? `${product.title} (${variant.sku})` : variant.sku,
       quantity: request.quantity,
-      unitAmountMinor: resolveUnitAmount(variant.priceMinor, request.quantity, context),
+      unitAmountMinor: resolveUnitAmount(variant.priceMinor, request.quantity, {
+        ...context,
+        isMto: product?.tags?.includes('MTO') ?? false,
+        sku: variant.sku,
+      }),
       currency: variant.currency,
       stripeProductId: product?.stripeProductId ?? null,
     };

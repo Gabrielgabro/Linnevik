@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
 import { priceLines, type PriceableRequest } from '@/lib/pricing';
+import { checkoutTaxMode } from '@/lib/vat';
 import {
   attachSession,
   createPendingOrder,
@@ -23,7 +24,6 @@ import { CartRuleError } from '@/lib/cartRules';
 import {
   ownedCommerceEnabled,
   stripeIntegrationIdentifier,
-  stripeTaxEnabled,
 } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
@@ -152,11 +152,20 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // Priserna på sajten är exklusive moms, så momsen läggs på här. Stripe Tax
+    // sköter det när den svenska registreringen är bekräftad; dessförinnan
+    // hängs en uttrycklig momssats på raderna. Alternativet — att skicka
+    // beloppen som `inclusive` utan automatisk moms, vilket var det som
+    // gjordes — innebar att det utsatta "exkl. moms"-priset var allt kunden
+    // betalade, och att momsen åts ur marginalen.
+    const taxMode = await checkoutTaxMode();
+    const lineTaxRates = taxMode.kind === 'explicit' ? [taxMode.taxRateId] : undefined;
+
     const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
       // Slås bara på efter en uttrycklig bekräftelse att den svenska
       // registreringen faktiskt har status Collecting i Stripe.
-      ...(stripeTaxEnabled() ? { automatic_tax: { enabled: true } } : {}),
+      ...(taxMode.kind === 'automatic' ? { automatic_tax: { enabled: true } } : {}),
       integration_identifier: stripeIntegrationIdentifier(),
       locale: locale === 'en' ? 'en' : 'sv',
       currency: priced[0].currency,
@@ -164,10 +173,11 @@ export async function POST(request: NextRequest) {
       ...(email ? { customer_email: email } : {}),
       line_items: priced.map(line => ({
         quantity: line.quantity,
+        ...(lineTaxRates ? { tax_rates: lineTaxRates } : {}),
         price_data: {
           currency: line.currency,
           unit_amount: line.unitAmountMinor,
-          tax_behavior: 'inclusive',
+          tax_behavior: 'exclusive' as const,
           // Faller tillbaka på ett namn om produkten inte hunnit synkas till
           // Stripe — kassan ska inte gå sönder för att katalogen släpar.
           ...(line.stripeProductId
@@ -182,6 +192,12 @@ export async function POST(request: NextRequest) {
             type: 'fixed_amount',
             display_name: shipping.name,
             fixed_amount: { amount: shipping.amountMinor, currency: shipping.currency },
+            // Fraktbeloppet är också exklusive moms. Stripe tillåter inte att
+            // en uttrycklig momssats hängs på en fraktrad, bara på orderrader,
+            // så frakten momsbeläggs först när Stripe Tax är påslagen. I dag är
+            // frakten 0 kr, så det ändrar ingen summa — men en fraktavgift får
+            // inte införas innan momsregistreringen är bekräftad.
+            tax_behavior: 'exclusive' as const,
           },
         },
       ],

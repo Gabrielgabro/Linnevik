@@ -4,6 +4,7 @@ import { cartItems, carts, productImages, products, productVariants } from '@/li
 import { assertOrderable } from '@/lib/cartRules';
 import { CURRENT_PRICING_VERSION, OWNED_CART_TTL_DAYS } from '@/lib/commerceConfig';
 import { resolveUnitAmount } from '@/lib/pricing';
+import { vatOn, vatPercent } from '@/lib/vat';
 
 export class CartError extends Error {
   constructor(
@@ -40,8 +41,14 @@ export type OwnedCart = {
   version: number;
   expiresAt: Date;
   lines: Array<CartLineRow & { lineAmountMinor: number }>;
+  /** Exklusive moms, som priserna visas på sajten. */
   subtotalMinor: number;
+  /** Exklusive moms. Rabatter och frakt läggs på i kassan. */
   totalMinor: number;
+  /** Momsen på summan, redovisad separat så kassan inte är första stället den syns. */
+  vatMinor: number;
+  totalIncVatMinor: number;
+  vatPercent: number;
 };
 
 function expiresAt(): Date {
@@ -92,6 +99,7 @@ export async function getOwnedCart(id: string): Promise<OwnedCart | null> {
       imageUrl: productImages.url,
       imageAlt: productImages.altText,
       stripeProductId: products.stripeProductId,
+      tags: products.tags,
     })
     .from(cartItems)
     .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
@@ -104,8 +112,12 @@ export async function getOwnedCart(id: string): Promise<OwnedCart | null> {
     .orderBy(asc(cartItems.createdAt));
 
   const lines = rows.map(row => {
+    // Samma anrop som kassan gör, med samma kontext. Korgens summa och det
+    // Stripe debiterar får aldrig kunna skilja sig åt.
     const unitAmountMinor = resolveUnitAmount(row.listPriceMinor, row.quantity, {
       customerNo: cart.customerNo,
+      isMto: row.tags?.includes('MTO') ?? false,
+      sku: row.sku,
     });
     return {
       id: row.id,
@@ -128,8 +140,20 @@ export async function getOwnedCart(id: string): Promise<OwnedCart | null> {
     throw new CartError('Korgen innehåller produkter i olika valutor.', 409);
   }
   const subtotalMinor = lines.reduce((sum, line) => sum + line.lineAmountMinor, 0);
+  // Korgen räknas exklusive moms, precis som priserna visas. Momsen redovisas
+  // separat så att kassan inte är första stället kunden ser den.
+  const vatMinor = vatOn(subtotalMinor);
 
-  return { ...cart, status, lines, subtotalMinor, totalMinor: subtotalMinor };
+  return {
+    ...cart,
+    status,
+    lines,
+    subtotalMinor,
+    totalMinor: subtotalMinor,
+    vatMinor,
+    totalIncVatMinor: subtotalMinor + vatMinor,
+    vatPercent: vatPercent(),
+  };
 }
 
 async function requireEditableCart(id: string) {

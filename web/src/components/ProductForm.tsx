@@ -4,7 +4,11 @@ import { useMemo, useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
-import { calculateMTOPrice, MIN_ORDER_QUANTITY } from '@/lib/mtoPrice';
+import {
+    DEFAULT_PRICING_CONFIG,
+    priceLine,
+    type PricingConfig,
+} from '@/lib/pricingRules';
 
 type Variant = {
     id: string;
@@ -21,6 +25,7 @@ export default function ProductForm({
     packSize,
     hasMTOTag = false,
     productId,
+    pricingConfig,
 }: {
     options: { name: string; values: string[] }[];
     variants: Variant[];
@@ -28,6 +33,13 @@ export default function ProductForm({
     packSize?: number | null;
     hasMTOTag?: boolean;
     productId?: string;
+    /**
+     * Prislogiken servern räknar med. Skickas med av produktsidan så att den
+     * här förhandsvisningen och kassan alltid går efter samma regler; `null`
+     * betyder att logiken kräver landad kostnad och därför inte får räknas i
+     * webbläsaren (se isClientComputable).
+     */
+    pricingConfig?: PricingConfig | null;
 }) {
     const { addItem, isLoading } = useCart();
     const { t, locale } = useTranslation();
@@ -42,8 +54,11 @@ export default function ProductForm({
         return obj;
     }, [options]);
     const [selected, setSelected] = useState<Record<string, string>>(initial);
+    // Utan konfiguration visas listpriset rakt av: hellre inget volympris än
+    // ett som kassan inte tänker hålla.
+    const config = pricingConfig === undefined ? DEFAULT_PRICING_CONFIG : pricingConfig;
     // For MTO products, start quantity at minimum order quantity
-    const minQty = hasMTOTag ? MIN_ORDER_QUANTITY : (moq || 1);
+    const minQty = hasMTOTag ? (config?.minimumOrderQuantity ?? 1) : (moq || 1);
     const [qtyInput, setQtyInput] = useState<string>(String(minQty));
     const qty = Number(qtyInput) || 0;
     const [addingToCart, setAddingToCart] = useState(false);
@@ -57,15 +72,25 @@ export default function ProductForm({
     const unitPrice = active?.price?.amount ? Number(active.price.amount) : 0;
     const totalUnits = packSize ? Math.ceil(qty / packSize) * packSize : qty;
 
-    // MTO price calculation using imported function
+    // Samma funktion som servern prissätter korgen och kassan med. Priset
+    // räknas i ören för att undgå flyttalsdrift och visas i kronor.
     const mtoPrice = useMemo(() => {
-        if (!hasMTOTag || unitPrice === 0) return null;
-        return calculateMTOPrice(qty, unitPrice);
-    }, [qty, unitPrice, hasMTOTag]);
+        if (!config || !hasMTOTag || unitPrice === 0) return null;
+        const result = priceLine(config, {
+            listPriceMinor: Math.round(unitPrice * 100),
+            quantity: qty,
+            isMto: true,
+        });
+        return {
+            quantity: result.quantity,
+            unitPrice: result.unitAmountMinor / 100,
+            discountPercent: result.discountPercent,
+        };
+    }, [config, qty, unitPrice, hasMTOTag]);
 
     const effectiveQty = mtoPrice?.quantity || Math.max(qty, minQty);
-    const currentTier = mtoPrice?.tier || null;
-    const mtoUnitPrice = mtoPrice?.unitPrice || unitPrice;
+    const currentTier = mtoPrice ? { discountPercent: mtoPrice.discountPercent } : null;
+    const mtoUnitPrice = mtoPrice?.unitPrice ?? unitPrice;
 
     const handleAddToCart = async () => {
         if (!active?.id) return;
@@ -148,7 +173,7 @@ export default function ProductForm({
                 />
                 <div className="flex items-center gap-4 text-xs text-secondary">
                     {hasMTOTag ? (
-                        <span>{t.product.mtoMinOrder.replace('{quantity}', String(MIN_ORDER_QUANTITY))}</span>
+                        <span>{t.product.mtoMinOrder.replace('{quantity}', String(config?.minimumOrderQuantity ?? minQty))}</span>
                     ) : (
                         moq && <span>{t.product.minOrder.replace('{quantity}', String(moq))}</span>
                     )}
