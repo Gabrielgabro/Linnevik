@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProductsBasic } from '@/lib/shopify';
-import { getServerLanguage, toShopifyLanguage } from '@/lib/language';
+import { searchCatalogProducts } from '@/lib/catalogDb';
+import { getServerLanguage } from '@/lib/language';
 import { isSupportedLanguage, type Language } from '@/lib/languageConfig';
 
 export async function GET(request: NextRequest) {
@@ -17,9 +17,7 @@ export async function GET(request: NextRequest) {
             langParam && isSupportedLanguage(langParam)
                 ? langParam
                 : await getServerLanguage();
-        const shopifyLanguage = toShopifyLanguage(language);
-
-        const products = await getProductsBasic(10, query.trim(), shopifyLanguage);
+        const products = await searchCatalogProducts(query.trim(), language, 10);
 
         return NextResponse.json({ products });
     } catch (error) {

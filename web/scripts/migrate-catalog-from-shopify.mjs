@@ -163,17 +163,30 @@ for (const product of productsSv) {
   );
   if (!apply) continue;
 
+  // Engelskan skrivs bara när den fortfarande är den svenska texten rakt av.
+  // Shopify har ingen engelsk översättning av produkterna, så en EN-fråga
+  // svarar med svenskan (samma sak som gällde kategorierna före 0012). Utan
+  // spärren hade varje omkörning skrivit tillbaka svenska över den engelska
+  // 0016 fyllde i.
   await sql`
     update products set
       shopify_product_id = ${product.id}, title = ${product.title},
-      title_en = ${en?.title ?? product.title},
+      title_en = case when products.title_en is null or products.title_en = products.title
+                      then ${en?.title ?? product.title} else products.title_en end,
       description_html = ${product.descriptionHtml || null},
-      description_html_en = ${en?.descriptionHtml || null},
+      description_html_en = case
+        when products.description_html_en is null
+          or products.description_html_en = products.description_html
+        then ${en?.descriptionHtml || null} else products.description_html_en end,
       tags = ${product.tags}::text[], product_type = ${product.productType || null},
       vendor = ${product.vendor || null}, seo_title = ${product.seo?.title || null},
       seo_description = ${product.seo?.description || null},
-      seo_title_en = ${en?.seo?.title || null},
-      seo_description_en = ${en?.seo?.description || null},
+      seo_title_en = case when products.seo_title_en is null or products.seo_title_en = products.seo_title
+                          then ${en?.seo?.title || null} else products.seo_title_en end,
+      seo_description_en = case
+        when products.seo_description_en is null
+          or products.seo_description_en = products.seo_description
+        then ${en?.seo?.description || null} else products.seo_description_en end,
       shopify_updated_at = ${product.updatedAt},
       status = 'active', active = true, published_at = coalesce(published_at, now()),
       source_synced_at = now(), updated_at = now()

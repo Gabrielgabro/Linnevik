@@ -212,6 +212,7 @@ export type ProductInput = Partial<
     | 'seoDescription'
     | 'seoTitleEn'
     | 'seoDescriptionEn'
+    | 'leadTime'
     | 'status'
     | 'publishedAt'
     | 'active'

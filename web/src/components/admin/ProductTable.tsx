@@ -226,6 +226,9 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
                       >
                         {product.title}
                       </span>
+                      {product.supplier === 'Linnevik' && (
+                        <Tag color="var(--adm-ok)">Egen produkt</Tag>
+                      )}
                       {!product.active && <Tag>Inaktiv</Tag>}
                       {/* Utan Stripe-produkt går varan att sälja ändå — kassan
                           faller tillbaka på ett namn — men den blir osynlig i

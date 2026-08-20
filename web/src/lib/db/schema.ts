@@ -118,6 +118,10 @@ export const products = pgTable(
     seoDescription: text('seo_description'),
     seoTitleEn: text('seo_title_en'),
     seoDescriptionEn: text('seo_description_en'),
+    // Låg förr i Shopify-metafältet `b2b.lead_time` och lästes live på
+    // produktsidan. Egen kolumn sedan 0015, annars försvinner rutan
+    // "Leveranstid" den dagen butiken stängs.
+    leadTime: text('lead_time'),
     shopifyUpdatedAt: timestamp('shopify_updated_at', { withTimezone: true }),
     stripeProductId: text('stripe_product_id'),
     status: text('status').notNull().default('active'),
@@ -346,6 +350,9 @@ export const customers = pgTable(
   'customers',
   {
     id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    clientId: integer('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'restrict' }),
     email: text('email').notNull(),
     stripeCustomerId: text('stripe_customer_id'),
     shopifyCustomerId: text('shopify_customer_id'),
@@ -372,6 +379,7 @@ export const customers = pgTable(
       .on(table.shopifyCustomerId)
       .where(isNotNull(table.shopifyCustomerId)),
     index('customers_customer_no_idx').on(table.customerNo),
+    index('customers_client_id_idx').on(table.clientId),
   ]
 );
 

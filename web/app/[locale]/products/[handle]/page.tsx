@@ -3,11 +3,11 @@ import ProductForm from '@/components/ProductForm';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import { Metadata } from 'next';
 
-import { getProductByHandle } from '@/lib/shopify';
-import { getProductBreadcrumb, getPurchasableShopifyVariantIds } from '@/lib/catalogDb';
+import { getCatalogProduct, getProductBreadcrumb } from '@/lib/catalogDb';
+import { getPricingConfig } from '@/lib/pricing';
+import { isClientComputable } from '@/lib/pricingRules';
 import { getHreflang } from '@/lib/metadata';
 import { SITE_URL, getSiteUrl } from '@/lib/site';
-import { toShopifyLanguage } from '@/lib/languageConfig';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
 import JsonLd from '@/components/JsonLd';
 import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
@@ -28,10 +28,9 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { locale: localeParam, handle } = await params;
     const locale = normalizeLocale(localeParam);
-    const shopifyLang = toShopifyLanguage(locale);
 
     try {
-        const product = await getProductByHandle(handle, shopifyLang);
+        const product = await getCatalogProduct(handle, locale);
 
         if (!product) {
             return {
@@ -79,39 +78,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({ params }: Props) {
     const { locale: localeParam, handle } = await params;
     const locale = normalizeLocale(localeParam);
-    const shopifyLang = toShopifyLanguage(locale);
     const t = getTranslations(locale);
-    const product = await getProductByHandle(handle, shopifyLang);
+    const product = await getCatalogProduct(handle, locale);
     if (!product) notFound();
 
     const images = product.images.edges.map(e => e.node);
 
-    // Shopify säger om varan finns i lager. Vi säger om den går att beställa
-    // hos oss alls — bara de sex lagerförda produkterna är släppta, resten är
-    // avmarkerade sedan 14-8. Kassan (`cartRules`) kräver båda, så knappen här
-    // måste kräva båda den också. Saknas produkten i vår katalog finns inget
-    // eget beslut att väga in, och Shopify får bestämma ensam.
-    const purchasable = await getPurchasableShopifyVariantIds(handle);
-    const variants = product.variants.edges.map(e => e.node).map(variant => ({
-        ...variant,
-        availableForSale:
-            variant.availableForSale && (purchasable === null || purchasable.has(variant.id)),
-    }));
-    const moq = product.moq?.value ? Number(product.moq.value) : null;
-    const packSize = product.packSize?.value ? Number(product.packSize.value) : null;
-    const hasMTOTag = product.tags?.includes('MTO') ?? false;
+    // `availableForSale` väger redan in båda villkoren kassan kräver
+    // (`cartRules`): vårt eget beslut att sälja varan alls, och att den finns i
+    // lager. Se getCatalogProduct.
+    const variants = product.variants.edges.map(e => e.node);
+    const { moq, packSize } = product;
+    const hasMTOTag = product.tags.includes('MTO');
 
-    // Brödsmulorna kommer i första hand ur vår egen katalog: där finns en
-    // utpekad primär kategori och ett träd, medan Shopify bara ger en lista i
-    // godtycklig ordning. Fallbacket gäller tills kategorisynkningen körts.
-    const catalogCrumbs = await getProductBreadcrumb(handle, locale);
-    const shopifyCollections = product.collections.edges.map(e => e.node);
-    const categoryTrail = catalogCrumbs.length
-        ? catalogCrumbs
-        : shopifyCollections.slice(0, 1).map(collection => ({
-            handle: collection.handle,
-            title: collection.title,
-        }));
+    // Samma prislogik som korgen och kassan räknar med, skickad ned så att
+    // förhandsvisningen inte kan gå isär från det som debiteras. Kräver logiken
+    // landad kostnad skickas den inte alls — inköpspriset hör inte hemma i
+    // sidans HTML.
+    const pricingConfig = getPricingConfig();
+    const clientPricingConfig = isClientComputable(pricingConfig) ? pricingConfig : null;
+
+    // Brödsmulorna följer den primära kategorin och trädet uppåt. Fallbacket
+    // mot Shopifys kategorilista är borta med katalogläsningen: en produkt utan
+    // primär kategori får /products-smulan i stället.
+    const categoryTrail = await getProductBreadcrumb(handle, locale);
 
     const breadcrumbItems = categoryTrail.length
         ? [
@@ -176,15 +166,16 @@ export default async function ProductPage({ params }: Props) {
                             packSize={packSize}
                             hasMTOTag={hasMTOTag}
                             productId={product.id}
+                            pricingConfig={clientPricingConfig}
                         />
 
                         {/* Lead time */}
-                        {product.leadTime?.value && (
+                        {product.leadTime && (
                             <div className="flex items-center gap-2 px-4 py-3 bg-[#F3EDE4] dark:bg-[#1f2937] rounded-xl border border-[#EBDCCB] dark:border-[#374151]">
                                 <svg className="w-5 h-5 text-[#0B3D2E] dark:text-[#379E7D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span className="text-sm font-medium text-primary">{t.product.leadTime}: {product.leadTime.value}</span>
+                                <span className="text-sm font-medium text-primary">{t.product.leadTime}: {product.leadTime}</span>
                             </div>
                         )}
                     </div>

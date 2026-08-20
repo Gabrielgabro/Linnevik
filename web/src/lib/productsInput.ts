@@ -84,6 +84,9 @@ const PRODUCT_TEXT_FIELDS = {
   seoDescription: 400,
   seoTitleEn: 200,
   seoDescriptionEn: 400,
+  // Låg förr i Shopify-metafältet b2b.lead_time. Fritext, samma som förut:
+  // "4-6 veckor", inte ett antal dagar.
+  leadTime: 120,
 } as const;
 
 export function parseProductInput(body: Body, { partial = false } = {}): ProductInput {

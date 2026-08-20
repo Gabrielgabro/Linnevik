@@ -93,6 +93,13 @@ function ContentPanel({ detail }: { detail: ProductDetail }) {
           defaultValue={product.supplier}
           placeholder="unknown"
         />
+        {/* Visas som rutan "Leveranstid" på produktsidan när den är ifylld. */}
+        <Field
+          label="Leveranstid"
+          name="leadTime"
+          defaultValue={product.leadTime}
+          placeholder="4-6 veckor"
+        />
       </div>
 
       <TextArea
