@@ -20,7 +20,7 @@ live storefront/cart fallback while the owned path is tested.
    this application. Store it as a sensitive Vercel environment variable.
 
 The operational admin is split into `/admin/orders`, `/admin/commerce`, and
-`/admin/customers`. Refund requests require a paid PaymentIntent and use a
+the unified customer register at `/admin/clients`. Refund requests require a paid PaymentIntent and use a
 per-request idempotency key. Fulfillment quantities are checked against the
 remaining unfulfilled quantity before a shipment is recorded.
 

@@ -181,8 +181,8 @@ Tre saker som stod som öppna ovan är nu stängda. Den första var feldiagnosti
 
 ### Ännu inte klart efter den här omgången
 
-- Produktsidan och sökningen läser fortfarande katalogtexten från Shopify. Det är samma separata migrering som förut.
-- `title_en` och `description_html_en` på **produkterna** är fortfarande svenska av samma skäl som kategorierna var det. Bara kategorierna är översatta hittills.
+- ~~Produktsidan och sökningen läser fortfarande katalogtexten från Shopify.~~ Stängd 20-8, se nedan.
+- ~~`title_en` och `description_html_en` på **produkterna** är fortfarande svenska.~~ Stängd 20-8 (migrering `0016`).
 - Kategorisidan visar beskrivningen som ren text, precis som Shopify-versionen gjorde, så kontaktlänken i Sängkläders beskrivning renderas inte som en länk.
 
 ### Update 15-8: SMTP-handskakningen är bevisad, och lagerreservationen är byggd
@@ -196,3 +196,87 @@ Två poster som stod under "Not yet complete" är stängda och har därför tagi
 ### Readiness decision
 
 Customer accounts, order history, and the cart/checkout path all now run on owned infrastructure when `OWNED_COMMERCE_ENABLED` is on, matching what Shopify used to do in each of those areas — that flag is the entire remaining cutover switch for this slice. The product catalog itself is the one storefront-facing piece still read from Shopify (see "Not yet complete") and was intentionally left out of this pass as a separate migration. Before flipping the flag for real traffic: add `SMTP_PASS` and `CUSTOMER_SESSION_SECRET` to the production environment, confirm the SPF/DKIM/DMARC verdicts on the delivered test message, and run the complete owned purchase flow (cart → checkout → Stripe webhook → order → reservation → fulfillment mail) against a real database at least once.
+
+## Status 20-8
+
+### Update 20-8: katalogläsningen är flyttad, och två tysta datafel den avslöjade
+
+Den sista storefront-ytan som läste Shopify — produktsidan och sökningen — går nu mot våra egna tabeller. Shopify läses inte längre av någon sida utom startsidans `FeaturedGrid`.
+
+- **Produktsidan** (`/products/[handle]`) läser `getCatalogProduct` i `catalogDb.ts` i stället för `getProductByHandle`. Formen som lämnas ut är fortfarande Shopifys (`images.edges[].node`, `variants.edges[].node`), av samma skäl som `CatalogProductCard` har den: `ProductForm`, `ProductGallery` och `JsonLd` är byggda kring den, och att forma om på ett ställe är billigare än att röra varje konsument.
+- **`getPurchasableShopifyVariantIds` behövs inte längre på produktsidan.** Villkoret `active and available_for_sale` — samma som `cartRules` kräver — ligger nu i frågan, så `availableForSale` är sant bara för det vi faktiskt säljer. Beteendet är oförändrat: påslakan och örngott visade "Kan inte beställas" före flytten och gör det efter, eftersom deras varianter är avmarkerade sedan 14-8.
+- **Brödsmulans Shopify-fallback är borta.** En produkt utan primär kategori får `/products`-smulan i stället för Shopifys godtyckliga första kategori.
+- **Sökningen** matchar i databasen i stället för att hämta hela katalogen och filtrera i Node. Det rättar en begränsning som stod utskriven i `getProductsBasic`: Shopifys `query` söker bara i butikens standardspråk, så en engelsk besökare som sökte "pillow" fick noll träffar. Nu svarar `/en/search?q=pillow` med fem produkter. Jokertecken i söksträngen escapas, så `%` inte returnerar hela katalogen.
+- **`generateStaticParams`** för produkterna läser samma tabell som sidan, precis som kategorierna redan gjorde.
+- **Leveranstiden fick en egen kolumn** (`products.lead_time`, migrering `0015`) och ett fält i admin. Den låg i Shopify-metafältet `b2b.lead_time` och hade annars försvunnit tyst vid nedstängningen. Metafältet är tomt på samtliga 16 produkter, så rutan renderas inte i dag heller — men den går nu att fylla i.
+- **MOQ och kartongsteg** kommer från varianternas `minimum_order_quantity` och `order_increment` i stället för metafälten `b2b.moq` och `b2b.pack_size`, som också var tomma överallt. Värdet 1 betyder "ingen regel" och visas inte, precis som det frånvarande metafältet betedde sig; bland varianterna väljs den strängaste regeln så att sidan aldrig lovar mindre än kassan kräver.
+- **Produkternas engelska texter är översatta** (migrering `0016`, 16 titlar och 13 beskrivningar). Samma fel som kategorierna hade före `0012`: Shopify har ingen engelsk översättning, så `@inContext(language: EN)` svarade med svenskan och importen skrev in den. Varje sats är villkorad på att engelskan fortfarande är den svenska texten rakt av. **`catalog:migrate` har fått samma spärr** — utan den hade nästa import skrivit tillbaka svenskan, alltså återinfört felet `0016` just rättat.
+
+**Två datafel som bara syntes när sidan slutade läsa Shopify:**
+
+- **`product_variants.option_values` var trasig på 42 av 55 varianter.** Importen skrev optionsnamnen bara på produktens första variant — resten fick `{"name": "", "value": "..."}` — och värdena hade slugifierats på vägen (`gratt` i stället för `Grått`, `citrus` i stället för `Morgonlinne`). Så länge produktsidan läste Shopify användes kolumnen bara av korgens radrubrik. Nu är den det variantväljaren matchar mot, och ett tomt namn matchar ingenting: köpknappen hade slutat fungera på varje produkt med fler än en variant. `scripts/repair-variant-options.mjs` skriver om kolumnen från Shopifys `selectedOptions`, nycklat på `shopify_variant_id`, och är körd och idempotent. Verifierat: alla 16 produkter har nu genomgående ifyllda och inbördes lika optionsnamn.
+- **MTO-varianterna gick inte att lägga i korgen.** Alla 55 varianter hade `inventory_tracked = true`, och `assertOrderable` avvisar då varje kvantitet över lagersaldot. De 22 MTO-varianterna har 0 i lager (eller platshållarsiffror som 1 000 000), så produktsidan visade en fungerande köpknapp medan korgen svarade "Det finns bara 0 ... i lager" i samma klick. Planen säger att MTO ska gå att beställa utan lagerreservation, och `assertOrderable` hade redan stödet — det var datat som inte använde det. `scripts/untrack-mto-inventory.mjs` är körd: 22 varianter otrackade, valda på taggen `MTO`, och den hoppar över allt med aktiva reservationer. Verifierat efteråt: Täcke Daniel × 10 går i korgen, medan KSK-5070 fortfarande nekas över sitt verkliga saldo på 218.
+
+### Vad som är bevisat mot en riktig databas
+
+Den ägda köpresan är inte längre obeprövad. Med `OWNED_COMMERCE_ENABLED=true` och Stripe i testläge, mot Neon:
+
+- korg skapad, rad tillagd, rätt SKU, titel, variantrubrik, pris och bild ur våra egna tabeller
+- Stripe Checkout Session skapad från den ägda korgen (`cs_test_...`)
+- orderrad skriven före omdirigeringen, kopplad till korgen med `cart_id` och `cart_version` — den första ordern i databasen som kommit den vägen
+- produktsidan renderad på båda språken: svensk och engelsk titel och beskrivning, optionsväljare med rätt namn och värden, pris och SKU, noll referenser till `cdn.shopify.com`
+
+Kvar för att stänga cirkeln: en genomförd betalning, alltså webhook → `paid` → reservation → orderbekräftelse på mejl, och en utleverans.
+
+### Flaggan
+
+`OWNED_COMMERCE_ENABLED` står nu på i `.env.local` och i **Preview** på Vercel, så hela den ägda resan går att klicka igenom på en deployad adress. **Produktion är fortfarande av** (variabeln är inte satt där, och saknad variabel betyder av).
+
+Före produktionsflippen:
+
+- genomför en riktig testbetalning hela vägen till `paid`, reservation och bekräftelsemejl
+- kontrollera att `STRIPE_SECRET_KEY` i produktion är rätt läge för det som ska hända (test eller live)
+- `SMTP_PASS` och `CUSTOMER_SESSION_SECRET` **finns numera i produktion** (tillagda 15-8) — den posten under "Not yet complete" ovan är inaktuell
+
+### Ännu inte klart
+
+- Startsidans `FeaturedGrid` läser fortfarande Shopify (`getFeaturedProducts`), och `next.config.ts` behåller `cdn.shopify.com` bland bildvärdarna därför. Det är den sista storefront-läsningen mot Shopify.
+- Sökningen matchar mot det språk besökaren läser. En svensk term på den engelska sajten ger nu noll träffar (`/en/search?q=kudde`), vilket den inte gjorde förut. Avsiktligt, men värt att veta.
+- SKU:n `KSK-6090` heter så, men Shopifys optionsvärde för samma variant är `60 x 80` — och Shopify har ingen 60 × 90 för kuddskydd. Ett av de två är fel; reparationsskriptet skrev in Shopifys värde eftersom det är det kunden ser i dag, men SKU-namnet är inte utrett.
+- Databasens integrationstester och Stripes fullständiga webhook-, utgångs-, retur- och utleveransflöden saknas fortfarande.
+
+
+### Update 20-8: en prislogik i stället för två, och momsen på rätt sida av priset
+
+Två fel som båda kostade pengar på riktigt, och som båda satt i att samma tal betydde olika saker på olika ställen.
+
+**Produktsidan och kassan räknade med skilda trappor.** `mtoPrice.ts` gav sidan 50/200/400/600/1000 → 0/5/10/15/20 %, medan `pricing.ts` gav korgen och Stripe 20/50/100 → 5/10/15 %. Varje antal från 20 och uppåt visade alltså ett annat pris än det som debiterades: vid 100 enheter skyltade sidan med fullpris och kassan drog 15 %, och vid 1000 enheter lovade sidan 20 % medan kassan drog 15 % — kunden betalade mer än sidan sagt. Lagerförda varor fick dessutom 5–15 % rabatt i kassan som aldrig stått någonstans på sajten.
+
+- Logiken bor nu i `src/lib/pricingRules.ts`: ren, isomorf, utan databas. Produktsidan räknar med den i webbläsaren och kassan räknar med den på servern, så de kan inte gå isär. `mtoPrice.ts` är borttagen.
+- `pricing.ts` är kvar som serverns väg in — den slår upp varianten, hämtar konfigurationen och lämnar över räknandet.
+- Utgångsläget är det sajten redan lovat: den publicerade trappan, och bara på MTO-produkter. **Lagerförda varor tappar därmed den odeklarerade rabatten** de tidigare fick i kassan. Det är avsiktligt — ingen ska debiteras ett annat pris än det som visas — men det höjer priset på lagervaror i stora antal jämfört med i går.
+- Ett regressionstest jämför `resolveUnitAmount` (servern) med `priceLine` (klienten) över elva antal från 1 till 5000. Går de isär faller bygget.
+
+**Grunden för prislogiksidan i /admin är lagd.** `PricingConfig` beskriver strategin som data — `progressive` (trappor), `linear` (jämn ökning mot ett tak) och `margin` (pris ur landad kostnad mot ett marginalmål) — plus ett marginalgolv som ingen strategi får underskrida. Allt läses genom `getPricingConfig()`, som i dag svarar med konstanten och senare läser en tabell; då är det ett ställe som ändras.
+
+En sak att känna till innan sidan byggs: `isClientComputable()` avgör om konfigurationen får skickas till webbläsaren. Marginallogiken behöver landad kostnad, och inköpspriset får aldrig ligga i sidans HTML — väljer admin en kostnadsberoende strategi skickas ingen konfiguration ut, och produktsidan visar listpriset utan volymförhandsvisning tills prissättningen görs via ett serveranrop. Marginalgolvet är avstängt i utgångsläget, så inget pris ändras av att spärren finns.
+
+**Momsen låg på fel sida av priset.** Sajten skriver "Exkl. moms" bredvid priset, men kassan skickade samma siffra till Stripe med `tax_behavior: 'inclusive'` och automatisk moms avstängd. Kunden betalade alltså exakt det utsatta beloppet, och en fjärdedel av det var moms Linnevik skulle redovisa — ungefär en femtedel av intäkten uppäten på varje order. Korgsidans "Totalt inkl. moms" visade av samma skäl ett belopp utan moms.
+
+- `src/lib/vat.ts` äger satsen (25 %, ställbar med `VAT_PERCENT`).
+- Kassan skickar raderna som `exclusive` och lägger på momsen: Stripe Tax när den svenska registreringen är bekräftad, annars en uttrycklig momssats som skapas en gång och återanvänds.
+- Korgen redovisar `vatMinor` och `totalIncVatMinor` separat, så att momsen syns före kassan.
+- Den obetalda ordern skriver in förväntad moms i `tax_minor` i stället för att påstå noll; webhooken skriver som förut över med Stripes faktiska `amount_tax` vid betalning.
+
+Verifierat hela vägen mot Stripe i testläge, 200 st av ett täcke med listpris 300,00:
+
+| | före | efter |
+|---|---|---|
+| styckpris i kassan | 255,00 (15 % som sidan inte visade) | 285,00 (5 %, samma som sidan) |
+| summa exkl. moms | 51 000,00 | 57 000,00 |
+| moms | 0 tillagd (10 200 inbakade) | 14 250,00 tillagd |
+| kunden betalar | 51 000,00 | 71 250,00 |
+
+Stripes eget svar på sessionen: `unit 285.00`, `tax_behavior exclusive`, `amount_tax 14 250.00`, `amount_total 71 250.00`. Orderraden i databasen står på samma tal.
+
+**Kvar på momssidan:** frakten momsbeläggs först när Stripe Tax är påslagen — Stripe tillåter inte en uttrycklig momssats på en fraktrad, bara på orderrader. Frakten är 0 kr i dag, så ingen summa påverkas, men en fraktavgift får inte införas innan momsregistreringen är bekräftad.
