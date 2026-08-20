@@ -4,6 +4,7 @@ import {
   LineChart,
   Package,
   PackageOpen,
+  Percent,
   Settings2,
   ShoppingCart,
   Users,
@@ -55,6 +56,7 @@ export const NAV: NavGroup[] = [
         accent: 'var(--viz-s3)',
       },
       { href: '/admin/commerce', label: 'Handel', icon: Settings2, accent: 'var(--adm-warn)' },
+      { href: '/admin/pricing', label: 'Prislogik', icon: Percent, accent: 'var(--viz-s1)' },
     ],
   },
   {

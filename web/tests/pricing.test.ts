@@ -15,24 +15,24 @@ import { resolveUnitAmount } from '@/lib/pricing';
  * i stället för 9 500 är därför rättelsen, inte en regression.
  */
 describe('server-side pricing', () => {
-  it('följer den publicerade trappan för MTO-produkter', () => {
-    expect(resolveUnitAmount(10_000, 1, { isMto: true })).toBe(10_000);
-    expect(resolveUnitAmount(10_000, 50, { isMto: true })).toBe(10_000);
-    expect(resolveUnitAmount(10_000, 200, { isMto: true })).toBe(9_500);
-    expect(resolveUnitAmount(10_000, 400, { isMto: true })).toBe(9_000);
-    expect(resolveUnitAmount(10_000, 600, { isMto: true })).toBe(8_500);
-    expect(resolveUnitAmount(10_000, 1_000, { isMto: true })).toBe(8_000);
+  it('följer den publicerade trappan för MTO-produkter', async () => {
+    expect(await resolveUnitAmount(10_000, 1, { isMto: true })).toBe(10_000);
+    expect(await resolveUnitAmount(10_000, 50, { isMto: true })).toBe(10_000);
+    expect(await resolveUnitAmount(10_000, 200, { isMto: true })).toBe(9_500);
+    expect(await resolveUnitAmount(10_000, 400, { isMto: true })).toBe(9_000);
+    expect(await resolveUnitAmount(10_000, 600, { isMto: true })).toBe(8_500);
+    expect(await resolveUnitAmount(10_000, 1_000, { isMto: true })).toBe(8_000);
   });
 
-  it('ger ingen mängdrabatt på lagerförda varor', () => {
+  it('ger ingen mängdrabatt på lagerförda varor', async () => {
     for (const quantity of [1, 20, 50, 100, 1_000]) {
-      expect(resolveUnitAmount(10_000, quantity)).toBe(10_000);
+      expect(await resolveUnitAmount(10_000, quantity)).toBe(10_000);
     }
   });
 
-  it('rounds to whole minor units and never returns a negative amount', () => {
+  it('rounds to whole minor units and never returns a negative amount', async () => {
     // 9,99 kr med 5 % rabatt = 9,4905 → 9,49.
-    expect(resolveUnitAmount(999, 200, { isMto: true })).toBe(949);
-    expect(resolveUnitAmount(-100, 1)).toBe(0);
+    expect(await resolveUnitAmount(999, 200, { isMto: true })).toBe(949);
+    expect(await resolveUnitAmount(-100, 1)).toBe(0);
   });
 });

@@ -95,7 +95,7 @@ export default async function ProductPage({ params }: Props) {
     // förhandsvisningen inte kan gå isär från det som debiteras. Kräver logiken
     // landad kostnad skickas den inte alls — inköpspriset hör inte hemma i
     // sidans HTML.
-    const pricingConfig = getPricingConfig();
+    const pricingConfig = await getPricingConfig();
     const clientPricingConfig = isClientComputable(pricingConfig) ? pricingConfig : null;
 
     // Brödsmulorna följer den primära kategorin och trädet uppåt. Fallbacket

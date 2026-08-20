@@ -53,6 +53,7 @@ type FieldProps = {
   hint?: React.ReactNode;
   error?: React.ReactNode;
   className?: string;
+  onChange?: React.ChangeEventHandler<HTMLInputElement>;
 };
 
 export function Field({
@@ -68,6 +69,7 @@ export function Field({
   hint,
   error,
   className,
+  onChange,
 }: FieldProps) {
   return (
     <label className={clsx('flex flex-col gap-1.5', className)}>
@@ -84,6 +86,7 @@ export function Field({
         required={required}
         placeholder={placeholder}
         defaultValue={defaultValue ?? ''}
+        onChange={onChange}
         aria-invalid={error ? true : undefined}
         className={clsx(controlClass, error && 'border-danger')}
       />
@@ -176,7 +179,10 @@ export function TextArea({
 export function Button({
   variant = 'primary',
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  size?: 'sm' | 'md';
+}) {
   return <UiButton variant={variant} {...rest} />;
 }
 

@@ -25,9 +25,9 @@ describe('samma pris på produktsidan som i kassan', () => {
   const listPriceMinor = 30000; // 300,00 kr
 
   for (const quantity of [1, 20, 50, 100, 199, 200, 400, 600, 999, 1000, 5000]) {
-    it(`ger samma styckpris för ${quantity} st`, () => {
+    it(`ger samma styckpris för ${quantity} st`, async () => {
       const client = priceLine(config, { listPriceMinor, quantity, isMto: true });
-      const server = resolveUnitAmount(listPriceMinor, quantity, { isMto: true });
+      const server = await resolveUnitAmount(listPriceMinor, quantity, { isMto: true });
       expect(server).toBe(client.unitAmountMinor);
     });
   }

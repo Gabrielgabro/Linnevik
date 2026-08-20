@@ -3,7 +3,9 @@ import { getDb } from '@/lib/db';
 import { cartItems, carts, productImages, products, productVariants } from '@/lib/db/schema';
 import { assertOrderable } from '@/lib/cartRules';
 import { CURRENT_PRICING_VERSION, OWNED_CART_TTL_DAYS } from '@/lib/commerceConfig';
-import { resolveUnitAmount } from '@/lib/pricing';
+import { getPricingConfig } from '@/lib/pricing';
+import { priceLine } from '@/lib/pricingRules';
+import { landedCostMinorForSku } from '@/lib/landedCostLookup';
 import { vatOn, vatPercent } from '@/lib/vat';
 
 export class CartError extends Error {
@@ -111,14 +113,16 @@ export async function getOwnedCart(id: string): Promise<OwnedCart | null> {
     .where(eq(cartItems.cartId, id))
     .orderBy(asc(cartItems.createdAt));
 
+  const pricingConfigForCart = await getPricingConfig();
   const lines = rows.map(row => {
     // Samma anrop som kassan gör, med samma kontext. Korgens summa och det
     // Stripe debiterar får aldrig kunna skilja sig åt.
-    const unitAmountMinor = resolveUnitAmount(row.listPriceMinor, row.quantity, {
-      customerNo: cart.customerNo,
+    const unitAmountMinor = priceLine(pricingConfigForCart, {
+      listPriceMinor: row.listPriceMinor,
+      quantity: row.quantity,
       isMto: row.tags?.includes('MTO') ?? false,
-      sku: row.sku,
-    });
+      landedCostMinor: landedCostMinorForSku(row.sku),
+    }).unitAmountMinor;
     return {
       id: row.id,
       variantId: row.variantId,

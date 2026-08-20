@@ -38,6 +38,35 @@ export const adminActivity = pgTable('admin_activity', {
 
 export type AdminActivityRow = typeof adminActivity.$inferSelect;
 
+// Prislogiken som admin styr. En enda rad (id = 1) — det finns bara en
+// konfiguration åt gången. `strategy` väljer mellan trappor (`progressive`)
+// och en jämn kurva (`linear`); `margin`-strategin i pricingRules.ts är
+// medvetet inte valbar här, för den kräver landad kostnad som bara är känd
+// för sex produkter och som aldrig får skickas till klienten — se
+// `isClientComputable`. Gäller alltid bara MTO-produkter: `appliesTo` sätts
+// inte här utan är fast 'mto' i koden, så en admin-inställning aldrig av
+// misstag kan slå på mängdrabatt för lagerförda varor.
+export const pricingConfig = pgTable('pricing_config', {
+  id: integer('id').primaryKey().default(1),
+  strategy: text('strategy').notNull().default('progressive'),
+  tiers: jsonb('tiers')
+    .$type<Array<{ minQuantity: number; discountPercent: number }>>()
+    .notNull()
+    .default([]),
+  linearStartQuantity: integer('linear_start_quantity').notNull().default(50),
+  linearQuantityStep: integer('linear_quantity_step').notNull().default(100),
+  linearPercentPerStep: integer('linear_percent_per_step').notNull().default(2),
+  linearMaxPercent: integer('linear_max_percent').notNull().default(20),
+  minimumOrderQuantity: integer('minimum_order_quantity').notNull().default(50),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: text('updated_by'),
+}, table => [
+  check('pricing_config_singleton_check', sql`${table.id} = 1`),
+  check('pricing_config_strategy_check', sql`${table.strategy} in ('progressive', 'linear')`),
+]);
+
+export type PricingConfigRow = typeof pricingConfig.$inferSelect;
+
 // Säljregistret. Ett företag per rad i `clients`, en person per rad i
 // `client_contacts` — ett företag kan ha flera kontaktpersoner, vilket är
 // hela poängen med att dela upp det. `customerNo` är kundnumret från

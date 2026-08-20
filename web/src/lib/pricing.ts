@@ -16,11 +16,8 @@
 import { inArray, or } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { productVariants } from '@/lib/db/schema';
-import {
-  DEFAULT_PRICING_CONFIG,
-  priceLine,
-  type PricingConfig,
-} from '@/lib/pricingRules';
+import { priceLine, type PricingConfig } from '@/lib/pricingRules';
+import { getStoredPricingConfig } from '@/lib/pricingConfigDb';
 import { landedCostMinorForSku } from '@/lib/landedCostLookup';
 
 export type PricingContext = {
@@ -53,29 +50,28 @@ export type PriceableRequest = {
 };
 
 /**
- * Konfigurationen som gäller just nu.
- *
- * Ligger i koden tills prislogiksidan i /admin finns; då läses den ur databasen
- * i stället och den här funktionen blir asynkron. Allt som kallar den går redan
- * via `getPricingConfig()` så att bytet blir ett ställe.
+ * Konfigurationen som gäller just nu, läst ur `pricing_config` (id = 1).
+ * Faller tillbaka på DEFAULT_PRICING_CONFIG om raden saknas — se
+ * pricingConfigDb.ts.
  */
-export function getPricingConfig(): PricingConfig {
-  return DEFAULT_PRICING_CONFIG;
+export async function getPricingConfig(): Promise<PricingConfig> {
+  return getStoredPricingConfig();
 }
 
 /**
  * Priset för en rad, exklusive moms.
  *
  * Avtalspriser per kund finns ännu inte — `context.customerNo` tas emot men
- * används inte förrän prislogiksidan finns. Kroken sitter här så att
+ * används inte förrän avtalspriser byggs. Kroken sitter här så att
  * anropsvägen inte behöver ändras när den kommer.
  */
-export function resolveUnitAmount(
+export async function resolveUnitAmount(
   listPriceMinor: number,
   quantity: number,
   context: PricingContext = {}
-): number {
-  return priceLine(getPricingConfig(), {
+): Promise<number> {
+  const config = await getPricingConfig();
+  return priceLine(config, {
     listPriceMinor,
     quantity,
     isMto: context.isMto ?? false,
@@ -93,6 +89,8 @@ export async function priceLines(
   context: PricingContext = {}
 ): Promise<PricedLine[]> {
   if (!requests.length) return [];
+
+  const pricingConfigForRequest = await getPricingConfig();
 
   const skus = requests.map(request => request.sku).filter((sku): sku is string => Boolean(sku));
   const shopifyIds = requests
@@ -154,17 +152,19 @@ export async function priceLines(
     const variant = resolve(request)!;
     const product = productById.get(variant.productId);
     if (request.quantity < 1) throw new Error(`Quantity must be at least 1 for ${variant.sku}.`);
+    const isMto = product?.tags?.includes('MTO') ?? false;
 
     return {
       variantId: variant.id,
       sku: variant.sku,
       title: product ? `${product.title} (${variant.sku})` : variant.sku,
       quantity: request.quantity,
-      unitAmountMinor: resolveUnitAmount(variant.priceMinor, request.quantity, {
-        ...context,
-        isMto: product?.tags?.includes('MTO') ?? false,
-        sku: variant.sku,
-      }),
+      unitAmountMinor: priceLine(pricingConfigForRequest, {
+        listPriceMinor: variant.priceMinor,
+        quantity: request.quantity,
+        isMto,
+        landedCostMinor: landedCostMinorForSku(variant.sku),
+      }).unitAmountMinor,
       currency: variant.currency,
       stripeProductId: product?.stripeProductId ?? null,
     };
