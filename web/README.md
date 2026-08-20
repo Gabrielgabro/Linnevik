@@ -5,8 +5,10 @@ live storefront/cart fallback while the owned path is tested.
 
 ## Owned commerce rollout
 
-1. Apply the numbered migrations through `drizzle/0009_stripe_webhook_idempotency.sql`
-   to the target database before deploying code that enables owned commerce.
+1. Migrations in `drizzle/*.sql` run automatically as part of `npm run build`
+   (see `scripts/migrate.mjs`), so a Vercel deploy always applies pending
+   migrations before the new code goes live. Run `npm run migrate` to apply
+   them by hand against `DATABASE_URL` without doing a build.
 2. Set `OWNED_COMMERCE_ENABLED=true` only in the environment being tested.
    When absent or false, every `/api/store/cart` endpoint returns 503 and the
    existing Shopify cart remains unchanged.

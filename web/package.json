@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "node scripts/migrate.mjs && next build",
+    "migrate": "node scripts/migrate.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "next start",
