@@ -95,6 +95,51 @@ export function Field({
   );
 }
 
+/**
+ * Textfält med förslag ur en lista, via den inbyggda <datalist>. Till skillnad
+ * från Select går det att skriva ett nytt värde som inte redan finns — annars
+ * hade den som lägger till en ny leverantör behövt göra det på något annat
+ * fält först.
+ */
+export function Combobox({
+  label,
+  name,
+  options,
+  defaultValue,
+  placeholder,
+  hint,
+  className,
+}: {
+  label: string;
+  name: string;
+  options: readonly string[];
+  defaultValue?: string | null;
+  placeholder?: string;
+  hint?: React.ReactNode;
+  className?: string;
+}) {
+  const listId = `${name}-options`;
+  return (
+    <label className={clsx('flex flex-col gap-1.5', className)}>
+      <Label>{label}</Label>
+      <input
+        name={name}
+        list={listId}
+        placeholder={placeholder}
+        defaultValue={defaultValue ?? ''}
+        autoComplete="off"
+        className={controlClass}
+      />
+      <datalist id={listId}>
+        {options.map(option => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+      <Hint hint={hint} />
+    </label>
+  );
+}
+
 export function Select({
   label,
   name,

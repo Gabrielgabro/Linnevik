@@ -4,7 +4,12 @@ import { ArrowLeft, ChevronRight } from 'lucide-react';
 import ProductEditor from '@/components/admin/ProductEditor';
 import { getProductBreadcrumb } from '@/lib/catalogDb';
 import { landedPerPcs, products as landedProducts } from '@/data/landedCost';
-import { getProductDetail, listCollectionsForAdmin, productsConfigured } from '@/lib/productsDb';
+import {
+  getProductDetail,
+  listCollectionsForAdmin,
+  listSuppliersForAdmin,
+  productsConfigured,
+} from '@/lib/productsDb';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,8 +24,9 @@ export default async function AdminProductPage({
   const detail = await getProductDetail(handle);
   if (!detail) notFound();
 
-  const [collections, crumbs] = await Promise.all([
+  const [collections, suppliers, crumbs] = await Promise.all([
     listCollectionsForAdmin(),
+    listSuppliersForAdmin(),
     getProductBreadcrumb(handle, 'sv'),
   ]);
 
@@ -57,6 +63,7 @@ export default async function AdminProductPage({
       <ProductEditor
         detail={detail}
         collections={collections}
+        suppliers={suppliers}
         landedCostSek={landedCostSek}
         landedConfidence={landed?.confidence ?? null}
       />

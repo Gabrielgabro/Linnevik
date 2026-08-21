@@ -9,7 +9,15 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
+import {
+  Button,
+  Combobox,
+  ErrorNote,
+  Field,
+  Select,
+  TextArea,
+  formValues,
+} from '@/components/admin/Fields';
 import PageHeader from '@/components/admin/ui/PageHeader';
 import { Tag } from '@/components/admin/ui/StatusPill';
 import { formatMinor, toMinor } from '@/lib/money';
@@ -36,7 +44,7 @@ function Panel({
 }
 
 /** Texterna. Svenska och engelska sida vid sida — sajten är tvåspråkig. */
-function ContentPanel({ detail }: { detail: ProductDetail }) {
+function ContentPanel({ detail, suppliers }: { detail: ProductDetail; suppliers: string[] }) {
   const router = useRouter();
   const { product } = detail;
   const [busy, setBusy] = useState(false);
@@ -85,9 +93,10 @@ function ContentPanel({ detail }: { detail: ProductDetail }) {
           placeholder="MTO, dun"
         />
         <Field label="Typ" name="productType" defaultValue={product.productType} />
-        <Field
+        <Combobox
           label="Leverantör"
           name="supplier"
+          options={suppliers}
           defaultValue={product.supplier}
           placeholder="unknown"
         />
@@ -737,11 +746,13 @@ function CollectionPanel({
 export default function ProductEditor({
   detail,
   collections,
+  suppliers,
   landedCostSek,
   landedConfidence,
 }: {
   detail: ProductDetail;
   collections: CollectionListRow[];
+  suppliers: string[];
   landedCostSek: number | null;
   landedConfidence: string | null;
 }) {
@@ -776,7 +787,7 @@ export default function ProductEditor({
         title="Innehåll"
         note="Texterna som visas på produktsidan. Engelskan hämtas inte längre från Shopify — den bor här."
       >
-        <ContentPanel detail={detail} />
+        <ContentPanel detail={detail} suppliers={suppliers} />
       </Panel>
 
       <Panel title="Bilder" note="Ligger i Vercel Blob. Första bilden är den som visas i listor.">

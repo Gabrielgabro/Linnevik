@@ -435,6 +435,16 @@ export type CollectionListRow = {
   productCount: number;
 };
 
+/** Leverantörer som redan finns på någon produkt, för att slippa särskrivningar och särstavningar. */
+export async function listSuppliersForAdmin(): Promise<string[]> {
+  if (!productsConfigured()) return [];
+  const rows = await getDb()
+    .selectDistinct({ supplier: products.supplier })
+    .from(products)
+    .orderBy(asc(products.supplier));
+  return rows.map(row => row.supplier);
+}
+
 export async function listCollectionsForAdmin(): Promise<CollectionListRow[]> {
   if (!productsConfigured()) return [];
   return getDb()
