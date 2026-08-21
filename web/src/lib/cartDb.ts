@@ -1,7 +1,7 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { cartItems, carts, productImages, products, productVariants } from '@/lib/db/schema';
-import { assertOrderable } from '@/lib/cartRules';
+import { assertCartProductChannel, assertOrderable } from '@/lib/cartRules';
 import { CURRENT_PRICING_VERSION, OWNED_CART_TTL_DAYS } from '@/lib/commerceConfig';
 import { getPricingConfig } from '@/lib/pricing';
 import { priceOrder } from '@/lib/pricingRules';
@@ -192,30 +192,11 @@ async function requireVariant(variantId: number, quantity: number) {
     .where(and(eq(productVariants.id, variantId), eq(products.active, true)))
     .limit(1);
   if (!variant) throw new CartError('Varianten finns inte.', 404);
-  // SAMPLE_ONLY-produkter går bara att beställa som prov, aldrig genom korgen.
-  // Produktsidan visar redan ingen köpknapp för dem — spärren här stänger
-  // vägen förbi den, t.ex. ett direktanrop mot /api/store/cart.
-  if (variant.tags?.includes('SAMPLE_ONLY')) {
-    throw new CartError(`${variant.sku} går bara att beställa som prov.`, 409);
-  }
+  // SAMPLE_ONLY och MTO är offert-/provprodukter, aldrig korgprodukter.
+  // Spärren är server-side så ett direkt API-anrop inte kan gå runt UI:t.
+  assertCartProductChannel(variant.tags, variant.sku);
   assertOrderable(variant, quantity);
   return variant;
-}
-
-/**
- * Produktsidorna läser fortfarande katalogen (titel, bilder, options) från
- * Shopify — det är en egen, större migrering och ingår inte här. Varianterna
- * är redan speglade i product_variants med sitt Shopify-id sparat, så korgen
- * kan slå upp vårt numeriska variant-id från det utan att produktsidan
- * behöver ändras.
- */
-export async function resolveVariantIdByShopifyId(shopifyVariantId: string): Promise<number | null> {
-  const [variant] = await getDb()
-    .select({ id: productVariants.id })
-    .from(productVariants)
-    .where(eq(productVariants.shopifyVariantId, shopifyVariantId))
-    .limit(1);
-  return variant?.id ?? null;
 }
 
 export async function setOwnedCartItem(cartId: string, variantId: number, quantity: number) {

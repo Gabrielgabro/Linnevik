@@ -215,7 +215,7 @@ export const productVariants = pgTable(
     priceMinor: integer('price_minor').notNull(),
     currency: text('currency').notNull().default('sek'),
     inventoryQuantity: integer('inventory_quantity').notNull().default(0),
-    // Enheter bundna av aktiva reservationer (betalda men ej plockade ordrar).
+    // Enheter bundna av aktiva reservationer (öppen kassa eller betald order).
     // Vad som går att sälja just nu är inventoryQuantity - inventoryReserved.
     inventoryReserved: integer('inventory_reserved').notNull().default(0),
     minimumOrderQuantity: integer('minimum_order_quantity').notNull().default(1),
@@ -245,6 +245,11 @@ export const productVariants = pgTable(
       .where(isNotNull(table.stripeLookupKey)),
     check('product_variants_minimum_order_quantity_check', sql`${table.minimumOrderQuantity} > 0`),
     check('product_variants_order_increment_check', sql`${table.orderIncrement} > 0`),
+    check('product_variants_inventory_quantity_nonnegative', sql`${table.inventoryQuantity} >= 0`),
+    check(
+      'product_variants_inventory_reserved_valid',
+      sql`${table.inventoryReserved} >= 0 and (not ${table.inventoryTracked} or ${table.inventoryReserved} <= ${table.inventoryQuantity})`
+    ),
   ]
 );
 
@@ -351,7 +356,7 @@ export const productCollections = pgTable(
 
 // Den egna korgen är en kapabilitetsresurs: ett slumpmässigt UUID fungerar som
 // både identifierare och den hemlighet som krävs för att läsa eller ändra den.
-// Den ligger parallellt med Shopify-korgen tills hela köpresan är verifierad.
+// Den är storefrontens enda korg och kan stängas av med commerce-kill-switchen.
 export const carts = pgTable(
   'carts',
   {
@@ -415,6 +420,7 @@ export const customers = pgTable(
     company: text('company'),
     phone: text('phone'),
     taxId: text('tax_id'),
+    taxIdType: text('tax_id_type'),
     defaultBillingAddress: jsonb('default_billing_address').$type<Record<string, string | null>>(),
     defaultShippingAddress: jsonb('default_shipping_address').$type<Record<string, string | null>>(),
     acceptsMarketing: boolean('accepts_marketing').notNull().default(false),
@@ -503,6 +509,11 @@ export const orders = pgTable(
     // Sparad som den kom från Stripe: en adress ska visa vad kunden angav vid
     // köptillfället, inte vad den ändrats till efteråt.
     shippingAddress: jsonb('shipping_address').$type<Record<string, string | null>>(),
+    // Fakturaadressen och köparens org-/VAT-nummer som de såg ut vid köpet. En
+    // momsfaktura måste bära köparens uppgifter, och Stripe är inte arkivet.
+    billingAddress: jsonb('billing_address').$type<Record<string, string | null>>(),
+    taxIdType: text('tax_id_type'),
+    taxIdValue: text('tax_id_value'),
     subtotalMinor: integer('subtotal_minor').notNull().default(0),
     discountCodeId: integer('discount_code_id').references(() => discountCodes.id, {
       onDelete: 'set null',
@@ -515,6 +526,13 @@ export const orders = pgTable(
     shippingMethod: text('shipping_method'),
     shippingMinor: integer('shipping_minor').notNull().default(0),
     taxMinor: integer('tax_minor').notNull().default(0),
+    // Hur momsen räknades, inte bara hur mycket den blev: 'explicit' (vår egen
+    // svenska sats) eller 'automatic' (Stripe Tax). Satsen sparas i hundradels
+    // procent, 25 % = 2500. Utan de här går en gammal order inte att stämma av
+    // sedan VAT_PERCENT eller Stripe Tax-flaggan ändrats.
+    vatMode: text('vat_mode'),
+    vatBps: integer('vat_bps'),
+    vatRateId: text('vat_rate_id'),
     totalMinor: integer('total_minor').notNull().default(0),
     refundedMinor: integer('refunded_minor').notNull().default(0),
     currency: text('currency').notNull().default('sek'),
@@ -534,6 +552,9 @@ export const orders = pgTable(
     index('orders_customer_id_idx').on(table.customerId),
     index('orders_fulfillment_status_idx').on(table.fulfillmentStatus),
     index('orders_test_mode_idx').on(table.testMode, table.createdAt),
+    index('orders_pending_reconciliation_idx')
+      .on(table.createdAt.desc())
+      .where(sql`${table.paymentStatus} = 'pending'`),
     uniqueIndex('orders_cart_version_key')
       .on(table.cartId, table.cartVersion)
       .where(sql`${table.cartId} is not null and ${table.cartVersion} is not null`),
@@ -589,6 +610,9 @@ export const refunds = pgTable(
     orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
     stripeRefundId: text('stripe_refund_id').notNull(),
     amountMinor: integer('amount_minor').notNull(),
+    // Hur mycket av det återbetalade beloppet som var utgående moms. Beloppet
+    // ovan är brutto — det är mot betalningen återbetalningen görs.
+    taxMinor: integer('tax_minor').notNull().default(0),
     currency: text('currency').notNull().default('sek'),
     reason: text('reason'),
     status: text('status').notNull().default('pending'),
@@ -629,7 +653,29 @@ export const fulfillmentItems = pgTable(
     orderItemId: integer('order_item_id').notNull().references(() => orderItems.id, { onDelete: 'restrict' }),
     quantity: integer('quantity').notNull(),
   },
-  table => [primaryKey({ columns: [table.fulfillmentId, table.orderItemId] })]
+  table => [
+    primaryKey({ columns: [table.fulfillmentId, table.orderItemId] }),
+    check('fulfillment_items_quantity_positive', sql`${table.quantity} > 0`),
+  ]
+);
+
+/** Every accepted return, including untracked products, for quantity bounds. */
+export const orderItemReturns = pgTable(
+  'order_item_returns',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+    orderItemId: integer('order_item_id').notNull().references(() => orderItems.id, { onDelete: 'restrict' }),
+    quantity: integer('quantity').notNull(),
+    restock: boolean('restock').notNull(),
+    actor: text('actor').notNull(),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    index('order_item_returns_order_item_idx').on(table.orderItemId, table.createdAt),
+    check('order_item_returns_quantity_positive', sql`${table.quantity} > 0`),
+  ]
 );
 
 export const orderEvents = pgTable(
@@ -671,6 +717,10 @@ export const inventoryReservations = pgTable(
     uniqueIndex('inventory_reservations_order_item_key').on(table.orderItemId),
     index('inventory_reservations_variant_id_idx').on(table.variantId),
     index('inventory_reservations_status_idx').on(table.status, table.expiresAt),
+    check(
+      'inventory_reservations_quantity_valid',
+      sql`${table.quantity} >= 0 and (${table.status} <> 'active' or ${table.quantity} > 0)`
+    ),
   ]
 );
 

@@ -3,9 +3,8 @@
  * som ersättning för Shopifys kundinloggning ("signed, single-use, expiring
  * email magic links").
  *
- * Körs helt parallellt med Shopify-inloggningen i dag. Ingenting i den här
- * filen rör vid customerAccount.ts eller login/actions.ts — den blir den
- * aktiva vägen först när Shopify stängs av, enligt planen.
+ * Detta är nu den enda aktiva kundinloggningen. Sessionen som skapas här läses
+ * av customerAccount.ts och de skyddade kontosidorna.
  *
  * ---------------------------------------------------------------------------
  * VARFÖR LÄNKEN INTE LOGGAR IN VID FÖRSTA HÄMTNINGEN (GET)

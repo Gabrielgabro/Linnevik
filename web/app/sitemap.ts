@@ -1,15 +1,13 @@
 import { MetadataRoute } from 'next';
 import { getStaticLocaleParams, getProductStaticParams, getCollectionStaticParams } from '@/lib/staticParams';
-import { getSitemapEntries } from '@/lib/shopify';
+import { listCatalogSitemapEntries } from '@/lib/catalogDb';
 import { SITE_URL } from '@/lib/site';
 
 /**
- * Maps handle -> Shopify updatedAt, so the URL set stays governed by the static
- * params (which already exclude, for example, collections with no products)
- * while the dates come from Shopify. Handles are shared across locales.
+ * Maps handle -> local updatedAt. Handles are shared across locales.
  */
 async function getLastModifiedByHandle(resource: 'products' | 'collections') {
-    const entries = await getSitemapEntries(resource);
+    const entries = await listCatalogSitemapEntries(resource);
     return new Map(entries.map(({ handle, updatedAt }) => [handle, new Date(updatedAt)]));
 }
 

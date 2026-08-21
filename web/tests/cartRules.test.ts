@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { assertOrderable, CartRuleError, type Orderability } from '@/lib/cartRules';
+import {
+  assertCartProductChannel,
+  assertOrderable,
+  CartRuleError,
+  type Orderability,
+} from '@/lib/cartRules';
 
 const variant: Orderability = {
   sku: 'TEST-1',
@@ -40,5 +45,11 @@ describe('owned cart orderability', () => {
   it('enforces stock only when inventory is tracked', () => {
     expect(codeFor(105)).toBe('INSUFFICIENT_STOCK');
     expect(codeFor(105, { inventoryTracked: false })).toBeNull();
+  });
+
+  it('keeps MTO and sample-only products out of the cart channel', () => {
+    expect(() => assertCartProductChannel(['MTO'], 'MTO-1')).toThrowError(CartRuleError);
+    expect(() => assertCartProductChannel(['SAMPLE_ONLY'], 'SAMPLE-1')).toThrowError(CartRuleError);
+    expect(() => assertCartProductChannel([], 'STOCK-1')).not.toThrow();
   });
 });

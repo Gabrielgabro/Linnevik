@@ -23,6 +23,13 @@ export class CartRuleError extends Error {
   }
 }
 
+/** MTO and sample-only products use the quote/sample channel, never the cart. */
+export function assertCartProductChannel(tags: string[] | null, sku: string): void {
+  if (tags?.includes('MTO') || tags?.includes('SAMPLE_ONLY')) {
+    throw new CartRuleError(`${sku} går bara att beställa som prov eller offert.`, 'NOT_FOR_SALE');
+  }
+}
+
 export function assertOrderable(variant: Orderability, quantity: number): void {
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10_000) {
     throw new CartRuleError(`Ogiltigt antal för ${variant.sku}.`, 'INVALID_QUANTITY');

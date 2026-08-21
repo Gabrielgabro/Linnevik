@@ -1,7 +1,6 @@
 'use server';
 
 import { cookies, headers } from 'next/headers';
-import { createCustomerAccessToken, customerRecover } from '@/lib/shopify';
 import { CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
 import { registerCustomer } from '@/lib/commerceOperations';
 import { requestMagicLink } from '@/lib/magicLink';
@@ -13,13 +12,6 @@ function clientIp(headerList: Awaited<ReturnType<typeof headers>>): string | nul
     return forwarded?.split(',')[0]?.trim() || null;
 }
 
-type LoginStatus = 'idle' | 'success' | 'error';
-
-export type LoginState = {
-    status: LoginStatus;
-    message?: string;
-};
-
 const COOKIE_NAME = 'shopify_customer_token';
 
 async function getActionTranslations(): Promise<Translations> {
@@ -27,60 +19,6 @@ async function getActionTranslations(): Promise<Translations> {
     const locale = cookieStore.get('NEXT_LOCALE')?.value;
     const lang: Language = locale && isSupportedLanguage(locale) ? locale : DEFAULT_LANGUAGE;
     return getTranslations(lang);
-}
-
-export async function handleLogin(_: LoginState, formData: FormData): Promise<LoginState> {
-    const t = await getActionTranslations();
-    const email = formData.get('email')?.toString().trim() ?? '';
-    const password = formData.get('password')?.toString() ?? '';
-
-    if (!email || !password) {
-        return { status: 'error', message: t.login.messages.missingFields };
-    }
-
-    // Basic validation
-    if (email.length > 254) {
-        return { status: 'error', message: t.login.messages.invalidEmail };
-    }
-
-    if (password.length > 128) {
-        return { status: 'error', message: t.login.messages.invalidPassword };
-    }
-
-    try {
-        const token = await createCustomerAccessToken(email, password);
-
-        const expiresDate = new Date(token.expiresAt);
-
-        // Validate token expiry is in the future
-        if (expiresDate.getTime() <= Date.now()) {
-            console.error('[login] Token already expired');
-            return { status: 'error', message: t.login.messages.authFailed };
-        }
-
-        const cookieStore = await cookies();
-        cookieStore.set(COOKIE_NAME, token.accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            expires: expiresDate,
-            path: '/',
-        });
-
-        return { status: 'success', message: t.login.messages.success };
-    } catch (error) {
-        let message = t.login.messages.genericError;
-
-        if (error instanceof Error) {
-            const errorMsg = error.message.toLowerCase();
-            if (errorMsg.includes('unidentified') || errorMsg.includes('not found') || errorMsg.includes('invalid')) {
-                message = t.login.messages.invalidCredentials;
-            }
-            console.error('[login] customerAccessTokenCreate failed:', error.message);
-        }
-
-        return { status: 'error', message };
-    }
 }
 
 type RegisterFields = {
@@ -234,14 +172,18 @@ export async function handleRecover(_: RecoverState, formData: FormData): Promis
     }
 
     try {
-        const { userErrors } = await customerRecover(email);
-        // Log for ourselves, but never surface whether the email has an
-        // account - always answer with the same neutral confirmation.
-        if (userErrors.length > 0) {
-            console.error('[recover] customerRecover user errors:', userErrors);
-        }
+        const cookieStore = await cookies();
+        const locale = cookieStore.get('NEXT_LOCALE')?.value;
+        const headerList = await headers();
+        await requestMagicLink({
+            email,
+            locale: locale && isSupportedLanguage(locale) ? locale : DEFAULT_LANGUAGE,
+            ip: clientIp(headerList),
+            userAgent: headerList.get('user-agent'),
+        });
     } catch (error) {
-        console.error('[recover] customerRecover failed:', error);
+        // Neutral response prevents account enumeration and the user can retry.
+        console.error('[recover] Magic-link request failed:', error);
     }
 
     return { status: 'success', message: t.forgot.confirmation };

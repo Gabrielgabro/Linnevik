@@ -12,7 +12,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (orderId === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
   const body = await readBody(request);
   const status = String(body.status ?? 'shipped');
-  if (!['pending', 'shipped', 'delivered', 'cancelled'].includes(status)) {
+  if (!['shipped', 'delivered'].includes(status)) {
     return NextResponse.json({ error: 'Invalid fulfillment status.' }, { status: 400 });
   }
   if (!Array.isArray(body.items)) {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   try {
     const fulfillmentId = await createFulfillment({
       orderId,
-      status: status as 'pending' | 'shipped' | 'delivered' | 'cancelled',
+      status: status as 'shipped' | 'delivered',
       carrier: body.carrier ? String(body.carrier).trim().slice(0, 200) : null,
       trackingNumber: body.trackingNumber ? String(body.trackingNumber).trim().slice(0, 200) : null,
       trackingUrl: body.trackingUrl ? String(body.trackingUrl).trim().slice(0, 2_000) : null,

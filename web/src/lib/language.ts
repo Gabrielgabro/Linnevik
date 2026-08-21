@@ -2,9 +2,7 @@ import { cookies } from 'next/headers';
 import {
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
-  toShopifyLanguage,
   type Language,
-  type ShopifyLanguage,
 } from './languageConfig';
 
 /**
@@ -21,5 +19,4 @@ export async function getServerLanguage(): Promise<Language> {
   return DEFAULT_LANGUAGE;
 }
 
-export { toShopifyLanguage };
-export type { Language, ShopifyLanguage };
+export type { Language };

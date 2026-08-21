@@ -192,7 +192,7 @@
       },
       "thirdParty": {
         "title": "Tredjepartscookies",
-        "body": "Vi använder tredjepartsskript som Google Analytics (analys) och vid behov Meta Pixel (marknadsföring). De laddas först när du har gett samtycke via cookie-bannern och endast om de är konfigurerade. Shopify Customer Privacy API används för att respektera och spara ditt val."
+        "body": "Vi använder tredjepartsskript som Google Analytics (analys) och vid behov Meta Pixel (marknadsföring). De laddas först när du har gett samtycke via cookie-bannern och endast om de är konfigurerade. Ditt val sparas lokalt i din webbläsare."
       },
       "manage": {
         "title": "Hantera cookies",
@@ -207,10 +207,10 @@
       "cookiesList": {
         "title": "Cookies vi använder",
         "items": {
-          "shopify": {
-            "title": "Shopify",
-            "body": "Används för att hantera kundvagn, sessioner och autentisering.",
-            "meta": "Typ: Nödvändig | Varaktighet: Session/365 dagar"
+          "commerce": {
+            "title": "Linnevik kundvagn och session",
+            "body": "Används för att hantera kundvagn, språk och säker inloggning.",
+            "meta": "Typ: Nödvändig | Varaktighet: Session/30 dagar"
           },
           "language": {
             "title": "Språkinställning",

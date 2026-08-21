@@ -1,9 +1,8 @@
 /**
  * Sessionskaka för kunder som loggat in via e-postlänk.
  *
- * Medvetet skild från adminAuth.ts (annan hemlighet, annan kaka) och från
- * Shopifys egen kundinloggning i customerAccount.ts — de tre systemen ska
- * kunna kompromissas var för sig utan att de andra faller.
+ * Medvetet skild från adminAuth.ts: annan hemlighet och annan kaka, så att
+ * kund- och adminsessioner inte delar säkerhetsgräns.
  *
  * Samma modell som adminAuth.ts: kakan bär bara ett kund-id och en
  * utgångstid, signerade med HMAC. Inget hemligt i kakan, inget att slå upp

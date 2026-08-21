@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { normalizeLocale } from './i18n';
 import type { Language } from './languageConfig';
+import { readCustomerSessionValue, CUSTOMER_SESSION_COOKIE } from './customerSession';
 
 /**
  * Get the user's current locale from cookies or URL
@@ -17,8 +18,9 @@ export async function getCurrentLocale(): Promise<Language> {
  */
 export async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();
-  const token = cookieStore.get('shopify_customer_token')?.value;
-  return !!token;
+  return Boolean(
+    await readCustomerSessionValue(cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value)
+  );
 }
 
 /**

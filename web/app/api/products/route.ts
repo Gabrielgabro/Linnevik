@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllProducts } from '@/lib/shopify';
-import { getServerLanguage, toShopifyLanguage } from '@/lib/language';
+import { getServerLanguage } from '@/lib/language';
+import { listCatalogProductCards } from '@/lib/catalogDb';
 
 export async function GET(request: NextRequest) {
     try {
@@ -11,8 +11,7 @@ export async function GET(request: NextRequest) {
         if (localeParam === 'en' || localeParam === 'sv') {
             language = localeParam;
         }
-        const shopifyLanguage = toShopifyLanguage(language);
-        const products = await getAllProducts(100, shopifyLanguage);
+        const products = await listCatalogProductCards(language, 100);
         return NextResponse.json(products);
     } catch (error) {
         console.error('API error:', error);

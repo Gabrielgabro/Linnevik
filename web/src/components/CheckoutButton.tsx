@@ -1,24 +1,13 @@
 'use client';
 
 /**
- * Kassaknappen. Försöker Stripe först och faller tillbaka på Shopifys kassa
- * om vår egen inte är konfigurerad eller svarar med fel — butiken ska aldrig
- * bli oköpbar för att migreringen är halvvägs.
+ * Kassaknappen öppnar Stripe från en servervaliderad, ägd korg.
  */
 
 import { useState } from 'react';
 
-type CheckoutLine = {
-    shopifyVariantId: string;
-    quantity: number;
-};
-
 type Props = {
-    /** Ägd korg: skickas i stället för `lines` när OWNED_COMMERCE_ENABLED är på. */
     cartId?: string;
-    lines?: CheckoutLine[];
-    /** Shopifys kassa, som reserv. */
-    fallbackUrl?: string | null;
     label: string;
     pendingLabel: string;
     errorLabel: string;
@@ -27,8 +16,6 @@ type Props = {
 
 export default function CheckoutButton({
     cartId,
-    lines,
-    fallbackUrl,
     label,
     pendingLabel,
     errorLabel,
@@ -36,7 +23,7 @@ export default function CheckoutButton({
 }: Props) {
     const [isPending, setIsPending] = useState(false);
     const [hasError, setHasError] = useState(false);
-    const hasContent = Boolean(cartId) || Boolean(lines?.length);
+    const hasContent = Boolean(cartId);
 
     async function startCheckout() {
         if (isPending || !hasContent) return;
@@ -47,7 +34,7 @@ export default function CheckoutButton({
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cartId ? { cartId, discountCode } : { lines, discountCode }),
+                body: JSON.stringify({ cartId, discountCode }),
             });
             const data = await response.json();
 
@@ -56,19 +43,9 @@ export default function CheckoutButton({
                 return;
             }
 
-            // 503 betyder att Stripe inte är påslaget ännu. Då är Shopify inte
-            // ett fel utan det normala läget.
-            if (fallbackUrl) {
-                window.location.href = fallbackUrl;
-                return;
-            }
             throw new Error(data.error ?? 'Checkout failed.');
         } catch (error) {
             console.error('[Checkout]', error);
-            if (fallbackUrl) {
-                window.location.href = fallbackUrl;
-                return;
-            }
             setHasError(true);
             setIsPending(false);
         }

@@ -6,7 +6,7 @@
  * är en avisering ovanpå. Går mejlet fel är förfrågan ändå tagen emot.
  */
 
-import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import {
   customers,
@@ -25,7 +25,7 @@ export function isSampleStatus(value: unknown): value is SampleStatus {
 }
 
 export type SampleRequestItemInput = {
-  /** Shopifys produkt-id så länge katalogen läses därifrån. */
+  /** Local products.id as a string, as returned by /api/products. */
   externalProductId?: string | null;
   title: string;
   variantLabel?: string | null;
@@ -56,10 +56,9 @@ export type SampleRequestDetail = SampleRequestRow & {
  * Skriver förfrågan och dess rader.
  *
  * Kopplingen till kund görs på adressen, och bara när den redan finns — en
- * provförfrågan skapar aldrig ett konto. Produktkopplingen går via
- * `products.shopify_product_id`, eftersom formuläret fortfarande får sina
- * produkter från Shopify (se katalogmigreringen). Hittas ingen produkt sparas
- * raden ändå, med titeln som den stod i formuläret.
+ * provförfrågan skapar aldrig ett konto. Produktkopplingen går via vårt eget
+ * numeriska produkt-id. Hittas ingen produkt sparas raden ändå, med titeln som
+ * den stod i formuläret.
  */
 export async function createSampleRequest(input: SampleRequestInput): Promise<number> {
   const email = input.email.trim().toLowerCase();
@@ -88,24 +87,25 @@ export async function createSampleRequest(input: SampleRequestInput): Promise<nu
     .returning({ id: sampleRequests.id });
 
   if (input.items.length) {
-    const externalIds = input.items
+    const localIds = input.items
       .map(item => item.externalProductId)
-      .filter((id): id is string => Boolean(id));
-    const known = externalIds.length
+      .map(id => Number(id))
+      .filter(id => Number.isInteger(id) && id > 0);
+    const known = localIds.length
       ? await getDb()
-          .select({ id: products.id, shopifyProductId: products.shopifyProductId })
+          .select({ id: products.id })
           .from(products)
-          .where(sql`${products.shopifyProductId} in ${externalIds}`)
+          .where(inArray(products.id, localIds))
       : [];
-    const byExternalId = new Map(known.map(p => [p.shopifyProductId, p.id]));
+    const knownIds = new Set(known.map(product => product.id));
 
     await getDb()
       .insert(sampleRequestItems)
       .values(
         input.items.map(item => ({
           requestId: row.id,
-          productId: item.externalProductId
-            ? byExternalId.get(item.externalProductId) ?? null
+          productId: knownIds.has(Number(item.externalProductId))
+            ? Number(item.externalProductId)
             : null,
           externalProductId: item.externalProductId || null,
           title: item.title,

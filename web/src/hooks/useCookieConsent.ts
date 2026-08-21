@@ -12,7 +12,6 @@ export type ConsentPreferences = {
 type StoredPreferences = ConsentPreferences & { timestamp?: string };
 
 const STORAGE_KEY = 'linnevik:cookie-consent';
-const SHOPIFY_PRIVACY_SRC = 'https://cdn.shopify.com/shopifycloud/privacy-banner/storefront-banner.js';
 
 const defaultPreferences: StoredPreferences = {
     necessary: true,
@@ -20,9 +19,6 @@ const defaultPreferences: StoredPreferences = {
     marketing: false,
     functional: false,
 };
-
-let shopifyPrivacyLoading = false;
-let lastApplied: StoredPreferences = defaultPreferences;
 
 const normalizePreferences = (value: unknown): StoredPreferences => {
     if (!value || typeof value !== 'object') {
@@ -37,64 +33,20 @@ const normalizePreferences = (value: unknown): StoredPreferences => {
     };
 };
 
-const ensureShopifyPrivacyScript = () => {
-    if (typeof window === 'undefined') return;
-    if ((window as any).Shopify?.customerPrivacy) return;
-    if (shopifyPrivacyLoading) return;
-
-    const existing = document.querySelector(`script[src="${SHOPIFY_PRIVACY_SRC}"]`);
-    if (existing) {
-        shopifyPrivacyLoading = true;
-        return;
-    }
-
-    shopifyPrivacyLoading = true;
-    const script = document.createElement('script');
-    script.src = SHOPIFY_PRIVACY_SRC;
-    script.async = true;
-    script.dataset.source = 'linnevik-shopify-privacy';
-    script.onload = () => {
-        shopifyPrivacyLoading = false;
-        applyConsent(lastApplied);
-    };
-    script.onerror = () => {
-        shopifyPrivacyLoading = false;
-    };
-    document.head.appendChild(script);
-};
-
 const applyConsent = (prefs: StoredPreferences) => {
     if (typeof window === 'undefined') return;
-
-    lastApplied = prefs;
 
     const gaId = process.env.NEXT_PUBLIC_GA_ID;
     if (gaId) {
         (window as any)[`ga-disable-${gaId}`] = !prefs.analytics;
     }
 
-    const customerPrivacy = (window as any).Shopify?.customerPrivacy;
-    if (customerPrivacy?.setTrackingConsent) {
-        customerPrivacy.setTrackingConsent(
-            {
-                analytics: prefs.analytics,
-                marketing: prefs.marketing,
-                preferences: true,
-                sale_of_data: Boolean(prefs.marketing),
-            },
-            () => {},
-        );
-    }
 };
 
 export const useCookieConsent = () => {
     const [preferences, setPreferences] = useState<StoredPreferences>(defaultPreferences);
     const [showBanner, setShowBanner] = useState(false);
     const [isReady, setIsReady] = useState(false);
-
-    useEffect(() => {
-        ensureShopifyPrivacyScript();
-    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -108,7 +60,7 @@ export const useCookieConsent = () => {
                 const normalized = normalizePreferences(parsed);
                 setPreferences(normalized);
                 applyConsent(normalized);
-            } catch (error) {
+            } catch {
                 applyConsent(defaultPreferences);
                 setShowBanner(true);
             }

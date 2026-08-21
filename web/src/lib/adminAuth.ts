@@ -1,8 +1,8 @@
 /**
  * Adminspärr för /admin.
  *
- * Medvetet skild från Shopify-inloggningen i customerAccountAuth.ts: den
- * autentiserar *kunder*, så vilken kund som helst hade kommit in i adminvyn.
+ * Medvetet skild från kundinloggningen: en kundsession får aldrig ge tillgång
+ * till adminvyn.
  *
  * Modellen är ett delat lösenord som växlas mot en signerad sessionskaka.
  * Lösenordet lämnar aldrig servern och kakan innehåller inget hemligt — bara

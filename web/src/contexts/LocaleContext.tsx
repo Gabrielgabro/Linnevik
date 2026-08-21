@@ -1,8 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
-import type { Language, ShopifyLanguage } from '@/lib/languageConfig';
-import { toShopifyLanguage } from '@/lib/languageConfig';
+import type { Language } from '@/lib/languageConfig';
 import sv from '@/translations/sv.json';
 import en from '@/translations/en.json';
 
@@ -15,7 +14,6 @@ type LocaleContextValue = {
   locale: Language;
   language: Language; // Alias for backwards compatibility
   t: typeof sv;
-  shopifyLanguage: ShopifyLanguage;
 };
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
@@ -27,7 +25,6 @@ type LocaleProviderProps = {
 
 export function LocaleProvider({ children, locale }: LocaleProviderProps) {
   const t = translations[locale];
-  const shopifyLanguage = toShopifyLanguage(locale);
 
   // Update the HTML lang attribute when locale changes
   useEffect(() => {
@@ -35,7 +32,7 @@ export function LocaleProvider({ children, locale }: LocaleProviderProps) {
   }, [locale]);
 
   return (
-    <LocaleContext.Provider value={{ locale, language: locale, t, shopifyLanguage }}>
+    <LocaleContext.Provider value={{ locale, language: locale, t }}>
       {children}
     </LocaleContext.Provider>
   );

@@ -1,6 +1,6 @@
 /**
- * Serversidan av prissättningen: slår upp varianten, hämtar konfigurationen och
- * lämnar över räknandet till `pricingRules.ts`.
+ * Serversidan av prissättningen hämtar konfigurationen och lämnar över
+ * räknandet till `pricingRules.ts`. Variant/orderkontrollen ägs av cartDb.
  *
  * Själva logiken bor inte här, utan i den rena modulen, därför att produktsidan
  * måste kunna räkna exakt samma sak i webbläsaren när kunden ändrar antal. Två
@@ -13,10 +13,7 @@
  * kassan, se lib/vat.ts.
  */
 
-import { inArray, or } from 'drizzle-orm';
-import { getDb } from '@/lib/db';
-import { productVariants } from '@/lib/db/schema';
-import { priceLine, priceOrder, type PricingConfig } from '@/lib/pricingRules';
+import { priceLine, type PricingConfig } from '@/lib/pricingRules';
 import { getStoredPricingConfig } from '@/lib/pricingConfigDb';
 import { landedCostMinorForSku } from '@/lib/landedCostLookup';
 
@@ -37,16 +34,6 @@ export type PricedLine = {
   unitAmountMinor: number;
   currency: string;
   stripeProductId: string | null;
-};
-
-/**
- * Korgen i frontenden är fortfarande Shopifys och känner bara till dess
- * variant-ID. Båda vägarna in accepteras tills korgen flyttat hem.
- */
-export type PriceableRequest = {
-  sku?: string;
-  shopifyVariantId?: string;
-  quantity: number;
 };
 
 /**
@@ -77,108 +64,4 @@ export async function resolveUnitAmount(
     isMto: context.isMto ?? false,
     landedCostMinor: context.sku ? landedCostMinorForSku(context.sku) : null,
   }).unitAmountMinor;
-}
-
-/**
- * Slår upp varianterna, kontrollerar att de går att sälja, och sätter pris.
- * Kastar hellre än att tyst hoppa över en rad — en kassa som säljer färre
- * saker än kunden lade i korgen är värre än ett fel.
- */
-export async function priceLines(
-  requests: PriceableRequest[],
-  context: PricingContext = {}
-): Promise<PricedLine[]> {
-  if (!requests.length) return [];
-
-  const pricingConfigForRequest = await getPricingConfig();
-
-  const skus = requests.map(request => request.sku).filter((sku): sku is string => Boolean(sku));
-  const shopifyIds = requests
-    .map(request => request.shopifyVariantId)
-    .filter((id): id is string => Boolean(id));
-
-  const rows = await getDb()
-    .select({
-      id: productVariants.id,
-      sku: productVariants.sku,
-      shopifyVariantId: productVariants.shopifyVariantId,
-      priceMinor: productVariants.priceMinor,
-      currency: productVariants.currency,
-      active: productVariants.active,
-      productId: productVariants.productId,
-    })
-    .from(productVariants)
-    .where(
-      or(
-        skus.length ? inArray(productVariants.sku, skus) : undefined,
-        shopifyIds.length ? inArray(productVariants.shopifyVariantId, shopifyIds) : undefined
-      )
-    );
-
-  const bySku = new Map(rows.map(row => [row.sku, row]));
-  const byShopifyId = new Map(rows.map(row => [row.shopifyVariantId, row]));
-  const resolve = (request: PriceableRequest) =>
-    (request.sku ? bySku.get(request.sku) : undefined) ??
-    (request.shopifyVariantId ? byShopifyId.get(request.shopifyVariantId) : undefined);
-
-  const missing = requests.filter(request => !resolve(request));
-  if (missing.length) {
-    throw new Error(
-      `Unknown SKU: ${missing.map(request => request.sku ?? request.shopifyVariantId).join(', ')}`
-    );
-  }
-
-  const inactive = requests.filter(request => !resolve(request)!.active);
-  if (inactive.length) {
-    throw new Error(`Variant is not for sale: ${inactive.map(request => resolve(request)!.sku).join(', ')}`);
-  }
-
-  const currencies = new Set(rows.map(row => row.currency));
-  if (currencies.size > 1) throw new Error('A cart cannot mix currencies.');
-
-  const { products } = await import('@/lib/db/schema');
-  const productRows = await getDb()
-    .select({
-      id: products.id,
-      title: products.title,
-      tags: products.tags,
-      stripeProductId: products.stripeProductId,
-    })
-    .from(products)
-    .where(inArray(products.id, [...new Set(rows.map(row => row.productId))]));
-  const productById = new Map(productRows.map(row => [row.id, row]));
-
-  // Hela ordern prissätts i ett svep. `orderValue` mäter trappan på summan av
-  // raderna och kan därför inte räknas rad för rad — och korgen (cartDb.ts)
-  // gör exakt samma anrop, så det Stripe debiterar är det korgen visade.
-  const priced = priceOrder(
-    pricingConfigForRequest,
-    requests.map(request => {
-      const variant = resolve(request)!;
-      const product = productById.get(variant.productId);
-      if (request.quantity < 1) throw new Error(`Quantity must be at least 1 for ${variant.sku}.`);
-      return {
-        sku: variant.sku,
-        listPriceMinor: variant.priceMinor,
-        quantity: request.quantity,
-        isMto: product?.tags?.includes('MTO') ?? false,
-        landedCostMinor: landedCostMinorForSku(variant.sku),
-      };
-    })
-  );
-
-  return requests.map((request, index) => {
-    const variant = resolve(request)!;
-    const product = productById.get(variant.productId);
-
-    return {
-      variantId: variant.id,
-      sku: variant.sku,
-      title: product ? `${product.title} (${variant.sku})` : variant.sku,
-      quantity: request.quantity,
-      unitAmountMinor: priced.lines[index].unitAmountMinor,
-      currency: variant.currency,
-      stripeProductId: product?.stripeProductId ?? null,
-    };
-  });
 }

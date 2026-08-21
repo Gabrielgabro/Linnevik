@@ -32,8 +32,7 @@ type Cart = {
 type CartContextType = {
     cart: Cart;
     isLoading: boolean;
-    /** True once OWNED_COMMERCE_ENABLED has cut the storefront cart over to our own backend. */
-    isOwnedCommerce: boolean;
+    isOwnedCommerce: true;
     addItem: (variantId: string, quantity: number) => Promise<void>;
     updateItem: (lineId: string, quantity: number) => Promise<void>;
     removeItem: (lineId: string) => Promise<void>;
@@ -43,10 +42,7 @@ type CartContextType = {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-// Separate storage keys so flipping OWNED_COMMERCE_ENABLED never resolves a
-// stale Shopify cart id against the owned cart API (or vice versa).
 const OWNED_CART_STORAGE_KEY = 'linnevik_cart_id';
-const SHOPIFY_CART_STORAGE_KEY = 'shopify_cart_id';
 
 type OwnedCartLine = {
     id: number;
@@ -78,7 +74,7 @@ function money(minor: number, currency: string) {
 
 /**
  * Reshapes the owned cart API's response into the same `Cart` contract the
- * storefront already speaks (it grew up around Shopify's Cart type). Keeps
+ * storefront already speaks (a retained compatibility shape). Keeps
  * Header, CartClient, ProductForm etc. unaware of which backend answered.
  */
 function adaptOwnedCart(owned: OwnedCart): Cart {
@@ -118,19 +114,13 @@ function adaptOwnedCart(owned: OwnedCart): Cart {
     };
 }
 
-export function CartProvider({
-    children,
-    ownedCommerceEnabled = false,
-}: {
-    children: ReactNode;
-    ownedCommerceEnabled?: boolean;
-}) {
+export function CartProvider({ children }: { children: ReactNode }) {
     const [cart, setCart] = useState<Cart>(null);
     // Starts true so the cart page renders its loading state instead of
     // flashing "your cart is empty" before the stored cart has been fetched.
     const [isLoading, setIsLoading] = useState(true);
 
-    const storageKey = ownedCommerceEnabled ? OWNED_CART_STORAGE_KEY : SHOPIFY_CART_STORAGE_KEY;
+    const storageKey = OWNED_CART_STORAGE_KEY;
 
     useEffect(() => {
         const loadCart = async () => {
@@ -141,36 +131,15 @@ export function CartProvider({
             }
 
             try {
-                if (ownedCommerceEnabled) {
-                    const response = await fetch(`/api/store/cart/${cartId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        setCart(adaptOwnedCart(data.cart));
-                    } else if (response.status === 404) {
-                        // Expired (30-day TTL) or already checked out — never coming back.
-                        localStorage.removeItem(storageKey);
-                    } else {
-                        console.error('Failed to load cart:', await response.text());
-                    }
-                } else {
-                    const response = await fetch('/api/cart', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'get', cartId }),
-                    });
+                const response = await fetch(`/api/store/cart/${cartId}`);
+                if (response.ok) {
                     const data = await response.json();
-                    if (data.cart) {
-                        setCart(data.cart);
-                    } else if (response.ok) {
-                        // Shopify resolved the ID and reported no such cart, so it
-                        // expired (carts last ~10 days) or was already checked out.
-                        // It is never coming back — stop asking for it.
-                        localStorage.removeItem(storageKey);
-                    } else {
-                        // Transient failure. The cart most likely still exists, so
-                        // keep the ID and let the next load pick it up again.
-                        console.error('Failed to load cart:', data.error);
-                    }
+                    setCart(adaptOwnedCart(data.cart));
+                } else if (response.status === 404) {
+                    // Expired (30-day TTL) or already checked out — never coming back.
+                    localStorage.removeItem(storageKey);
+                } else {
+                    console.error('Failed to load cart:', await response.text());
                 }
             } catch (error) {
                 // Network or parse failure — same reasoning, keep the ID.
@@ -180,8 +149,7 @@ export function CartProvider({
             }
         };
         loadCart();
-        // storageKey only changes if the build's commerce flag changes, which
-        // never happens within a running session.
+        // The storage key is constant for the lifetime of the application.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -190,23 +158,10 @@ export function CartProvider({
         if (!cartId) return;
 
         try {
-            if (ownedCommerceEnabled) {
-                const response = await fetch(`/api/store/cart/${cartId}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    setCart(adaptOwnedCart(data.cart));
-                }
-                return;
-            }
-
-            const response = await fetch('/api/cart', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'get', cartId }),
-            });
-            const data = await response.json();
-            if (data.cart) {
-                setCart(data.cart);
+            const response = await fetch(`/api/store/cart/${cartId}`);
+            if (response.ok) {
+                const data = await response.json();
+                setCart(adaptOwnedCart(data.cart));
             }
         } catch (error) {
             console.error('Failed to refresh cart:', error);
@@ -216,77 +171,26 @@ export function CartProvider({
     const addItem = async (variantId: string, quantity: number) => {
         setIsLoading(true);
         try {
-            if (ownedCommerceEnabled) {
-                let id: string | null = cart?.id || localStorage.getItem(storageKey);
-
-                if (!id) {
-                    const createResponse = await fetch('/api/store/cart', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({}),
-                    });
-                    const createData = await createResponse.json();
-                    id = createData.cart?.id ?? null;
-                    if (id) localStorage.setItem(storageKey, id);
-                }
-                if (!id) throw new Error('Failed to create cart');
-
-                // Produktsidan läser numera vår egen katalog, men lämnar ifrån
-                // sig Shopifys variant-id så länge det finns — Shopify-korgen
-                // kräver det så länge OWNED_COMMERCE_ENABLED kan stå av, och
-                // korgen slår upp sin egen numeriska variant ur det. En variant
-                // som skapats i admin har inget Shopify-id och kommer i stället
-                // med vårt eget prefix (se OWNED_VARIANT_PREFIX i catalogDb).
-                const owned = variantId.startsWith('linnevik:');
-                const response = await fetch(`/api/store/cart/${id}/items`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(
-                        owned
-                            ? { variantId: Number(variantId.slice('linnevik:'.length)), quantity }
-                            : { shopifyVariantId: variantId, quantity }
-                    ),
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Failed to add item');
-                setCart(adaptOwnedCart(data.cart));
-                return;
-            }
-
-            let cartId: string | null = cart?.id || localStorage.getItem(storageKey);
-
-            // Create cart if it doesn't exist
-            if (!cartId) {
-                const createResponse = await fetch('/api/cart', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'create' }),
+            let id: string | null = cart?.id || localStorage.getItem(storageKey);
+            if (!id) {
+                const createResponse = await fetch('/api/store/cart', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
                 });
                 const createData = await createResponse.json();
-                cartId = createData.cart.id;
-                if (cartId) {
-                    localStorage.setItem(storageKey, cartId);
-                }
-                setCart(createData.cart);
+                id = createData.cart?.id ?? null;
+                if (id) localStorage.setItem(storageKey, id);
             }
-
-            // Add item to cart (only if cartId exists)
-            if (!cartId) {
-                throw new Error('Failed to create cart');
-            }
-
-            const response = await fetch('/api/cart', {
+            if (!id || !variantId.startsWith('linnevik:')) throw new Error('Invalid owned cart variant');
+            const response = await fetch(`/api/store/cart/${id}/items`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    action: 'add',
-                    cartId,
-                    variantId,
-                    quantity,
+                    variantId: Number(variantId.slice('linnevik:'.length)), quantity,
                 }),
             });
             const data = await response.json();
-            setCart(data.cart);
+            if (!response.ok) throw new Error(data.error || 'Failed to add item');
+            setCart(adaptOwnedCart(data.cart));
         } catch (error) {
             console.error('Failed to add item:', error);
         } finally {
@@ -298,30 +202,14 @@ export function CartProvider({
         if (!cart?.id) return;
         setIsLoading(true);
         try {
-            if (ownedCommerceEnabled) {
-                const response = await fetch(`/api/store/cart/${cart.id}/items/${lineId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ quantity }),
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Failed to update item');
-                setCart(adaptOwnedCart(data.cart));
-                return;
-            }
-
-            const response = await fetch('/api/cart', {
-                method: 'POST',
+            const response = await fetch(`/api/store/cart/${cart.id}/items/${lineId}`, {
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'update',
-                    cartId: cart.id,
-                    lineId,
-                    quantity,
-                }),
+                body: JSON.stringify({ quantity }),
             });
             const data = await response.json();
-            setCart(data.cart);
+            if (!response.ok) throw new Error(data.error || 'Failed to update item');
+            setCart(adaptOwnedCart(data.cart));
         } catch (error) {
             console.error('Failed to update item:', error);
         } finally {
@@ -333,27 +221,12 @@ export function CartProvider({
         if (!cart?.id) return;
         setIsLoading(true);
         try {
-            if (ownedCommerceEnabled) {
-                const response = await fetch(`/api/store/cart/${cart.id}/items/${lineId}`, {
-                    method: 'DELETE',
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Failed to remove item');
-                setCart(adaptOwnedCart(data.cart));
-                return;
-            }
-
-            const response = await fetch('/api/cart', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'remove',
-                    cartId: cart.id,
-                    lineIds: [lineId],
-                }),
+            const response = await fetch(`/api/store/cart/${cart.id}/items/${lineId}`, {
+                method: 'DELETE',
             });
             const data = await response.json();
-            setCart(data.cart);
+            if (!response.ok) throw new Error(data.error || 'Failed to remove item');
+            setCart(adaptOwnedCart(data.cart));
         } catch (error) {
             console.error('Failed to remove item:', error);
         } finally {
@@ -361,28 +234,8 @@ export function CartProvider({
         }
     };
 
-    const updateCartCountry = async (country: string) => {
-        // The owned checkout is Sweden/SEK-only (see the_big_purge.md) — there
-        // is no buyer identity to move, so region/currency switching is a
-        // Shopify-only concept.
-        if (ownedCommerceEnabled) return;
-
-        const cartId = cart?.id || localStorage.getItem(storageKey);
-        if (!cartId) return; // No cart to update
-
-        try {
-            const response = await fetch('/api/cart', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'updateBuyerIdentity', cartId, country }),
-            });
-            const data = await response.json();
-            if (data.cart) {
-                setCart(data.cart);
-            }
-        } catch (error) {
-            console.error('Failed to update cart country:', error);
-        }
+    const updateCartCountry = async () => {
+        // Owned commerce is intentionally Sweden/SEK-only.
     };
 
     return (
@@ -390,7 +243,7 @@ export function CartProvider({
             value={{
                 cart,
                 isLoading,
-                isOwnedCommerce: ownedCommerceEnabled,
+                isOwnedCommerce: true,
                 addItem,
                 updateItem,
                 removeItem,

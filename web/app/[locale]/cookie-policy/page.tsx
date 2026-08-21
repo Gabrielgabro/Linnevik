@@ -104,11 +104,11 @@ export default async function CookiePolicyPage({ params }: { params: Promise<{ l
                             <h2 className="text-2xl font-bold text-primary mb-4">{copy.sections.cookiesList.title}</h2>
                             <div className="space-y-4">
                                 <div className="bg-[#F9FAFB] dark:bg-[#1f2937] rounded-xl p-6 border border-[#E7EDF1] dark:border-[#374151]">
-                                    <h3 className="font-bold text-primary mb-2">{copy.sections.cookiesList.items.shopify.title}</h3>
+                                    <h3 className="font-bold text-primary mb-2">{copy.sections.cookiesList.items.commerce.title}</h3>
                                     <p className="text-sm text-secondary mb-2">
-                                        {copy.sections.cookiesList.items.shopify.body}
+                                        {copy.sections.cookiesList.items.commerce.body}
                                     </p>
-                                    <p className="text-xs text-secondary">{copy.sections.cookiesList.items.shopify.meta}</p>
+                                    <p className="text-xs text-secondary">{copy.sections.cookiesList.items.commerce.meta}</p>
                                 </div>
                                 <div className="bg-[#F9FAFB] dark:bg-[#1f2937] rounded-xl p-6 border border-[#E7EDF1] dark:border-[#374151]">
                                     <h3 className="font-bold text-primary mb-2">{copy.sections.cookiesList.items.language.title}</h3>

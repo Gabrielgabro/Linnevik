@@ -1,7 +1,6 @@
 'use server';
 
 import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
-import { getCustomerVatById, setCustomerVatStatus } from '@/lib/shopifyAdmin';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { cookies } from 'next/headers';
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
@@ -71,11 +70,7 @@ export async function saveVatStatus(_: VatState, formData: FormData): Promise<Va
     }
 
     try {
-        if (customer.source === 'owned') {
-            await setOwnedCustomerVat(Number(customer.id), hasVat ? normalizedVat : null);
-        } else {
-            await setCustomerVatStatus(customer.id, hasVat ? normalizedVat : null, hasVat);
-        }
+        await setOwnedCustomerVat(Number(customer.id), hasVat ? normalizedVat : null);
 
         return {
             status: 'success',
@@ -95,7 +90,8 @@ export async function saveVatStatus(_: VatState, formData: FormData): Promise<Va
     }
 }
 
-export async function loadVatStatus(_: VatState): Promise<VatState> {
+export async function loadVatStatus(previousState: VatState): Promise<VatState> {
+    void previousState;
     const t = await getActionTranslations();
     const customer = await getSessionCustomer();
 
@@ -107,9 +103,7 @@ export async function loadVatStatus(_: VatState): Promise<VatState> {
     }
 
     try {
-        const vatInfo = customer.source === 'owned'
-            ? await getOwnedCustomerVat(Number(customer.id))
-            : await getCustomerVatById(customer.id);
+        const vatInfo = await getOwnedCustomerVat(Number(customer.id));
 
         return {
             status: 'success',
@@ -127,66 +121,3 @@ export async function loadVatStatus(_: VatState): Promise<VatState> {
         };
     }
 }
-
-import { customerActivate, customerReset } from '@/lib/shopify';
-import { createSession } from '@/lib/customerAccountAuth';
-
-export async function activateCustomer(id: string, activationToken: string, password: string) {
-    const t = await getActionTranslations();
-    try {
-        // Convert numeric ID to GID format if needed
-        // Shopify activation URLs use numeric IDs (e.g., "24337163977030")
-        // but the Storefront API customerActivate mutation requires GID format
-        const customerId = id.startsWith('gid://')
-            ? id
-            : `gid://shopify/Customer/${id}`;
-
-        console.log('[activateCustomer] Activating with ID:', customerId);
-
-        const { customerAccessToken, userErrors } = await customerActivate(customerId, activationToken, password);
-
-        if (userErrors.length > 0) {
-            console.error('[activateCustomer] User errors:', userErrors);
-            return { error: userErrors[0].message };
-        }
-
-        // Create session
-        await createSession(customerAccessToken.accessToken, customerAccessToken.expiresAt);
-
-        return { success: true };
-    } catch (error) {
-        console.error('Activation failed:', error);
-        return { error: t.activation.errors.activationFailed };
-    }
-}
-
-export async function resetCustomerPassword(id: string, resetToken: string, password: string) {
-    const t = await getActionTranslations();
-    try {
-        // Shopify reset URLs use numeric IDs but the Storefront API
-        // customerReset mutation requires GID format (same as activation)
-        const customerId = id.startsWith('gid://')
-            ? id
-            : `gid://shopify/Customer/${id}`;
-
-        const { customerAccessToken, userErrors } = await customerReset(customerId, resetToken, password);
-
-        if (userErrors.length > 0) {
-            console.error('[resetCustomerPassword] User errors:', userErrors);
-            return { error: userErrors[0].message };
-        }
-
-        if (!customerAccessToken) {
-            return { error: t.reset.errors.resetFailed };
-        }
-
-        // Log the customer in with their new password right away
-        await createSession(customerAccessToken.accessToken, customerAccessToken.expiresAt);
-
-        return { success: true };
-    } catch (error) {
-        console.error('Password reset failed:', error);
-        return { error: t.reset.errors.resetFailed };
-    }
-}
-

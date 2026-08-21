@@ -192,7 +192,7 @@
       },
       "thirdParty": {
         "title": "Third-party cookies",
-        "body": "We use third-party scripts such as Google Analytics (analytics) and, if needed, Meta Pixel (marketing). They load only after you consent via the cookie banner and only if configured. Shopify Customer Privacy API is used to respect and store your choice."
+        "body": "We use third-party scripts such as Google Analytics (analytics) and, if needed, Meta Pixel (marketing). They load only after you consent via the cookie banner and only if configured. Your choice is stored locally in your browser."
       },
       "manage": {
         "title": "Manage cookies",
@@ -207,10 +207,10 @@
       "cookiesList": {
         "title": "Cookies we use",
         "items": {
-          "shopify": {
-            "title": "Shopify",
-            "body": "Used to manage cart, sessions, and authentication.",
-            "meta": "Type: Essential | Duration: Session/365 days"
+          "commerce": {
+            "title": "Linnevik cart and session",
+            "body": "Used to manage the cart, language, and secure sign-in.",
+            "meta": "Type: Essential | Duration: Session/30 days"
           },
           "language": {
             "title": "Language setting",

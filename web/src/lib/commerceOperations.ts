@@ -142,6 +142,8 @@ export async function upsertCustomerFromCheckout(input: {
   phone?: string | null;
   customerNo?: string | null;
   shippingAddress?: Record<string, string | null> | null;
+  billingAddress?: Record<string, string | null> | null;
+  taxId?: { type: string; value: string } | null;
 }): Promise<number> {
   const email = input.email.trim().toLowerCase();
   const names = (input.name ?? '').trim().split(/\s+/).filter(Boolean);
@@ -158,11 +160,13 @@ export async function upsertCustomerFromCheckout(input: {
   const result = await getDb().execute(sql`
     insert into customers (
       client_id, email, stripe_customer_id, customer_no, first_name, last_name, company, phone,
-      default_shipping_address
+      default_shipping_address, default_billing_address, tax_id, tax_id_type
     ) values (
       ${client.id}, ${email}, ${input.stripeCustomerId ?? null}, ${client.customerNo},
       ${firstName}, ${lastName}, ${client.name}, ${input.phone ?? null},
-      ${JSON.stringify(input.shippingAddress ?? null)}::jsonb
+      ${JSON.stringify(input.shippingAddress ?? null)}::jsonb,
+      ${JSON.stringify(input.billingAddress ?? null)}::jsonb,
+      ${input.taxId?.value ?? null}, ${input.taxId?.type ?? null}
     )
     on conflict (lower(email)) do update set
       client_id = excluded.client_id,
@@ -173,6 +177,11 @@ export async function upsertCustomerFromCheckout(input: {
       company = excluded.company,
       phone = coalesce(excluded.phone, customers.phone),
       default_shipping_address = coalesce(excluded.default_shipping_address, customers.default_shipping_address),
+      default_billing_address = coalesce(excluded.default_billing_address, customers.default_billing_address),
+      -- Ett VAT-nummer kunden angav i kassan skriver över ett tomt fält, men
+      -- raderar aldrig ett vi redan har från registreringen.
+      tax_id = coalesce(excluded.tax_id, customers.tax_id),
+      tax_id_type = coalesce(excluded.tax_id_type, customers.tax_id_type),
       updated_at = now()
     returning id
   `);

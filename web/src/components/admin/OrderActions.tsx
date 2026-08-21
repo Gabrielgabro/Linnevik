@@ -12,7 +12,9 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
   const [error, setError] = useState<string | null>(null);
   // Vad som faktiskt går att leverera nu. Samma räkning som spärren i
   // createFulfillment gör, men här för att slippa visa rutan alls.
-  const openItems = order.items.filter(item => item.remainingQuantity > 0);
+  const canFulfill = ['paid', 'partially_refunded'].includes(order.paymentStatus)
+    && !['cancelled', 'failed', 'expired', 'stock_exception'].includes(order.status);
+  const openItems = canFulfill ? order.items.filter(item => item.remainingQuantity > 0) : [];
   const fullyFulfilled = order.items.length > 0 && openItems.length === 0;
   const partiallyFulfilled = !fullyFulfilled && order.items.some(item => item.fulfilledQuantity > 0);
   async function post(event: React.FormEvent<HTMLFormElement>, path: string, payload: object) {
@@ -59,7 +61,11 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
 
       <div className="grid gap-4">
         <h2 className="font-heading text-xl">Leverans</h2>
-        {fullyFulfilled ? (
+        {!canFulfill ? (
+          <Notice tone="warn" title="Ordern kan inte levereras">
+            Bara betalda ordrar med reserverat lager kan levereras. Nuvarande betalstatus är {order.paymentStatus}.
+          </Notice>
+        ) : fullyFulfilled ? (
           // Allt är utlevererat: servern hade nekat en till försändelse ändå
           // ("Fulfillment quantity exceeds the unfulfilled order quantity"), och
           // ett formulär som bara går att få fel av är sämre än inget.
@@ -123,7 +129,7 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
                 />
               ))}
             </div>
-            <Select label="Status" name="status" required options={['shipped', 'delivered', 'pending']} />
+            <Select label="Status" name="status" required options={['shipped', 'delivered']} />
             <Field label="Transportör" name="carrier" />
             <Field label="Spårningsnummer" name="trackingNumber" />
             <Field label="Spårningslänk" name="trackingUrl" type="url" />

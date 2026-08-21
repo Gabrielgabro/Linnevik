@@ -1,16 +1,12 @@
 import { cookies } from 'next/headers';
 import { sql, eq, desc, inArray } from 'drizzle-orm';
-import { getCustomer } from '@/lib/shopify';
-import { DEFAULT_LANGUAGE, toShopifyLanguage } from '@/lib/languageConfig';
 import { getDb } from '@/lib/db';
 import { orders, orderItems } from '@/lib/db/schema';
 import { readCustomerSessionValue, CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
 
-const TOKEN_COOKIE_NAMES = ['shopify_customer_token', 'customer_access_token'];
-
 type CurrentCustomer = {
     id: string;
-    source: 'owned' | 'shopify';
+    source: 'owned';
     email: string;
     firstName: string | null;
     lastName: string | null;
@@ -18,12 +14,7 @@ type CurrentCustomer = {
 };
 
 /**
- * Kunden kan vara inloggad på två oberoende sätt just nu: Shopifys
- * lösenordsflöde (kakorna i TOKEN_COOKIE_NAMES) eller den nya
- * e-postlänken (linnevik_customer, lib/customerSession.ts). Länken kollas
- * först eftersom /login bara erbjuder den vägen numera — Shopify-kakan finns
- * kvar bara för kunder som loggade in innan omställningen och vars kaka
- * ännu inte gått ut.
+ * The owned magic-link session is the only customer authentication source.
  */
 async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer | null> {
     const cookieStore = await cookies();
@@ -55,32 +46,7 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
 }
 
 export async function getCurrentCustomerFromCookies(): Promise<CurrentCustomer | null> {
-    const magicLinkCustomer = await getCurrentCustomerFromMagicLinkSession();
-    if (magicLinkCustomer) return magicLinkCustomer;
-
-    const cookieStore = await cookies();
-    const token = TOKEN_COOKIE_NAMES.map(name => cookieStore.get(name)?.value).find(Boolean);
-
-    if (!token) {
-        return null;
-    }
-
-    try {
-        const customer = await getCustomer(token, toShopifyLanguage(DEFAULT_LANGUAGE));
-        return customer
-            ? {
-                id: customer.id,
-                source: 'shopify',
-                email: customer.email,
-                firstName: customer.firstName,
-                lastName: customer.lastName,
-                vatNumber: customer.vatNumber?.value || undefined,
-            }
-            : null;
-    } catch (error) {
-        console.error('[customerAccount] Failed to load current customer', error);
-        return null;
-    }
+    return getCurrentCustomerFromMagicLinkSession();
 }
 
 export type CustomerOrder = {
@@ -104,9 +70,8 @@ export type CustomerOrder = {
 
 /**
  * Ordrar för en kund som loggat in via e-postlänken — läses direkt ur den
- * egna `orders`-tabellen i stället för Shopifys GraphQL-API. Formas till
- * samma `CustomerOrder`-form som Shopify-vägen så att AccountClient inte
- * behöver bry sig om vilket system kunden hör hemma i.
+ * egna `orders`-tabellen. Resultatet behåller det kontrakt som AccountClient
+ * redan använder, vilket håller databasformen utanför UI-komponenten.
  */
 async function getOwnedCustomerOrders(customerId: number, limit: number): Promise<CustomerOrder[]> {
     const db = getDb();
@@ -160,40 +125,5 @@ export async function getCustomerOrders(limit = 10): Promise<CustomerOrder[]> {
         }
     }
 
-    const token = TOKEN_COOKIE_NAMES.map(name => cookieStore.get(name)?.value).find(Boolean);
-
-    if (!token) {
-        return [];
-    }
-
-    try {
-        const customer = await getCustomer(token, toShopifyLanguage(DEFAULT_LANGUAGE));
-        const orders = customer?.orders?.edges ?? [];
-
-        return orders.slice(0, limit).map(({ node }) => ({
-            id: node.id,
-            number: node.orderNumber,
-            processedAt: node.processedAt,
-            financialStatus: node.financialStatus,
-            fulfillmentStatus: node.fulfillmentStatus,
-            totalPrice: node.totalPrice,
-            lineItems: {
-                edges: node.lineItems.edges.map(item => ({
-                    node: {
-                        title: item.node.title,
-                        quantity: item.node.quantity,
-                        image: item.node.variant?.image || null,
-                        variant: item.node.variant
-                            ? {
-                                price: item.node.variant.price,
-                              }
-                            : null,
-                    },
-                })),
-            },
-        }));
-    } catch (error) {
-        console.error('[customerAccount] Failed to load orders', error);
-        return [];
-    }
+    return [];
 }

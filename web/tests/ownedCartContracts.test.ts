@@ -19,11 +19,12 @@ describe('owned checkout persistence contracts', () => {
   });
 
   it('does not let late failure events overwrite a paid order', () => {
-    expect(ordersDb).toContain("and status <> 'paid'");
+    expect(ordersDb).toContain("and payment_status = 'pending'");
   });
 
   it('uses Stripe idempotency and never trusts a browser-supplied amount', () => {
     expect(checkout).toContain('idempotencyKey:');
     expect(checkout).not.toMatch(/body\.(amount|price|unitAmount)/);
+    expect(checkout).not.toContain('body.lines');
   });
 });

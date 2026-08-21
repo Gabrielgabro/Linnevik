@@ -1,4 +1,4 @@
-import { getAllCollections } from '@/lib/shopify';
+import { listCollections } from '@/lib/catalogDb';
 import { SITE_EMAIL, SITE_NAME, SITE_TELEPHONE, SITE_URL } from '@/lib/site';
 
 // Regenerated daily. The document is a summary of pages that change rarely, so a
@@ -13,7 +13,7 @@ export const revalidate = 86400;
  * Linneviken AB organization number, certifications, and delivery geography.
  */
 export async function GET() {
-  const collections = await getAllCollections(250, 'SV');
+  const collections = await listCollections('sv');
 
   const collectionLinks = collections
     // "featured" is a merchandising shelf, not a product category, so it would

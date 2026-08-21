@@ -9,9 +9,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
-import { markOrderFailed, markOrderPaid, updateRefundStatus } from '@/lib/ordersDb';
+import { markOrderFailed, updateRefundStatus } from '@/lib/ordersDb';
 import { sendOrderConfirmation } from '@/lib/orderEmails';
 import { claimStripeEvent, completeStripeEvent, releaseStripeEvent } from '@/lib/stripeWebhookDb';
+import { applyCheckoutSession, reconcileCheckoutSessionReference } from '@/lib/stripeCheckout';
 
 export const runtime = 'nodejs';
 // Kroppen får inte cachas eller förvandlas — signaturen räknas på byte-nivå.
@@ -56,46 +57,8 @@ export async function POST(request: NextRequest) {
         // 'unpaid' här och bekräftas först i async_payment_succeeded.
         if (session.payment_status === 'unpaid') break;
 
-        const details = session.customer_details;
-        // Leveransadressen har bytt plats i nyare API-versioner. Endpointen är
-        // inte låst till en version, så båda formerna läses — annars sparas
-        // adressen tyst som null om Stripe levererar i en äldre form.
-        const legacy = session as unknown as {
-          shipping_details?: { name?: string | null; address?: Stripe.Address | null } | null;
-        };
-        const shipping =
-          session.collected_information?.shipping_details ?? legacy.shipping_details ?? null;
-
-        await markOrderPaid({
-          sessionId: session.id,
-          paymentIntentId:
-            typeof session.payment_intent === 'string'
-              ? session.payment_intent
-              : session.payment_intent?.id ?? null,
-          email: details?.email ?? null,
-          stripeCustomerId:
-            typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
-          phone: details?.phone ?? null,
-          customerNo: session.metadata?.linnevik_customer_no ?? null,
-          customerName: shipping?.name ?? details?.name ?? null,
-          shippingAddress: shipping?.address
-            ? {
-                line1: shipping.address.line1 ?? null,
-                line2: shipping.address.line2 ?? null,
-                city: shipping.address.city ?? null,
-                postal_code: shipping.address.postal_code ?? null,
-                state: shipping.address.state ?? null,
-                country: shipping.address.country ?? null,
-              }
-            : null,
-          subtotalMinor: session.amount_subtotal ?? 0,
-          discountMinor: session.total_details?.amount_discount ?? 0,
-          shippingMinor: session.total_details?.amount_shipping ?? 0,
-          taxMinor: session.total_details?.amount_tax ?? 0,
-          totalMinor: session.amount_total ?? 0,
-          currency: session.currency ?? 'sek',
-        });
-        confirmationFor = session.id;
+        const result = await applyCheckoutSession(session);
+        if (result.newlyPaid) confirmationFor = session.id;
         break;
       }
 
@@ -105,12 +68,16 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'checkout.session.expired':
-        await markOrderFailed(event.data.object.id, 'expired');
+        await applyCheckoutSession(event.data.object);
         break;
 
-      case 'checkout.session.async_payment_failed':
-        await markOrderFailed(event.data.object.id, 'failed');
+      case 'checkout.session.async_payment_failed': {
+        const session = event.data.object;
+        if (await reconcileCheckoutSessionReference(session)) {
+          await markOrderFailed(session.id, 'failed');
+        }
         break;
+      }
 
       default:
         break;

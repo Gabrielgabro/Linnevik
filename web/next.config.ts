@@ -4,10 +4,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
     images: {
         remotePatterns: [
-            // Produktbilderna ligger i Vercel Blob. cdn.shopify.com står kvar
-            // tills produktsidan slutat läsa från Shopify, och tas bort då.
             { protocol: 'https', hostname: '*.public.blob.vercel-storage.com', pathname: '/**' },
-            { protocol: 'https', hostname: 'cdn.shopify.com', pathname: '/**' },
         ],
     },
     async redirects() {
@@ -43,16 +40,15 @@ const nextConfig: NextConfig = {
                 destination: '/sv',
                 permanent: true,
             },
-            // Redirect Shopify activation links (no locale) to Swedish default
+            // Old account links now enter the owned magic-link login flow.
             {
                 source: '/account/activate/:id/:token',
-                destination: '/sv/account/activate/:id/:token',
+                destination: '/sv/login',
                 permanent: false,
             },
-            // Redirect Shopify password-reset links (no locale) to Swedish default
             {
                 source: '/account/reset/:id/:token',
-                destination: '/sv/account/reset/:id/:token',
+                destination: '/sv/login',
                 permanent: false,
             },
         ];

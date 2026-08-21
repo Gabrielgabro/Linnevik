@@ -1,13 +1,13 @@
 /**
- * Läsningarna mot vår egen handelskatalog. Skilt från shopify.ts därför att
- * brödsmulorna och kategoriträdet nu ägs av backenden — Shopify är bara källan
- * som synkas in. Neon-drivrutinen får inte följa med ut i klientpaketet, så
+ * Läsningarna mot vår egen handelskatalog. Brödsmulor, kategorier och produkter
+ * ägs av backenden; gamla externa id:n är bara importproveniens. Neon-drivrutinen
+ * får inte följa med ut i klientpaketet, så
  * inget här importeras av en klientkomponent.
  */
 
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { collections, productCollections, products, productVariants } from '@/lib/db/schema';
+import { collections, productCollections, products } from '@/lib/db/schema';
 import type { Language } from '@/lib/languageConfig';
 
 export type CatalogCrumb = {
@@ -26,7 +26,7 @@ function titleFor(row: { titleSv: string; titleEn: string }, locale: Language): 
 /**
  * Kategorikedjan för en produkt, från roten och nedåt. Följer den primära
  * kopplingen och därefter `parent_id` uppåt i trädet. Tom lista betyder att
- * produkten inte är kopplad — anroparen får falla tillbaka på Shopify.
+ * produkten inte är kopplad och anroparen visar ingen kategorikedja.
  *
  * Djupet är begränsat: en cykel i trädet ska ge en kort brödsmula, inte en
  * oändlig loop. Databasen hindrar bara att en kategori är sin egen förälder.
@@ -101,11 +101,9 @@ export type CatalogCollection = {
 /**
  * Kortet en produkt visas som i en lista.
  *
- * Formen är Shopifys, inte vår: `ProductCard` och produktsidan är byggda kring
- * `images.edges[].node` och `priceRange`, och de sidorna läser fortfarande
- * Shopify. Att forma om här i stället för att röra varje konsument är samma
- * grepp som `getOwnedCustomerOrders` använder — den dagen katalogen i sin
- * helhet är vår kan formen rätas ut på ett ställe.
+ * Komponenten behåller det gamla `images.edges[].node`/`priceRange`-kontraktet
+ * för att undvika en bred UI-omskrivning. All data kommer ändå från vår lokala
+ * katalog; typen kan rätas ut separat när konsumenterna moderniseras.
  */
 export type CatalogProductCard = {
   id: string;
@@ -216,6 +214,49 @@ function toProductCard(row: ProductCardRow, locale: Language): CatalogProductCar
   };
 }
 
+/** Active products for storefront shelves and the sample picker. */
+export async function listCatalogProductCards(
+  locale: Language,
+  limit = 100
+): Promise<CatalogProductCard[]> {
+  if (!catalogConfigured()) return [];
+  const rows = await getDb().execute(sql`
+    select p.id, p.handle, p.title, p.title_en,
+           img.url as image_url, img.alt_text as image_alt_text,
+           price.price_minor, price.currency
+    from products p
+    left join lateral (
+      select url, alt_text from product_images
+      where product_id = p.id order by position asc, id asc limit 1
+    ) img on true
+    left join lateral (
+      select price_minor, currency from product_variants
+      where product_id = p.id and active
+      order by price_minor asc limit 1
+    ) price on true
+    where p.status = 'active'
+    order by p.title asc
+    limit ${Math.max(1, Math.min(limit, 250))}
+  `);
+  return (rows.rows as ProductCardRow[]).map(row => toProductCard(row, locale));
+}
+
+export async function listCatalogSitemapEntries(
+  resource: 'products' | 'collections'
+): Promise<Array<{ handle: string; updatedAt: Date }>> {
+  if (!catalogConfigured()) return [];
+  if (resource === 'products') {
+    return getDb()
+      .select({ handle: products.handle, updatedAt: products.updatedAt })
+      .from(products)
+      .where(eq(products.status, 'active'));
+  }
+  return getDb()
+    .select({ handle: collections.handle, updatedAt: collections.updatedAt })
+    .from(collections)
+    .where(eq(collections.active, true));
+}
+
 /**
  * En kategori med sina underkategorier och sina produkter.
  *
@@ -321,63 +362,6 @@ export async function getCollectionPage(
   };
 }
 
-/**
- * Shopify-id:na för de varianter vi faktiskt säljer.
- *
- * `active` och `available_for_sale` säger olika saker: den senare kommer från
- * Shopify och betyder "finns i lager", den förra är vårt eget beslut om att
- * varan går att beställa hos oss alls. Den 14-8 markerades allt utom de sex
- * lagerförda produkterna som inaktivt. `cartRules` kräver båda, så en produkt
- * som saknas här kommer att nekas i kassan — och då ska den heller inte
- * erbjudas på sajten.
- *
- * `null` betyder att produkten inte finns i vår katalog över huvud taget. Då
- * finns inget eget beslut att respektera, och anroparen låter Shopify avgöra.
- */
-export async function getPurchasableShopifyVariantIds(
-  productHandle: string
-): Promise<Set<string> | null> {
-  if (!catalogConfigured()) return null;
-
-  const result = await getDb().execute(sql`
-    select v.shopify_variant_id, v.active and v.available_for_sale as purchasable
-      from product_variants v
-      join products p on p.id = v.product_id
-     where p.handle = ${productHandle} and v.shopify_variant_id is not null
-  `);
-
-  const rows = result.rows as { shopify_variant_id: string; purchasable: boolean }[];
-  if (rows.length === 0) return null;
-
-  return new Set(rows.filter(row => row.purchasable).map(row => row.shopify_variant_id));
-}
-
-/**
- * Vilka av produkthandlarna som har minst en säljbar variant. Samma villkor
- * som `getPurchasableShopifyVariantIds`, men för listor som visar pris — en
- * lista får inte skylta med ett "från"-pris som kassan skulle neka.
- *
- * Handles vi inte känner igen räknas som säljbara: då finns inget eget beslut
- * att väga in, och Shopify får bestämma ensam.
- */
-export async function filterPurchasableHandles(handles: string[]): Promise<Set<string>> {
-  const unique = [...new Set(handles)];
-  if (!catalogConfigured() || unique.length === 0) return new Set(unique);
-
-  const rows = await getDb()
-    .select({
-      handle: products.handle,
-      purchasable: sql<boolean>`bool_or(${productVariants.active} and ${productVariants.availableForSale})`,
-    })
-    .from(products)
-    .leftJoin(productVariants, eq(productVariants.productId, products.id))
-    .where(inArray(products.handle, unique))
-    .groupBy(products.handle);
-
-  const known = new Map(rows.map(row => [row.handle, row.purchasable === true]));
-  return new Set(unique.filter(handle => known.get(handle) ?? true));
-}
-
 /** Handles för `generateStaticParams`. */
 export async function listCollectionHandles(): Promise<string[]> {
   if (!catalogConfigured()) return [];
@@ -440,7 +424,6 @@ type ProductDetailRow = {
 
 type VariantRow = {
   id: number;
-  shopify_variant_id: string | null;
   sku: string;
   option_values: Array<{ name: string; value: string }> | null;
   price_minor: number;
@@ -451,16 +434,13 @@ type VariantRow = {
 };
 
 /**
- * Variantens id utåt. Shopifys id så länge det finns: korgen slår upp sin egen
- * numeriska variant ur det (`resolveVariantIdByShopifyId`), och Shopify-korgen
- * kräver det så länge `OWNED_COMMERCE_ENABLED` kan stå av. En variant som
- * skapats i admin har inget Shopify-id, och får då ett eget prefix som
- * `CartContext` känner igen och skickar vidare som numeriskt `variantId`.
+ * Variantens eget id utåt. Prefixet gör typen tydlig i klienten och hindrar att
+ * kvarvarande importerade Shopify-id:n råkar bli en aktiv systemkoppling.
  */
 export const OWNED_VARIANT_PREFIX = 'linnevik:';
 
 function variantHandle(row: VariantRow): string {
-  return row.shopify_variant_id ?? `${OWNED_VARIANT_PREFIX}${row.id}`;
+  return `${OWNED_VARIANT_PREFIX}${row.id}`;
 }
 
 /**
@@ -518,11 +498,10 @@ export async function getCatalogProduct(
      order by position asc, id asc
   `);
 
-  // `active` och `available_for_sale` säger olika saker — vårt beslut att sälja
-  // varan alls, respektive Shopifys lagerstatus. `cartRules` kräver båda, och
-  // därför måste knappen och den strukturerade datan göra det också.
+  // `active` och `available_for_sale` säger olika saker — om varianten ingår i
+  // katalogen respektive om den får beställas. `cartRules` kräver båda.
   const variantRows = await db.execute(sql`
-    select id, shopify_variant_id, sku, option_values, price_minor, currency,
+    select id, sku, option_values, price_minor, currency,
            minimum_order_quantity, order_increment,
            active and available_for_sale as purchasable
       from product_variants

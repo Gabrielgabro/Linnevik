@@ -209,8 +209,8 @@ export default function ProductForm({
                 </div>
             )}
 
-            {/* Button - Sample Order for products that can't be sold as a single unit, Add to Cart for others */}
-            {hasSampleOnlyTag && productId ? (
+            {/* MTO och SAMPLE_ONLY går via prov/offertflödet, aldrig korgen. */}
+            {(hasSampleOnlyTag || hasMTOTag) && productId ? (
                 <LocaleLink
                     href={`/samples?preselect=${encodeURIComponent(productId)}&variant=${encodeURIComponent(active?.selectedOptions.map(o => o.value).join(' / ') || '')}`}
                     className="w-full inline-flex items-center justify-center gap-2 bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-none font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C]"
@@ -221,10 +221,10 @@ export default function ProductForm({
                     {t.product.orderSample}
                 </LocaleLink>
             ) : null}
-            {hasSampleOnlyTag && (
+            {(hasSampleOnlyTag || hasMTOTag) && (
                 <p className="text-xs text-secondary -mt-4">{t.product.sampleOnlyNote}</p>
             )}
-            {!hasSampleOnlyTag && (
+            {!hasSampleOnlyTag && !hasMTOTag && (
                 <button
                     type="button"
                     disabled={!active?.availableForSale || addingToCart || isLoading}

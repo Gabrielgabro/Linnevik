@@ -9,7 +9,7 @@ type Product = {
     handle: string;
     title: string;
     images: { edges: { node: { url: string; altText: string | null } }[] };
-    priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
+    priceRange?: { minVariantPrice: { amount: string; currencyCode: string } };
 };
 
 function SamplesPageContent() {
@@ -69,7 +69,7 @@ function SamplesPageContent() {
                 });
             }
         }
-    }, [searchParams]);
+    }, [locale, searchParams]);
 
     const toggleProduct = (productId: string) => {
         const newSelected = new Set(selectedProducts);
@@ -210,9 +210,11 @@ function SamplesPageContent() {
                                                 {variantSelections.get(product.id)}
                                             </p>
                                         )}
-                                        <p className="text-sm text-secondary">
-                                            {t.samples.grid.priceFrom} {Number(product.priceRange.minVariantPrice.amount).toLocaleString('sv-SE')} {product.priceRange.minVariantPrice.currencyCode}
-                                        </p>
+                                        {product.priceRange && (
+                                            <p className="text-sm text-secondary">
+                                                {t.samples.grid.priceFrom} {Number(product.priceRange.minVariantPrice.amount).toLocaleString('sv-SE')} {product.priceRange.minVariantPrice.currencyCode}
+                                            </p>
+                                        )}
                                     </button>
                                 );
                             })}
