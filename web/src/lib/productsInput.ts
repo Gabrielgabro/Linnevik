@@ -79,7 +79,6 @@ const PRODUCT_TEXT_FIELDS = {
   descriptionHtml: 20_000,
   descriptionHtmlEn: 20_000,
   productType: 120,
-  vendor: 120,
   seoTitle: 200,
   seoDescription: 400,
   seoTitleEn: 200,

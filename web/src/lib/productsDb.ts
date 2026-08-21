@@ -206,7 +206,6 @@ export type ProductInput = Partial<
     | 'descriptionHtmlEn'
     | 'tags'
     | 'productType'
-    | 'vendor'
     | 'supplier'
     | 'seoTitle'
     | 'seoDescription'

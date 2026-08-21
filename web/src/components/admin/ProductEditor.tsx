@@ -85,8 +85,6 @@ function ContentPanel({ detail }: { detail: ProductDetail }) {
           placeholder="MTO, dun"
         />
         <Field label="Typ" name="productType" defaultValue={product.productType} />
-        {/* Varumärket syns för kunden, leverantören gör det inte. */}
-        <Field label="Varumärke" name="vendor" defaultValue={product.vendor} />
         <Field
           label="Leverantör"
           name="supplier"

@@ -226,9 +226,6 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
                       >
                         {product.title}
                       </span>
-                      {product.supplier === 'Linnevik' && (
-                        <Tag color="var(--adm-ok)">Egen produkt</Tag>
-                      )}
                       {!product.active && <Tag>Inaktiv</Tag>}
                       {/* Utan Stripe-produkt går varan att sälja ändå — kassan
                           faller tillbaka på ett namn — men den blir osynlig i
@@ -247,18 +244,23 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
                     </span>
                   </span>
 
-                  <span className="flex flex-col items-end gap-1 max-[620px]:hidden">
-                    <span className="font-mono text-[12.5px] tabular-nums text-ink">
-                      {priceRange(product)}
-                    </span>
-                    <span
-                      className={
-                        product.stock > 0
-                          ? 'font-mono text-[11.5px] tabular-nums text-ink-3'
-                          : 'font-mono text-[11.5px] font-medium tabular-nums text-danger'
-                      }
-                    >
-                      {product.stock} st
+                  <span className="flex items-center gap-2 max-[620px]:hidden">
+                    {product.supplier === 'Linnevik' && (
+                      <Tag color="var(--adm-ok)">Egen produkt</Tag>
+                    )}
+                    <span className="flex flex-col items-end gap-1">
+                      <span className="font-mono text-[12.5px] tabular-nums text-ink">
+                        {priceRange(product)}
+                      </span>
+                      <span
+                        className={
+                          product.stock > 0
+                            ? 'font-mono text-[11.5px] tabular-nums text-ink-3'
+                            : 'font-mono text-[11.5px] font-medium tabular-nums text-danger'
+                        }
+                      >
+                        {product.stock} st
+                      </span>
                     </span>
                   </span>
 

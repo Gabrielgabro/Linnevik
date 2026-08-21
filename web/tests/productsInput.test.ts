@@ -15,7 +15,6 @@ describe('parseProductInput', () => {
       'descriptionHtml',
       'descriptionHtmlEn',
       'productType',
-      'vendor',
       'seoTitle',
       'seoDescription',
       'seoTitleEn',
