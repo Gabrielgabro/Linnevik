@@ -1,27 +1,41 @@
 'use client';
 
 /**
- * Prislogiksidan i admin. Två strategier att välja mellan — trappstegsrabatt
- * (progressive) och en jämn kurva (linear) — och ingenting annat. Ingen
- * marginalbaserad strategi här: den kräver landad kostnad, som bara är känd
- * för sex produkter och som aldrig får skickas till klienten (se
+ * Prislogiksidan i admin. Tre strategier att välja mellan — trappstegsrabatt
+ * (progressive), en jämn kurva (linear) och rabatt på ordervärde (orderValue).
+ * Ingen marginalbaserad strategi här: den kräver landad kostnad per rad i
+ * prissättningen och skulle stänga av produktsidans förhandsvisning (se
  * `isClientComputable` i pricingRules.ts). `appliesTo` visas inte som ett
  * val — mängdrabatt gäller alltid bara MTO-produkter, aldrig lagerförda
  * varor, och det är fast i servern, inte något admin kan råka slå på.
+ *
+ * `orderValue` visar landad kostnad i modelleringsvyn. Det är avsiktligt och
+ * gäller bara här: adminvyn ligger bakom inloggning och gör redan samma sak i
+ * CostCharts. Produktsidan får aldrig konfigurationen för den strategin.
  */
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button, ErrorNote, Field } from '@/components/admin/Fields';
+import LinearCurveChart from '@/components/admin/LinearCurveChart';
+import OrderValuePanel from '@/components/admin/OrderValuePanel';
 import { Panel } from '@/components/admin/ui';
 import type { PricingConfigRow } from '@/lib/db/schema';
+import type { PricingModelProduct } from '@/lib/pricingModelData';
+import { DEFAULT_PRICING_CONFIG, type PricingConfig } from '@/lib/pricingRules';
 
 type Tier = { minQuantity: number; discountPercent: number };
 type Linear = { startQuantity: number; quantityStep: number; percentPerStep: number; maxPercent: number };
-type Strategy = 'progressive' | 'linear';
+type Strategy = 'progressive' | 'linear' | 'orderValue';
 
-export default function PricingConfigPanel({ initial }: { initial: PricingConfigRow }) {
+export default function PricingConfigPanel({
+  initial,
+  modelProducts,
+}: {
+  initial: PricingConfigRow;
+  modelProducts: PricingModelProduct[];
+}) {
   const router = useRouter();
   const [strategy, setStrategy] = useState<Strategy>(initial.strategy as Strategy);
   const [tiers, setTiers] = useState<Tier[]>(
@@ -32,6 +46,15 @@ export default function PricingConfigPanel({ initial }: { initial: PricingConfig
     quantityStep: initial.linearQuantityStep,
     percentPerStep: initial.linearPercentPerStep,
     maxPercent: initial.linearMaxPercent,
+  });
+  const [orderValue, setOrderValue] = useState<PricingConfig['orderValue']>({
+    ladder: initial.orderValueLadder.length
+      ? initial.orderValueLadder
+      : DEFAULT_PRICING_CONFIG.orderValue.ladder,
+    caps: initial.orderValueCaps.length
+      ? initial.orderValueCaps
+      : DEFAULT_PRICING_CONFIG.orderValue.caps,
+    defaultMaxPercent: initial.orderValueDefaultMaxPercent,
   });
   const [minimumOrderQuantity, setMinimumOrderQuantity] = useState(initial.minimumOrderQuantity);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +74,7 @@ export default function PricingConfigPanel({ initial }: { initial: PricingConfig
       const response = await fetch('/api/admin/pricing-config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ strategy, tiers, linear, minimumOrderQuantity }),
+        body: JSON.stringify({ strategy, tiers, linear, orderValue, minimumOrderQuantity }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -80,6 +103,12 @@ export default function PricingConfigPanel({ initial }: { initial: PricingConfig
             hint="Rabatten växer stegvis med antalet, upp till ett tak."
             active={strategy === 'linear'}
             onClick={() => setStrategy('linear')}
+          />
+          <StrategyOption
+            label="Rabatt på ordervärde"
+            hint="Trappan mäts på hela orderns värde, med eget tak per produkt."
+            active={strategy === 'orderValue'}
+            onClick={() => setStrategy('orderValue')}
           />
         </div>
       </Panel>
@@ -177,10 +206,20 @@ export default function PricingConfigPanel({ initial }: { initial: PricingConfig
               onChange={event => setLinear(l => ({ ...l, maxPercent: Number(event.target.value) }))}
             />
           </div>
+          <LinearCurveChart linear={linear} minimumOrderQuantity={minimumOrderQuantity} />
         </Panel>
       )}
 
-      <Panel title="Minsta orderantal" accent="var(--viz-s4)">
+      {strategy === 'orderValue' && (
+        <OrderValuePanel
+          orderValue={orderValue}
+          minimumOrderQuantity={minimumOrderQuantity}
+          products={modelProducts}
+          onChange={setOrderValue}
+        />
+      )}
+
+      <Panel title="Minsta orderantal" accent="var(--adm-info)">
         <Field
           label="Minsta antal för MTO-produkter"
           name="minimumOrderQuantity"

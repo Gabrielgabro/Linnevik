@@ -57,12 +57,26 @@ export const pricingConfig = pgTable('pricing_config', {
   linearQuantityStep: integer('linear_quantity_step').notNull().default(100),
   linearPercentPerStep: integer('linear_percent_per_step').notNull().default(2),
   linearMaxPercent: integer('linear_max_percent').notNull().default(20),
+  // `orderValue`: trappan mäts på ordervärdet i öre, och taken sätts per
+  // SKU-prefix. Båda är listor och bor därför i jsonb, som `tiers`.
+  orderValueLadder: jsonb('order_value_ladder')
+    .$type<Array<{ minOrderValueMinor: number; discountPercent: number }>>()
+    .notNull()
+    .default([]),
+  orderValueCaps: jsonb('order_value_caps')
+    .$type<Array<{ skuPrefix: string; maxPercent: number }>>()
+    .notNull()
+    .default([]),
+  orderValueDefaultMaxPercent: integer('order_value_default_max_percent').notNull().default(12),
   minimumOrderQuantity: integer('minimum_order_quantity').notNull().default(50),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   updatedBy: text('updated_by'),
 }, table => [
   check('pricing_config_singleton_check', sql`${table.id} = 1`),
-  check('pricing_config_strategy_check', sql`${table.strategy} in ('progressive', 'linear')`),
+  check(
+    'pricing_config_strategy_check',
+    sql`${table.strategy} in ('progressive', 'linear', 'orderValue')`
+  ),
 ]);
 
 export type PricingConfigRow = typeof pricingConfig.$inferSelect;

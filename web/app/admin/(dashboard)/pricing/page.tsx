@@ -2,6 +2,7 @@ import PricingConfigPanel from '@/components/admin/PricingConfigPanel';
 import { PageHeader } from '@/components/admin/ui';
 import { accentFor } from '../nav';
 import { getPricingConfigRow } from '@/lib/pricingConfigDb';
+import { getPricingModelProducts } from '@/lib/pricingModelData';
 import { DEFAULT_PRICING_CONFIG } from '@/lib/pricingRules';
 
 export const dynamic = 'force-dynamic';
@@ -15,10 +16,15 @@ export default async function PricingPage() {
     linearQuantityStep: DEFAULT_PRICING_CONFIG.linear.quantityStep,
     linearPercentPerStep: DEFAULT_PRICING_CONFIG.linear.percentPerStep,
     linearMaxPercent: DEFAULT_PRICING_CONFIG.linear.maxPercent,
+    orderValueLadder: DEFAULT_PRICING_CONFIG.orderValue.ladder,
+    orderValueCaps: DEFAULT_PRICING_CONFIG.orderValue.caps,
+    orderValueDefaultMaxPercent: DEFAULT_PRICING_CONFIG.orderValue.defaultMaxPercent,
     minimumOrderQuantity: DEFAULT_PRICING_CONFIG.minimumOrderQuantity,
     updatedAt: new Date(),
     updatedBy: null,
   };
+
+  const modelProducts = await getPricingModelProducts();
 
   return (
     <>
@@ -29,7 +35,7 @@ export default async function PricingPage() {
         description="Mängdrabatten som visas på produktsidan och som kassan debiterar. Gäller
           alltid bara MTO-taggade produkter — lagerförda varor påverkas aldrig härifrån."
       />
-      <PricingConfigPanel initial={row} />
+      <PricingConfigPanel initial={row} modelProducts={modelProducts} />
     </>
   );
 }

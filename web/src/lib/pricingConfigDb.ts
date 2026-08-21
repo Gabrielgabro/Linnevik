@@ -15,9 +15,11 @@ import { getDb } from '@/lib/db';
 import { pricingConfig, type PricingConfigRow } from '@/lib/db/schema';
 import {
   DEFAULT_PRICING_CONFIG,
+  type OrderValueTier,
   type PricingConfig,
   type PricingStrategy,
   type PricingTier,
+  type ProductDiscountCap,
 } from '@/lib/pricingRules';
 
 export class PricingConfigInputError extends Error {}
@@ -31,6 +33,15 @@ function toPricingConfig(row: PricingConfigRow): PricingConfig {
       quantityStep: row.linearQuantityStep,
       percentPerStep: row.linearPercentPerStep,
       maxPercent: row.linearMaxPercent,
+    },
+    orderValue: {
+      // Tom trappa i databasen betyder att migreringen aldrig fyllde i något.
+      // Faller tillbaka på konstanten hellre än att tyst ge 0 % åt alla.
+      ladder: row.orderValueLadder.length
+        ? row.orderValueLadder
+        : DEFAULT_PRICING_CONFIG.orderValue.ladder,
+      caps: row.orderValueCaps,
+      defaultMaxPercent: row.orderValueDefaultMaxPercent,
     },
     marginTargetPercent: DEFAULT_PRICING_CONFIG.marginTargetPercent,
     marginFloorPercent: null,
@@ -59,6 +70,7 @@ export type PricingConfigUpdate = {
   strategy: PricingStrategy;
   tiers: PricingTier[];
   linear: PricingConfig['linear'];
+  orderValue: PricingConfig['orderValue'];
   minimumOrderQuantity: number;
 };
 
@@ -81,8 +93,10 @@ function assertPercent(value: number, label: string): void {
  */
 export function parsePricingConfigInput(body: Record<string, unknown>): PricingConfigUpdate {
   const strategy = body.strategy;
-  if (strategy !== 'progressive' && strategy !== 'linear') {
-    throw new PricingConfigInputError("strategy måste vara 'progressive' eller 'linear'.");
+  if (strategy !== 'progressive' && strategy !== 'linear' && strategy !== 'orderValue') {
+    throw new PricingConfigInputError(
+      "strategy måste vara 'progressive', 'linear' eller 'orderValue'."
+    );
   }
 
   const minimumOrderQuantity = Number(body.minimumOrderQuantity);
@@ -125,7 +139,49 @@ export function parsePricingConfigInput(body: Record<string, unknown>): PricingC
     linear = { startQuantity, quantityStep, percentPerStep, maxPercent };
   }
 
-  return { strategy, tiers, linear, minimumOrderQuantity };
+  let orderValue = DEFAULT_PRICING_CONFIG.orderValue;
+  if (strategy === 'orderValue') {
+    const raw = (body.orderValue ?? {}) as Record<string, unknown>;
+
+    if (!Array.isArray(raw.ladder) || raw.ladder.length === 0) {
+      throw new PricingConfigInputError('Minst ett trappsteg krävs för ordervärdesrabatt.');
+    }
+    const ladder: OrderValueTier[] = raw.ladder.map((entry, index) => {
+      const tier = entry as { minOrderValueMinor?: unknown; discountPercent?: unknown };
+      const minOrderValueMinor = Number(tier.minOrderValueMinor);
+      const discountPercent = Number(tier.discountPercent);
+      assertPositiveInt(minOrderValueMinor, `Trappsteg ${index + 1}: ordervärde`);
+      assertPercent(discountPercent, `Trappsteg ${index + 1}: rabatt`);
+      return { minOrderValueMinor, discountPercent };
+    });
+    const values = new Set(ladder.map(tier => tier.minOrderValueMinor));
+    if (values.size !== ladder.length) {
+      throw new PricingConfigInputError('Två trappsteg kan inte gälla från samma ordervärde.');
+    }
+
+    const rawCaps = Array.isArray(raw.caps) ? raw.caps : [];
+    const caps: ProductDiscountCap[] = rawCaps.map((entry, index) => {
+      const cap = entry as { skuPrefix?: unknown; maxPercent?: unknown };
+      const skuPrefix = String(cap.skuPrefix ?? '').trim();
+      const maxPercent = Number(cap.maxPercent);
+      if (!skuPrefix) {
+        throw new PricingConfigInputError(`Tak ${index + 1}: SKU-prefix får inte vara tomt.`);
+      }
+      assertPercent(maxPercent, `Tak ${index + 1}: rabatttak`);
+      return { skuPrefix, maxPercent };
+    });
+    const prefixes = new Set(caps.map(cap => cap.skuPrefix));
+    if (prefixes.size !== caps.length) {
+      throw new PricingConfigInputError('Två tak kan inte gälla samma SKU-prefix.');
+    }
+
+    const defaultMaxPercent = Number(raw.defaultMaxPercent);
+    assertPercent(defaultMaxPercent, 'Standardtak');
+
+    orderValue = { ladder, caps, defaultMaxPercent };
+  }
+
+  return { strategy, tiers, linear, orderValue, minimumOrderQuantity };
 }
 
 export async function updatePricingConfig(
@@ -142,6 +198,9 @@ export async function updatePricingConfig(
       linearQuantityStep: input.linear.quantityStep,
       linearPercentPerStep: input.linear.percentPerStep,
       linearMaxPercent: input.linear.maxPercent,
+      orderValueLadder: input.orderValue.ladder,
+      orderValueCaps: input.orderValue.caps,
+      orderValueDefaultMaxPercent: input.orderValue.defaultMaxPercent,
       minimumOrderQuantity: input.minimumOrderQuantity,
       updatedBy,
       updatedAt: new Date(),
@@ -155,6 +214,9 @@ export async function updatePricingConfig(
         linearQuantityStep: input.linear.quantityStep,
         linearPercentPerStep: input.linear.percentPerStep,
         linearMaxPercent: input.linear.maxPercent,
+        orderValueLadder: input.orderValue.ladder,
+        orderValueCaps: input.orderValue.caps,
+        orderValueDefaultMaxPercent: input.orderValue.defaultMaxPercent,
         minimumOrderQuantity: input.minimumOrderQuantity,
         updatedBy,
         updatedAt: new Date(),

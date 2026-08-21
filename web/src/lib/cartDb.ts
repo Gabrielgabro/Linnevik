@@ -4,7 +4,7 @@ import { cartItems, carts, productImages, products, productVariants } from '@/li
 import { assertOrderable } from '@/lib/cartRules';
 import { CURRENT_PRICING_VERSION, OWNED_CART_TTL_DAYS } from '@/lib/commerceConfig';
 import { getPricingConfig } from '@/lib/pricing';
-import { priceLine } from '@/lib/pricingRules';
+import { priceOrder } from '@/lib/pricingRules';
 import { landedCostMinorForSku } from '@/lib/landedCostLookup';
 import { vatOn, vatPercent } from '@/lib/vat';
 
@@ -114,15 +114,22 @@ export async function getOwnedCart(id: string): Promise<OwnedCart | null> {
     .orderBy(asc(cartItems.createdAt));
 
   const pricingConfigForCart = await getPricingConfig();
-  const lines = rows.map(row => {
-    // Samma anrop som kassan gör, med samma kontext. Korgens summa och det
-    // Stripe debiterar får aldrig kunna skilja sig åt.
-    const unitAmountMinor = priceLine(pricingConfigForCart, {
+  // Samma anrop som kassan gör, med samma kontext. Korgens summa och det
+  // Stripe debiterar får aldrig kunna skilja sig åt. Hela korgen prissätts i
+  // ett svep, eftersom `orderValue` mäter trappan på ordervärdet och därför
+  // inte går att räkna rad för rad.
+  const priced = priceOrder(
+    pricingConfigForCart,
+    rows.map(row => ({
+      sku: row.sku,
       listPriceMinor: row.listPriceMinor,
       quantity: row.quantity,
       isMto: row.tags?.includes('MTO') ?? false,
       landedCostMinor: landedCostMinorForSku(row.sku),
-    }).unitAmountMinor;
+    }))
+  );
+  const lines = rows.map((row, index) => {
+    const unitAmountMinor = priced.lines[index].unitAmountMinor;
     return {
       id: row.id,
       variantId: row.variantId,

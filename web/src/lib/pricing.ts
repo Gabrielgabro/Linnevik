@@ -16,7 +16,7 @@
 import { inArray, or } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { productVariants } from '@/lib/db/schema';
-import { priceLine, type PricingConfig } from '@/lib/pricingRules';
+import { priceLine, priceOrder, type PricingConfig } from '@/lib/pricingRules';
 import { getStoredPricingConfig } from '@/lib/pricingConfigDb';
 import { landedCostMinorForSku } from '@/lib/landedCostLookup';
 
@@ -148,23 +148,35 @@ export async function priceLines(
     .where(inArray(products.id, [...new Set(rows.map(row => row.productId))]));
   const productById = new Map(productRows.map(row => [row.id, row]));
 
-  return requests.map(request => {
+  // Hela ordern prissätts i ett svep. `orderValue` mäter trappan på summan av
+  // raderna och kan därför inte räknas rad för rad — och korgen (cartDb.ts)
+  // gör exakt samma anrop, så det Stripe debiterar är det korgen visade.
+  const priced = priceOrder(
+    pricingConfigForRequest,
+    requests.map(request => {
+      const variant = resolve(request)!;
+      const product = productById.get(variant.productId);
+      if (request.quantity < 1) throw new Error(`Quantity must be at least 1 for ${variant.sku}.`);
+      return {
+        sku: variant.sku,
+        listPriceMinor: variant.priceMinor,
+        quantity: request.quantity,
+        isMto: product?.tags?.includes('MTO') ?? false,
+        landedCostMinor: landedCostMinorForSku(variant.sku),
+      };
+    })
+  );
+
+  return requests.map((request, index) => {
     const variant = resolve(request)!;
     const product = productById.get(variant.productId);
-    if (request.quantity < 1) throw new Error(`Quantity must be at least 1 for ${variant.sku}.`);
-    const isMto = product?.tags?.includes('MTO') ?? false;
 
     return {
       variantId: variant.id,
       sku: variant.sku,
       title: product ? `${product.title} (${variant.sku})` : variant.sku,
       quantity: request.quantity,
-      unitAmountMinor: priceLine(pricingConfigForRequest, {
-        listPriceMinor: variant.priceMinor,
-        quantity: request.quantity,
-        isMto,
-        landedCostMinor: landedCostMinorForSku(variant.sku),
-      }).unitAmountMinor,
+      unitAmountMinor: priced.lines[index].unitAmountMinor,
       currency: variant.currency,
       stripeProductId: product?.stripeProductId ?? null,
     };
