@@ -18,7 +18,7 @@
  */
 
 /**
- * Strategierna admin ska kunna välja mellan på prislogiksidan.
+ * Strategierna admin ska kunna välja mellan på mängdrabattsidan.
  *
  * - `progressive` — trappor: rabatten hoppar upp vid bestämda antal.
  * - `linear`      — rabatten växer jämnt med antalet, upp till ett tak.

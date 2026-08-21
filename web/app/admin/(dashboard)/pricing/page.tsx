@@ -30,10 +30,12 @@ export default async function PricingPage() {
     <>
       <PageHeader
         kicker="Endast MTO-produkter"
-        title="Prislogik"
+        title="Mängdrabatt"
         accent={accentFor('/admin/pricing')}
-        description="Mängdrabatten som visas på produktsidan och som kassan debiterar. Gäller
-          alltid bara MTO-taggade produkter — lagerförda varor påverkas aldrig härifrån."
+        description="Underlag för att bestämma hur rabatten ska trappas, och inställningen kassan
+          sedan debiterar efter. Gäller alltid bara MTO-taggade produkter — lagerförda varor
+          påverkas aldrig härifrån. Listpriserna i katalogen är ännu platshållare, så marginalerna
+          i modellen är riktmärken tills priserna är satta."
       />
       <PricingConfigPanel initial={row} modelProducts={modelProducts} />
     </>

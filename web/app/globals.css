@@ -481,6 +481,12 @@ pre {
   --viz-s3: #1baf7a;
   --viz-s4: #59a14f;
 
+  /* Medlemsserier: en färg per person i prisjämförelsen. Medvetet utanför
+     s1–s4 så att ett medlemsbud aldrig kan förväxlas med marknadsdata. */
+  --viz-m1: #7b5ea7;
+  --viz-m2: #b04a7e;
+  --viz-m3: #8a5a3c;
+
   /* Varumärkeskrom: sidomenyn, primärknappar, aktiv markering. */
   --adm-brand: #0b3d2e;
   --adm-brand-hover: #145c45;
@@ -519,6 +525,10 @@ pre {
     --viz-s2: #d95926;
     --viz-s3: #199e70;
     --viz-s4: #6fb765;
+
+    --viz-m1: #a184cc;
+    --viz-m2: #d97ba9;
+    --viz-m3: #c08a63;
 
     --adm-brand: #0e2c22;
     --adm-brand-hover: #174736;

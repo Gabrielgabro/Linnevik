@@ -20,6 +20,7 @@ export type AdminAction =
   | 'admin.login_failed'
   | 'admin.logout'
   | 'suggestion.saved'
+  | 'suggestion.removed'
   | 'pricewatch.run'
   | 'client.created'
   | 'client.updated'
@@ -54,6 +55,7 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'admin.login_failed': 'Misslyckad inloggning',
   'admin.logout': 'Loggade ut',
   'suggestion.saved': 'Sparade prisförslag',
+  'suggestion.removed': 'Tog bort prisförslag',
   'pricewatch.run': 'Prisbot körde',
   'client.created': 'La till kund',
   'client.updated': 'Ändrade kund',
@@ -80,7 +82,7 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'shipping.created': 'La till fraktregel',
   'shipping.updated': 'Ändrade fraktregel',
   'sample_request.updated': 'Hanterade provförfrågan',
-  'pricing_config.updated': 'Ändrade prislogiken',
+  'pricing_config.updated': 'Ändrade mängdrabatten',
 };
 
 export function actionLabel(action: string): string {

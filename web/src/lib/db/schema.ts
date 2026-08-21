@@ -16,13 +16,23 @@ import {
 } from 'drizzle-orm/pg-core';
 
 // En sparad uppsättning priser: vem som satte dem, för vilka produkter, och när.
-export const priceSuggestions = pgTable('price_suggestions', {
-  id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
-  user: text('user').notNull(),
-  label: text('label'),
-  prices: jsonb('prices').$type<Record<string, number>>().notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+// En rad per person — sparning skriver över den egna raden i stället för att
+// lägga till en ny, så att jämförelsen alltid visar allas aktuella bud.
+// Historiken ligger i `admin_activity` under 'suggestion.saved'.
+export const priceSuggestions = pgTable(
+  'price_suggestions',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    user: text('user').notNull(),
+    label: text('label'),
+    prices: jsonb('prices').$type<Record<string, number>>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [uniqueIndex('price_suggestions_user_key').on(table.user)]
+);
+
+export type PriceSuggestionRow = typeof priceSuggestions.$inferSelect;
 
 // Spår av vad som händer i adminvyn: inloggningar, sparade prisförslag,
 // botkörningar. `actor` är personens namn när någon är inloggad, annars

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Prislogiksidan i admin. Tre strategier att välja mellan — trappstegsrabatt
+ * Mängdrabattsidan i admin. Tre strategier att välja mellan — trappstegsrabatt
  * (progressive), en jämn kurva (linear) och rabatt på ordervärde (orderValue).
  * Ingen marginalbaserad strategi här: den kräver landad kostnad per rad i
  * prissättningen och skulle stänga av produktsidans förhandsvisning (se
@@ -233,7 +233,7 @@ export default function PricingConfigPanel({
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={saving}>
-          {saving ? 'Sparar…' : 'Spara prislogik'}
+          {saving ? 'Sparar…' : 'Spara mängdrabatt'}
         </Button>
         {saved && <span className="text-[13px] text-ink-2">Sparat.</span>}
       </div>

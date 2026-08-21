@@ -1,5 +1,5 @@
 /**
- * Underlaget prislogiksidan modellerar `orderValue` mot.
+ * Underlaget mängdrabattsidan modellerar `orderValue` mot.
  *
  * Tre källor vägs ihop per produkt:
  *   - landad kostnad ur `data/landedCost.ts` (sändning HTL26-01),

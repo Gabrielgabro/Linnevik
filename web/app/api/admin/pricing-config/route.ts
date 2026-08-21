@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     const status = error instanceof PricingConfigInputError ? 400 : 500;
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Kunde inte spara prislogiken.' },
+      { error: error instanceof Error ? error.message : 'Kunde inte spara mängdrabatten.' },
       { status }
     );
   }

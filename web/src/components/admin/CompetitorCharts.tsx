@@ -22,7 +22,15 @@ type StoredSuggestion = {
   label: string | null;
   prices: Record<string, number>;
   createdAt: string;
+  updatedAt: string;
 };
+
+/**
+ * En färg per person. Tilldelas efter namnordning och inte efter inloggad
+ * användare, så att Johans stapel har samma färg oavsett vem som tittar.
+ */
+const MEMBER_VARS = ['--viz-m1', '--viz-m2', '--viz-m3'] as const;
+const memberVar = (index: number) => MEMBER_VARS[index % MEMBER_VARS.length];
 
 const SERIES = {
   landed: { label: 'Landad kostnad', varName: '--viz-s3' },
@@ -30,6 +38,9 @@ const SERIES = {
   b2b: { label: 'B2B-konkurrent', varName: '--viz-s2' },
   b2c: { label: 'B2C-referens', varName: '--viz-ink-3' },
 } as const;
+
+const fmtWhen = (iso: string) =>
+  new Date(iso).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
 
 const titleOf = (skuPrefix: string) =>
   landedProducts.find(p => p.skuPrefix === skuPrefix)?.title ?? skuPrefix;
@@ -98,7 +109,28 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
   const [label, setLabel] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [compareId, setCompareId] = useState<number | null>(null);
+  const [hiddenMembers, setHiddenMembers] = useState<string[]>([]);
+  const [removing, setRemoving] = useState(false);
+
+  /**
+   * Medlemmarna i visningsordning, var och en med sin färg. Ett förslag per
+   * person — det är tabellens kolumner och staplarnas rader.
+   */
+  const members = suggestions
+    .slice()
+    .sort((a, b) => a.user.localeCompare(b.user, 'sv'))
+    .map((suggestion, index) => ({
+      ...suggestion,
+      varName: memberVar(index),
+      hidden: hiddenMembers.includes(suggestion.user),
+    }));
+  const visibleMembers = members.filter(m => !m.hidden);
+  const mine = members.find(m => m.user === user) ?? null;
+
+  const toggleMember = (name: string) =>
+    setHiddenMembers(prev =>
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    );
 
   const priceOf = (p: CompetitorProduct) => prices[p.skuPrefix] ?? p.suggestedSek;
   const setPrice = (p: CompetitorProduct, next: number) =>
@@ -116,7 +148,6 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
 
   useEffect(() => {
     loadSuggestions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const saveSuggestion = async () => {
@@ -138,7 +169,19 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
     setSaving(false);
   };
 
-  const compared = suggestions.find(s => s.id === compareId) ?? null;
+  const removeSuggestion = async () => {
+    if (!mine) return;
+    setRemoving(true);
+    setSaveError(null);
+    const response = await fetch('/api/admin/suggestions', { method: 'DELETE' });
+    if (response.ok) {
+      await loadSuggestions();
+    } else {
+      const body = await response.json().catch(() => ({}));
+      setSaveError(body.error ?? 'Kunde inte ta bort förslaget.');
+    }
+    setRemoving(false);
+  };
 
   const bar = (b: BarSpec, max: number, suffix: string) => (
     <div
@@ -256,7 +299,15 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
         }
       >
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <Legend items={[SERIES.landed, SERIES.suggested, SERIES.b2b, SERIES.b2c]} />
+          <Legend
+            items={[
+              SERIES.landed,
+              SERIES.suggested,
+              ...visibleMembers.map(m => ({ label: `${m.user}s förslag`, varName: m.varName })),
+              SERIES.b2b,
+              SERIES.b2c,
+            ]}
+          />
           <button
             type="button"
             disabled={!anyEdited}
@@ -276,18 +327,15 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
           label={label}
           setLabel={setLabel}
           saving={saving}
+          removing={removing}
           saveError={saveError}
           onSave={saveSuggestion}
-          suggestions={suggestions}
+          onRemove={removeSuggestion}
+          members={members}
+          mine={mine}
           suggestionsLoaded={suggestionsLoaded}
-          compareId={compareId}
-          setCompareId={setCompareId}
-          compared={compared}
-          currentPrices={prices}
-          onUseCompared={() => {
-            if (!compared) return;
-            setPrices(prev => ({ ...prev, ...compared.prices }));
-          }}
+          onToggleMember={toggleMember}
+          onUseMember={m => setPrices(prev => ({ ...prev, ...m.prices }))}
         />
 
         <div className="flex flex-col gap-6">
@@ -336,11 +384,45 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
                   onReset={() => setPrice(p, p.suggestedSek)}
                 />
 
+                {visibleMembers.map(m => {
+                  const theirs = m.prices[p.skuPrefix];
+                  if (theirs === undefined) return null;
+                  const current = priceOf(p);
+                  const diff = theirs - current;
+                  return bar(
+                    {
+                      id: `${p.skuPrefix}-member-${m.user}`,
+                      label: `${m.user}s förslag`,
+                      value: theirs,
+                      varName: m.varName,
+                      tipTitle: `${m.user} — ${titleOf(p.skuPrefix)}`,
+                      tipRows: [
+                        `${sek(theirs, 0)} SEK/st`,
+                        `${sek(marginPct(p, theirs), 1)} % bruttomarginal`,
+                        diff === 0
+                          ? 'Samma som priset du satt nu'
+                          : `${diff > 0 ? '+' : ''}${sek(diff, 0)} kr mot priset du satt nu`,
+                      ],
+                      tipNote: m.label
+                        ? `${m.label} · sparat ${fmtWhen(m.updatedAt ?? m.createdAt)}`
+                        : `Sparat ${fmtWhen(m.updatedAt ?? m.createdAt)}`,
+                    },
+                    max,
+                    ' kr'
+                  );
+                })}
+
                 {staticBars.slice(1).map(b => bar(b, max, ' kr'))}
               </div>
             );
           })}
         </div>
+
+        <MemberMatrix
+          members={visibleMembers}
+          currentPrices={prices}
+          priceOf={priceOf}
+        />
       </Card>
 
       <Card
@@ -733,13 +815,175 @@ function PriceSlider({
   );
 }
 
-const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+type Member = StoredSuggestion & { varName: string; hidden: boolean };
 
 /**
- * Spara den egna prisdragningen som ett namngivet förslag, och jämför mot
- * andras sparade förslag. Personen loggar in som sig själv (adminvyns
- * användarval), så vem som satte vilket pris kräver ingen extra inmatning.
+ * Alla medlemmars bud sida vid sida, en kolumn per person.
+ *
+ * Den här tabellen är poängen med att flera sätter pris: spridningen mellan
+ * lägsta och högsta bud säger var vi är oense, och det är de raderna som
+ * behöver diskuteras. Rader där alla ligger lika behöver ingen tid alls.
+ */
+function MemberMatrix({
+  members,
+  currentPrices,
+  priceOf,
+}: {
+  members: Member[];
+  currentPrices: Record<string, number>;
+  priceOf: (p: CompetitorProduct) => number;
+}) {
+  if (!members.length) return null;
+
+  const cell = 'whitespace-nowrap border-b px-2.5 py-2 text-right font-mono tabular-nums';
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span
+        className="font-mono text-[10.5px] uppercase tracking-[0.1em]"
+        style={{ color: 'var(--viz-ink-3)' }}
+      >
+        Vad var och en föreslår · SEK per styck exkl. moms
+      </span>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                className="whitespace-nowrap border-b px-2.5 py-2 text-left font-mono text-[10px] font-normal uppercase tracking-[0.06em]"
+                style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+              >
+                Produkt
+              </th>
+              <th
+                scope="col"
+                className="whitespace-nowrap border-b px-2.5 py-2 text-right font-mono text-[10px] font-normal uppercase tracking-[0.06em]"
+                style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+                title="Landad kostnad per styck."
+              >
+                Landad
+              </th>
+              {members.map(m => (
+                <th
+                  key={m.user}
+                  scope="col"
+                  className="whitespace-nowrap border-b px-2.5 py-2 text-right font-mono text-[10px] font-normal uppercase tracking-[0.06em]"
+                  style={{ borderColor: 'var(--viz-rule)', color: `var(${m.varName})` }}
+                >
+                  {m.user}
+                </th>
+              ))}
+              <th
+                scope="col"
+                className="whitespace-nowrap border-b px-2.5 py-2 text-right font-mono text-[10px] font-normal uppercase tracking-[0.06em]"
+                style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+                title="Priset du satt med reglaget just nu."
+              >
+                Ditt reglage
+              </th>
+              <th
+                scope="col"
+                className="whitespace-nowrap border-b px-2.5 py-2 text-right font-mono text-[10px] font-normal uppercase tracking-[0.06em]"
+                style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+                title="Skillnaden mellan högsta och lägsta medlemsbud."
+              >
+                Spridning
+              </th>
+            </tr>
+          </thead>
+          <tbody style={{ color: 'var(--viz-ink)' }}>
+            {competitorProducts.map(p => {
+              const values = members
+                .map(m => m.prices[p.skuPrefix])
+                .filter((v): v is number => typeof v === 'number');
+              const spread = values.length > 1 ? Math.max(...values) - Math.min(...values) : 0;
+              const lowest = values.length ? Math.min(...values) : null;
+              const highest = values.length ? Math.max(...values) : null;
+              const landed = landedOf(p.skuPrefix);
+
+              return (
+                <tr key={p.skuPrefix}>
+                  <th
+                    scope="row"
+                    className="whitespace-nowrap border-b px-2.5 py-2 text-left font-normal"
+                    style={{ borderColor: 'var(--viz-rule)' }}
+                  >
+                    {titleOf(p.skuPrefix)}
+                  </th>
+                  <td
+                    className={cell}
+                    style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+                  >
+                    {sek(landed, 0)}
+                  </td>
+                  {members.map(m => {
+                    const value = m.prices[p.skuPrefix];
+                    if (value === undefined) {
+                      return (
+                        <td
+                          key={m.user}
+                          className={cell}
+                          style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+                        >
+                          —
+                        </td>
+                      );
+                    }
+                    // Extremerna märks ut bara när någon faktiskt skiljer sig.
+                    const isLow = spread > 0 && value === lowest;
+                    const isHigh = spread > 0 && value === highest;
+                    return (
+                      <td
+                        key={m.user}
+                        className={cell}
+                        style={{
+                          borderColor: 'var(--viz-rule)',
+                          color: value < landed ? 'var(--viz-flag)' : 'var(--viz-ink)',
+                          fontWeight: isLow || isHigh ? 600 : 400,
+                        }}
+                        title={
+                          value < landed
+                            ? `Under landad kostnad (${sek(landed, 0)} kr)`
+                            : `${sek(marginPct(p, value), 1)} % bruttomarginal${
+                                isLow ? ' · lägsta budet' : isHigh ? ' · högsta budet' : ''
+                              }`
+                        }
+                      >
+                        {sek(value, 0)}
+                        {isLow && spread > 0 && <span aria-hidden> ↓</span>}
+                        {isHigh && spread > 0 && <span aria-hidden> ↑</span>}
+                      </td>
+                    );
+                  })}
+                  <td className={cell} style={{ borderColor: 'var(--viz-rule)' }}>
+                    {sek(priceOf(p) ?? currentPrices[p.skuPrefix] ?? p.suggestedSek, 0)}
+                  </td>
+                  <td
+                    className={cell}
+                    style={{
+                      borderColor: 'var(--viz-rule)',
+                      color: spread === 0 ? 'var(--viz-ink-3)' : 'var(--viz-s2)',
+                    }}
+                  >
+                    {spread === 0 ? 'eniga' : `${sek(spread, 0)} kr`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Spara den egna prisdragningen, och se allas bud bredvid varandra.
+ *
+ * Var och en har exakt ett levande förslag. Att spara igen skriver över sitt
+ * eget — det finns inget "mitt förslag från i tisdags" att förväxla med det
+ * aktuella. Historiken ligger i aktivitetsloggen.
  */
 function SuggestionPanel({
   user,
@@ -747,31 +991,34 @@ function SuggestionPanel({
   label,
   setLabel,
   saving,
+  removing,
   saveError,
   onSave,
-  suggestions,
+  onRemove,
+  members,
+  mine,
   suggestionsLoaded,
-  compareId,
-  setCompareId,
-  compared,
-  currentPrices,
-  onUseCompared,
+  onToggleMember,
+  onUseMember,
 }: {
   user: AdminUser | null;
   anyEdited: boolean;
   label: string;
   setLabel: (v: string) => void;
   saving: boolean;
+  removing: boolean;
   saveError: string | null;
   onSave: () => void;
-  suggestions: StoredSuggestion[];
+  onRemove: () => void;
+  members: Member[];
+  mine: Member | null;
   suggestionsLoaded: boolean;
-  compareId: number | null;
-  setCompareId: (id: number | null) => void;
-  compared: StoredSuggestion | null;
-  currentPrices: Record<string, number>;
-  onUseCompared: () => void;
+  onToggleMember: (name: string) => void;
+  onUseMember: (m: Member) => void;
 }) {
+  const chip =
+    'rounded-sm border px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.06em] transition-opacity disabled:opacity-35';
+
   return (
     <div
       className="flex flex-col gap-3 rounded-[3px] border px-4 py-3.5"
@@ -782,7 +1029,7 @@ function SuggestionPanel({
           type="text"
           value={label}
           onChange={e => setLabel(e.target.value)}
-          placeholder={user ? `${user}s förslag …` : 'Förslag …'}
+          placeholder={mine?.label ?? (user ? `${user}s förslag …` : 'Förslag …')}
           maxLength={120}
           className="min-w-[160px] flex-1 rounded-[3px] border px-2.5 py-1.5 text-[13px]"
           style={{ background: 'var(--viz-surface)', borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
@@ -791,115 +1038,95 @@ function SuggestionPanel({
           type="button"
           disabled={!user || !anyEdited || saving}
           onClick={onSave}
-          className="rounded-sm border px-2.5 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.06em] transition-opacity disabled:opacity-35"
+          className={chip}
           style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
           title={
             !user
               ? 'Logga in för att spara ett förslag.'
               : !anyEdited
                 ? 'Dra i minst ett pris innan du sparar.'
-                : undefined
+                : mine
+                  ? 'Skriver över ditt nuvarande förslag.'
+                  : undefined
           }
         >
-          {saving ? 'Sparar…' : `Spara som ${user ?? '…'}s förslag`}
+          {saving ? 'Sparar…' : mine ? 'Uppdatera mitt förslag' : `Spara som ${user ?? '…'}s förslag`}
         </button>
+        {mine && (
+          <button
+            type="button"
+            disabled={removing}
+            onClick={onRemove}
+            className={chip}
+            style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-flag)' }}
+            title="Ta bort mitt förslag helt."
+          >
+            {removing ? 'Tar bort…' : 'Ta bort mitt'}
+          </button>
+        )}
       </div>
+
       {saveError && (
         <p role="alert" className="text-[12.5px]" style={{ color: 'var(--viz-flag)' }}>
           {saveError}
         </p>
       )}
 
-      {suggestionsLoaded && suggestions.length > 0 && (
-        <div className="flex flex-col gap-2.5 border-t pt-3" style={{ borderColor: 'var(--viz-grid)' }}>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span
-              className="font-mono text-[10.5px] uppercase tracking-[0.1em]"
-              style={{ color: 'var(--viz-ink-3)' }}
-            >
-              Sparade förslag ({suggestions.length})
-            </span>
-            <select
-              value={compareId ?? ''}
-              onChange={e => setCompareId(e.target.value ? Number(e.target.value) : null)}
-              className="rounded-[3px] border px-2 py-1 text-[12.5px]"
-              style={{ background: 'var(--viz-surface)', borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
-            >
-              <option value="">Jämför med …</option>
-              {suggestions.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.user} · {s.label ?? 'utan namn'} · {fmtTime(s.createdAt)}
-                </option>
-              ))}
-            </select>
-            {compared && (
-              <button
-                type="button"
-                onClick={onUseCompared}
-                className="rounded-sm border px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.06em]"
-                style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
+      {suggestionsLoaded && members.length > 0 && (
+        <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--viz-grid)' }}>
+          <span
+            className="font-mono text-[10.5px] uppercase tracking-[0.1em]"
+            style={{ color: 'var(--viz-ink-3)' }}
+          >
+            Levande förslag ({members.length})
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {members.map(m => (
+              <span
+                key={m.user}
+                className="inline-flex items-center gap-2 rounded-[3px] border px-2.5 py-1.5 text-[12.5px]"
+                style={{
+                  borderColor: 'var(--viz-rule)',
+                  background: 'var(--viz-surface)',
+                  opacity: m.hidden ? 0.5 : 1,
+                }}
               >
-                Använd dessa priser
-              </button>
-            )}
+                <button
+                  type="button"
+                  onClick={() => onToggleMember(m.user)}
+                  aria-pressed={!m.hidden}
+                  title={m.hidden ? `Visa ${m.user}s förslag` : `Dölj ${m.user}s förslag`}
+                  className="inline-flex items-center gap-1.5"
+                  style={{ color: 'var(--viz-ink)' }}
+                >
+                  <span
+                    aria-hidden
+                    className="inline-block h-[9px] w-[9px] shrink-0 rounded-sm"
+                    style={{
+                      background: m.hidden ? 'transparent' : `var(${m.varName})`,
+                      boxShadow: m.hidden ? `inset 0 0 0 1px var(${m.varName})` : undefined,
+                    }}
+                  />
+                  <b className="font-semibold">{m.user}</b>
+                  {m.user === user && (
+                    <span style={{ color: 'var(--viz-ink-3)' }}>(du)</span>
+                  )}
+                </button>
+                <span style={{ color: 'var(--viz-ink-3)' }}>
+                  {fmtWhen(m.updatedAt ?? m.createdAt)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onUseMember(m)}
+                  className="rounded-sm border px-1.5 py-px font-mono text-[9.5px] uppercase tracking-[0.06em]"
+                  style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-2)' }}
+                  title={`Läs in ${m.user}s priser i reglagen`}
+                >
+                  Använd
+                </button>
+              </span>
+            ))}
           </div>
-
-          {compared && (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px] border-collapse text-[12.5px]">
-                <thead>
-                  <tr>
-                    {['Produkt', `${compared.user}`, 'Aktuellt', 'Skillnad'].map((h, i) => (
-                      <th
-                        key={h}
-                        className={`whitespace-nowrap border-b px-2 py-1.5 font-mono text-[10px] font-normal uppercase tracking-[0.06em] ${i === 0 ? 'text-left' : 'text-right'}`}
-                        style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody style={{ color: 'var(--viz-ink)' }}>
-                  {competitorProducts.map(p => {
-                    const theirs = compared.prices[p.skuPrefix];
-                    if (theirs === undefined) return null;
-                    const current = currentPrices[p.skuPrefix] ?? p.suggestedSek;
-                    const diff = current - theirs;
-                    return (
-                      <tr key={p.skuPrefix}>
-                        <td className="border-b px-2 py-1.5" style={{ borderColor: 'var(--viz-rule)' }}>
-                          {titleOf(p.skuPrefix)}
-                        </td>
-                        <td
-                          className="whitespace-nowrap border-b px-2 py-1.5 text-right font-mono tabular-nums"
-                          style={{ borderColor: 'var(--viz-rule)' }}
-                        >
-                          {sek(theirs, 0)} kr
-                        </td>
-                        <td
-                          className="whitespace-nowrap border-b px-2 py-1.5 text-right font-mono tabular-nums"
-                          style={{ borderColor: 'var(--viz-rule)' }}
-                        >
-                          {sek(current, 0)} kr
-                        </td>
-                        <td
-                          className="whitespace-nowrap border-b px-2 py-1.5 text-right font-mono tabular-nums"
-                          style={{
-                            borderColor: 'var(--viz-rule)',
-                            color: diff === 0 ? 'var(--viz-ink-3)' : diff > 0 ? 'var(--viz-s1)' : 'var(--viz-flag)',
-                          }}
-                        >
-                          {diff > 0 ? '+' : ''}
-                          {sek(diff, 0)} kr
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       )}
     </div>

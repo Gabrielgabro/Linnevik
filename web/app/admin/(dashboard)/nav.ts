@@ -31,7 +31,12 @@ export type NavGroup = {
 
 export const NAV: NavGroup[] = [
   {
-    items: [{ href: '/admin', label: 'Prisbild', icon: LineChart, accent: 'var(--adm-info)' }],
+    // Mängdrabatten hör ihop med prisbilden, inte med försäljningen: båda är
+    // underlag för att bestämma pris, inte något som körs i den dagliga driften.
+    items: [
+      { href: '/admin', label: 'Prisbild', icon: LineChart, accent: 'var(--adm-info)' },
+      { href: '/admin/pricing', label: 'Mängdrabatt', icon: Percent, accent: 'var(--viz-s1)' },
+    ],
   },
   {
     label: 'Katalog',
@@ -56,7 +61,6 @@ export const NAV: NavGroup[] = [
         accent: 'var(--viz-s3)',
       },
       { href: '/admin/commerce', label: 'Handel', icon: Settings2, accent: 'var(--adm-warn)' },
-      { href: '/admin/pricing', label: 'Prislogik', icon: Percent, accent: 'var(--viz-s1)' },
     ],
   },
   {

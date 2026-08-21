@@ -400,17 +400,17 @@ export default function OrderValuePanel({
           <p
             className="rounded-ctl border px-3.5 py-3 text-[13px] leading-[1.6]"
             style={{
-              borderColor: 'color-mix(in srgb, var(--adm-danger) 40%, transparent)',
-              background: 'color-mix(in srgb, var(--adm-danger) 9%, transparent)',
-              color: 'var(--adm-danger)',
+              borderColor: 'color-mix(in srgb, var(--adm-warn) 40%, transparent)',
+              background: 'color-mix(in srgb, var(--adm-warn) 9%, transparent)',
+              color: 'var(--adm-warn)',
             }}
           >
             <b className="font-semibold">
-              {products.filter(product => product.belowCost).length} produkter har listpris under
-              landad kostnad
+              {products.filter(product => product.belowCost).length} av {products.length} produkter
+              har katalogpris under landad kostnad
             </b>{' '}
-            — de går med förlust redan utan rabatt, och ingen trappa här kan rädda det. Sätt
-            listpriserna först; rabattlogiken är meningslös ovanpå ett pris som redan är för lågt.
+            — katalogen står ännu på platshållarpriser. Marginalerna nedan är alltså riktmärken för
+            hur trappan beter sig, inte utfall. De blir skarpa först när listpriserna är satta.
           </p>
         )}
 
