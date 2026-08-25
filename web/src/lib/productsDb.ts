@@ -270,7 +270,7 @@ export async function updateProduct(id: number, patch: ProductInput): Promise<Pr
  */
 export type ProductRemoval =
   | { removable: true; variantCount: number; imageCount: number }
-  | { removable: false; reason: 'sold' | 'in-cart'; message: string };
+  | { removable: false; reason: 'sold'; message: string };
 
 export async function productRemoval(id: number): Promise<ProductRemoval> {
   const db = getDb();
@@ -287,24 +287,6 @@ export async function productRemoval(id: number): Promise<ProductRemoval> {
       message:
         'Produkten finns på en eller flera ordrar och kan inte raderas — ordern ska gå att läsa i ' +
         'efterhand. Arkivera den i stället: då försvinner den från sajten men historiken är kvar.',
-    };
-  }
-
-  // En variant som ligger i någons korg är `restrict` mot cart_items. Att
-  // radera den under kunden hade blivit ett obegripligt 500 för oss och en
-  // tom korg för dem.
-  const [{ inCart }] = await db
-    .select({ inCart: sql<number>`count(${cartItems.id})::int` })
-    .from(cartItems)
-    .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
-    .where(eq(productVariants.productId, id));
-  if (inCart > 0) {
-    return {
-      removable: false,
-      reason: 'in-cart',
-      message:
-        'Produkten ligger i en aktiv kundkorg och kan inte raderas just nu. Arkivera den i ' +
-        'stället, eller vänta tills korgen har löpt ut.',
     };
   }
 
@@ -327,6 +309,13 @@ export async function productRemoval(id: number): Promise<ProductRemoval> {
  *
  * Kastar hellre än att låta en FK göra det — `productRemoval` säger vad som
  * står i vägen på svenska, medan felet från databasen inte säger något alls.
+ *
+ * En variant som ligger i någons korg är `restrict` mot cart_items, så den
+ * raden måste bort innan varianten kan raderas. Att göra det tyst är ett
+ * medvetet val: `productRemoval` blockerar redan på `sold`, så en korg som
+ * faktiskt hunnit bli en order stoppas där — det som är kvar här är bara
+ * korgar som aldrig gick till kassan. Varje berörd korgs `version` höjs så
+ * att kundens klient (som pollar på version) upptäcker att raden försvann.
  */
 export async function deleteProduct(id: number): Promise<{ imageUrls: string[] }> {
   const blocked = await productRemoval(id);
@@ -337,6 +326,16 @@ export async function deleteProduct(id: number): Promise<{ imageUrls: string[] }
     .select({ url: productImages.url })
     .from(productImages)
     .where(eq(productImages.productId, id));
+
+  await db.execute(sql`
+    with removed as (
+      delete from cart_items
+      where variant_id in (select id from product_variants where product_id = ${id})
+      returning cart_id
+    )
+    update carts set version = version + 1, updated_at = now()
+    where id in (select distinct cart_id from removed)
+  `);
 
   await db.delete(productVariants).where(eq(productVariants.productId, id));
   await db.delete(products).where(eq(products.id, id));
