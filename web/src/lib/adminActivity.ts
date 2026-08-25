@@ -22,6 +22,7 @@ export type AdminAction =
   | 'admin.logout'
   | 'suggestion.saved'
   | 'suggestion.removed'
+  | 'suggestion.applied'
   | 'pricewatch.run'
   | 'client.created'
   | 'client.updated'
@@ -61,6 +62,7 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'admin.logout': 'Loggade ut',
   'suggestion.saved': 'Sparade prisförslag',
   'suggestion.removed': 'Tog bort prisförslag',
+  'suggestion.applied': 'Satte pris från prisförslag',
   'pricewatch.run': 'Prisbot körde',
   'client.created': 'La till kund',
   'client.updated': 'Ändrade kund',

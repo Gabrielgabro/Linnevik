@@ -45,6 +45,9 @@ const fmtWhen = (iso: string) =>
 const titleOf = (skuPrefix: string) =>
   landedProducts.find(p => p.skuPrefix === skuPrefix)?.title ?? skuPrefix;
 
+const handleOf = (skuPrefix: string) =>
+  landedProducts.find(p => p.skuPrefix === skuPrefix)?.handle ?? null;
+
 const landedOf = (skuPrefix: string) => {
   const p = landedProducts.find(x => x.skuPrefix === skuPrefix);
   return p ? landedPerPcs(p) : 0;
@@ -111,6 +114,8 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hiddenMembers, setHiddenMembers] = useState<string[]>([]);
   const [removing, setRemoving] = useState(false);
+  const [applying, setApplying] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   /**
    * Medlemmarna i visningsordning, var och en med sin färg. Ett förslag per
@@ -167,6 +172,44 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
       setSaveError(body.error ?? 'Kunde inte spara förslaget.');
     }
     setSaving(false);
+  };
+
+  /**
+   * Skriver ett förslag som faktiskt pris i katalogen. Till skillnad från
+   * reglaget och "Använd" (som bara flyttar siffror i den här vyn) går detta
+   * anrop mot /api/admin/suggestions/apply och ändrar priset kunden ser.
+   */
+  const applySuggestedPrice = async (p: CompetitorProduct, memberUser: string, priceSek: number) => {
+    const handle = handleOf(p.skuPrefix);
+    if (!handle) {
+      setApplyError(`${titleOf(p.skuPrefix)} är inte kopplad till en produkt i katalogen.`);
+      return;
+    }
+    const ok = window.confirm(
+      `Sätt priset för ${titleOf(p.skuPrefix)} till ${sek(priceSek, 0)} kr (${memberUser}s förslag)?\n\n` +
+        'Det här ändrar priset kunden ser, på alla varianter av produkten.'
+    );
+    if (!ok) return;
+
+    const key = `${p.skuPrefix}:${memberUser}`;
+    setApplying(key);
+    setApplyError(null);
+    try {
+      const response = await fetch('/api/admin/suggestions/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle, priceSek }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setApplyError(body.error ?? `Kunde inte sätta priset för ${titleOf(p.skuPrefix)}.`);
+        return;
+      }
+      // Reglaget ska stämma med det pris som nu faktiskt gäller.
+      setPrice(p, priceSek);
+    } finally {
+      setApplying(null);
+    }
   };
 
   const removeSuggestion = async () => {
@@ -338,6 +381,12 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
           onUseMember={m => setPrices(prev => ({ ...prev, ...m.prices }))}
         />
 
+        {applyError && (
+          <p role="alert" className="text-[12.5px]" style={{ color: 'var(--viz-flag)' }}>
+            {applyError}
+          </p>
+        )}
+
         <div className="flex flex-col gap-6">
           {competitorProducts.map(p => {
             const landed = landedOf(p.skuPrefix);
@@ -389,26 +438,43 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
                   if (theirs === undefined) return null;
                   const current = priceOf(p);
                   const diff = theirs - current;
-                  return bar(
-                    {
-                      id: `${p.skuPrefix}-member-${m.user}`,
-                      label: `${m.user}s förslag`,
-                      value: theirs,
-                      varName: m.varName,
-                      tipTitle: `${m.user} — ${titleOf(p.skuPrefix)}`,
-                      tipRows: [
-                        `${sek(theirs, 0)} SEK/st`,
-                        `${sek(marginPct(p, theirs), 1)} % bruttomarginal`,
-                        diff === 0
-                          ? 'Samma som priset du satt nu'
-                          : `${diff > 0 ? '+' : ''}${sek(diff, 0)} kr mot priset du satt nu`,
-                      ],
-                      tipNote: m.label
-                        ? `${m.label} · sparat ${fmtWhen(m.updatedAt ?? m.createdAt)}`
-                        : `Sparat ${fmtWhen(m.updatedAt ?? m.createdAt)}`,
-                    },
-                    max,
-                    ' kr'
+                  const applyKey = `${p.skuPrefix}:${m.user}`;
+                  return (
+                    <div key={`${p.skuPrefix}-member-row-${m.user}`} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        {bar(
+                          {
+                            id: `${p.skuPrefix}-member-${m.user}`,
+                            label: `${m.user}s förslag`,
+                            value: theirs,
+                            varName: m.varName,
+                            tipTitle: `${m.user} — ${titleOf(p.skuPrefix)}`,
+                            tipRows: [
+                              `${sek(theirs, 0)} SEK/st`,
+                              `${sek(marginPct(p, theirs), 1)} % bruttomarginal`,
+                              diff === 0
+                                ? 'Samma som priset du satt nu'
+                                : `${diff > 0 ? '+' : ''}${sek(diff, 0)} kr mot priset du satt nu`,
+                            ],
+                            tipNote: m.label
+                              ? `${m.label} · sparat ${fmtWhen(m.updatedAt ?? m.createdAt)}`
+                              : `Sparat ${fmtWhen(m.updatedAt ?? m.createdAt)}`,
+                          },
+                          max,
+                          ' kr'
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => applySuggestedPrice(p, m.user, theirs)}
+                        disabled={applying === applyKey}
+                        className="shrink-0 rounded-sm border px-1.5 py-px font-mono text-[9.5px] uppercase tracking-[0.06em] disabled:opacity-40"
+                        style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-2)' }}
+                        title={`Sätt ${titleOf(p.skuPrefix)}s pris till ${sek(theirs, 0)} kr — ${m.user}s förslag`}
+                      >
+                        {applying === applyKey ? 'Sätter…' : 'Sätt'}
+                      </button>
+                    </div>
                   );
                 })}
 
