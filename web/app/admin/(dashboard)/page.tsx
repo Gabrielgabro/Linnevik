@@ -1,7 +1,8 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import CompetitorCharts from '@/components/admin/CompetitorCharts';
 import CostCharts from '@/components/admin/CostCharts';
-import { PageHeader, StatRow, StatTile } from '@/components/admin/ui';
+import { PageHeader, StatRow, StatTile, buttonClass } from '@/components/admin/ui';
 import { accentFor } from './nav';
 import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
 import { collectedAt } from '@/data/competitorPrices';
@@ -48,6 +49,11 @@ export default async function AdminPricingPage() {
             orsakade. Alla belopp i SEK exklusive moms; momsen på 2 800,80 SEK är avdragsgill och
             ingår inte.
           </>
+        }
+        actions={
+          <Link href="/admin/franzen" className={buttonClass('secondary', 'sm')}>
+            Prisbild – Franzén
+          </Link>
         }
       />
 

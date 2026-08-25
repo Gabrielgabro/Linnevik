@@ -36,7 +36,12 @@ export const NAV: NavGroup[] = [
     // Mängdrabatten hör ihop med prisbilden, inte med försäljningen: båda är
     // underlag för att bestämma pris, inte något som körs i den dagliga driften.
     items: [
-      { href: '/admin', label: 'Prisbild', icon: LineChart, accent: 'var(--adm-info)' },
+      {
+        href: '/admin',
+        label: 'Prisbild - egna produkter',
+        icon: LineChart,
+        accent: 'var(--adm-info)',
+      },
       { href: '/admin/pricing', label: 'Mängdrabatt', icon: Percent, accent: 'var(--viz-s1)' },
     ],
   },
