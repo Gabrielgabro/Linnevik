@@ -44,6 +44,8 @@ type FieldProps = {
   label: string;
   name: string;
   defaultValue?: string | null;
+  /** Anges `value` blir fältet styrt av React i stället för av DOM:en. */
+  value?: string;
   type?: 'text' | 'email' | 'tel' | 'url' | 'date' | 'number';
   required?: boolean;
   placeholder?: string;
@@ -60,6 +62,7 @@ export function Field({
   label,
   name,
   defaultValue,
+  value,
   type = 'text',
   required,
   placeholder,
@@ -85,7 +88,7 @@ export function Field({
         max={max}
         required={required}
         placeholder={placeholder}
-        defaultValue={defaultValue ?? ''}
+        {...(value === undefined ? { defaultValue: defaultValue ?? '' } : { value })}
         onChange={onChange}
         aria-invalid={error ? true : undefined}
         className={clsx(controlClass, error && 'border-danger')}

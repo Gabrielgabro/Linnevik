@@ -14,6 +14,7 @@ import {
   Combobox,
   ErrorNote,
   Field,
+  Label,
   Select,
   TextArea,
   formValues,
@@ -335,6 +336,90 @@ function variantName(variant: VariantWithUsage): string {
   return options.length ? options.join(' / ') : variant.sku;
 }
 
+type OptionPair = { name: string; value: string };
+
+/**
+ * Variantens namn. Namnet är paren (Storlek / 50x70) och inte en fri text,
+ * eftersom produktsidans väljare byggs av dem: alternativets namn blir
+ * rubriken och värdena blir knapparna under. Värdena sammanfogade är också
+ * det kunden ser i korgen, och det varianten listas under här.
+ *
+ * En variant utan par har inget namn och faller tillbaka på SKU:n överallt.
+ * SKU:n är ett lagernummer — den duger som nödutgång, inte som namn.
+ */
+function OptionFields({
+  options,
+  setOptions,
+  disabled,
+}: {
+  options: OptionPair[];
+  setOptions: (next: OptionPair[]) => void;
+  disabled?: boolean;
+}) {
+  const patch = (index: number, part: Partial<OptionPair>) =>
+    setOptions(options.map((option, i) => (i === index ? { ...option, ...part } : option)));
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Label>Variantnamn</Label>
+      {options.map((option, index) => (
+        <div key={index} className="flex items-end gap-3 max-[560px]:flex-wrap">
+          <Field
+            label="Alternativ"
+            name={`optionName${index}`}
+            placeholder="Storlek"
+            value={option.name}
+            onChange={event => patch(index, { name: event.target.value })}
+            className="flex-1"
+          />
+          <Field
+            label="Värde"
+            name={`optionValue${index}`}
+            placeholder="50x70"
+            value={option.value}
+            onChange={event => patch(index, { value: event.target.value })}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="quiet"
+            disabled={disabled}
+            onClick={() => setOptions(options.filter((_, i) => i !== index))}
+            className="mb-[26px]"
+            style={{ color: 'var(--viz-flag)' }}
+          >
+            Ta bort
+          </Button>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="quiet"
+        disabled={disabled}
+        onClick={() => setOptions([...options, { name: '', value: '' }])}
+        className="self-start"
+      >
+        + Lägg till alternativ
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Halvifyllda par är alltid ett misstag — servern avvisar dem, och tyst kasta
+ * bort dem hade tagit bort namnet någon just skrivit in. Helt tomma rader är
+ * däremot bara en rad man ångrade, och plockas bort.
+ */
+function cleanOptions(options: OptionPair[]): OptionPair[] | null {
+  const filled = options
+    .map(option => ({ name: option.name.trim(), value: option.value.trim() }))
+    .filter(option => option.name || option.value);
+  if (filled.some(option => !option.name || !option.value)) return null;
+  return filled;
+}
+
+const OPTION_ERROR = 'Varje alternativ behöver både namn och värde, till exempel Storlek och 50x70.';
+
 function VariantRow({
   variant,
   landedCostSek,
@@ -346,6 +431,9 @@ function VariantRow({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [options, setOptions] = useState<OptionPair[]>(
+    variant.optionValues.length ? variant.optionValues : [{ name: '', value: '' }]
+  );
 
   // Priset är inklusive moms; landad kostnad är det inte. Jämför man dem rakt
   // av ser marginalen 25 % bättre ut än den är.
@@ -363,6 +451,12 @@ function VariantRow({
       setError('Priset måste vara ett tal.');
       return;
     }
+    const optionValues = cleanOptions(options);
+    if (!optionValues) {
+      setBusy(false);
+      setError(OPTION_ERROR);
+      return;
+    }
     const response = await fetch(`/api/admin/variants/${variant.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -375,6 +469,7 @@ function VariantRow({
         inventoryTracked: values.inventoryTracked === 'on',
         availableForSale: values.availableForSale === 'on',
         active: values.active === 'on',
+        optionValues,
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -476,6 +571,8 @@ function VariantRow({
             />
           </div>
 
+          <OptionFields options={options} setOptions={setOptions} disabled={busy} />
+
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             <label
               className="flex cursor-pointer items-center gap-2 text-[13px]"
@@ -555,6 +652,7 @@ function NewVariant({ productId }: { productId: number }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [options, setOptions] = useState<OptionPair[]>([{ name: '', value: '' }]);
 
   if (!open) {
     return (
@@ -569,6 +667,12 @@ function NewVariant({ productId }: { productId: number }) {
     setBusy(true);
     setError(null);
     const values = formValues(event.currentTarget);
+    const optionValues = cleanOptions(options);
+    if (!optionValues) {
+      setBusy(false);
+      setError(OPTION_ERROR);
+      return;
+    }
     const response = await fetch(`/api/admin/products/${productId}/variants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -580,9 +684,7 @@ function NewVariant({ productId }: { productId: number }) {
         orderIncrement: values.orderIncrement || 1,
         inventoryTracked: values.inventoryTracked === 'on',
         availableForSale: values.availableForSale === 'on',
-        optionValues: values.optionName
-          ? [{ name: values.optionName, value: values.optionValue }]
-          : [],
+        optionValues,
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -603,9 +705,8 @@ function NewVariant({ productId }: { productId: number }) {
         <Field label="Lager" name="inventoryQuantity" type="number" defaultValue="0" />
         <Field label="Minsta antal" name="minimumOrderQuantity" type="number" min="1" defaultValue="1" />
         <Field label="Beställningssteg" name="orderIncrement" type="number" min="1" defaultValue="1" />
-        <Field label="Alternativ" name="optionName" placeholder="Storlek" />
-        <Field label="Värde" name="optionValue" placeholder="150x200" />
       </div>
+      <OptionFields options={options} setOptions={setOptions} disabled={busy} />
       <div className="flex flex-wrap gap-x-6 gap-y-2">
         <label className="flex cursor-pointer items-center gap-2 text-[13px]" style={{ color: 'var(--viz-ink-2)' }}>
           <input type="checkbox" name="availableForSale" style={{ accentColor: 'var(--viz-s1)' }} />
