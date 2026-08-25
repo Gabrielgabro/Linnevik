@@ -5,15 +5,15 @@ import ProductCard from "@/components/ProductCard";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import BreadcrumbJsonLd from "@/components/BreadcrumbJsonLd";
 import { LocaleLink } from "@/components/LocaleLink";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { resolveHandleRedirect } from "@/lib/redirectsDb";
 import { getTranslations } from "@/lib/i18n";
 import { normalizeLocale } from "@/lib/i18n";
 
-import { getCollectionStaticParams } from '@/lib/staticParams';
-
-export async function generateStaticParams() {
-    return getCollectionStaticParams();
-}
+// Renderas per förfrågan, av samma skäl som produktsidan: katalogen ändras i
+// /admin och ska slå igenom direkt. Se kommentaren i products/[handle]/page.tsx
+// om varför generateStaticParams togs bort här och inte bara lämnades verkningslös.
+export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 24;
 
@@ -86,8 +86,11 @@ export default async function CollectionPage({ params, searchParams }: Props) {
         offset: (page - 1) * PAGE_SIZE,
     });
 
-    // Om kategorin inte hittas alls, rendera Next.js 404-sida
+    // Om kategorin inte hittas alls: kolla först om handlen bytts i /admin —
+    // en omdöpt kategori ska leda vidare, inte dö. Se redirectsDb.
     if (!result) {
+        const moved = await resolveHandleRedirect('collection', handle);
+        if (moved) permanentRedirect(`/${locale}${moved}`);
         notFound();
     }
 

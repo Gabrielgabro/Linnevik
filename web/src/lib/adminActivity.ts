@@ -18,6 +18,7 @@ import { adminActivity, type AdminActivityRow } from '@/lib/db/schema';
 export type AdminAction =
   | 'admin.login'
   | 'admin.login_failed'
+  | 'admin.login_blocked'
   | 'admin.logout'
   | 'suggestion.saved'
   | 'suggestion.removed'
@@ -47,12 +48,16 @@ export type AdminAction =
   | 'shipping.created'
   | 'shipping.updated'
   | 'sample_request.updated'
+  | 'order.email_resent'
+  | 'alert.acknowledged'
+  | 'export.downloaded'
   | 'pricing_config.updated';
 
 /** Svenska etiketter för vyn. Nycklarna i databasen förblir stabila. */
 export const ACTION_LABELS: Record<AdminAction, string> = {
   'admin.login': 'Loggade in',
   'admin.login_failed': 'Misslyckad inloggning',
+  'admin.login_blocked': 'Spärrad efter för många försök',
   'admin.logout': 'Loggade ut',
   'suggestion.saved': 'Sparade prisförslag',
   'suggestion.removed': 'Tog bort prisförslag',
@@ -82,6 +87,9 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'shipping.created': 'La till fraktregel',
   'shipping.updated': 'Ändrade fraktregel',
   'sample_request.updated': 'Hanterade provförfrågan',
+  'order.email_resent': 'Skickade om ett ordermejl',
+  'alert.acknowledged': 'Kvitterade ett driftlarm',
+  'export.downloaded': 'Laddade ner en export',
   'pricing_config.updated': 'Ändrade mängdrabatten',
 };
 

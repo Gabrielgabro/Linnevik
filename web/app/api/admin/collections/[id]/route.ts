@@ -6,6 +6,7 @@ import { diff } from '@/lib/clientsInput';
 import { getDb } from '@/lib/db';
 import { collections } from '@/lib/db/schema';
 import { deleteCollection, updateCollection } from '@/lib/productsDb';
+import { recordHandleChange } from '@/lib/redirectsDb';
 import { InputError, parseCollectionInput } from '@/lib/productsInput';
 
 export const runtime = 'nodejs';
@@ -30,16 +31,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  let handle: string | null = null;
   try {
     // updateCollection kontrollerar cykler. En rundgång i trädet hade inte
     // gett något fel — den hade tyst huggit av varje brödsmula under sig.
-    await updateCollection(id, input);
+    handle = await updateCollection(id, input);
   } catch (error) {
     if (isUniqueViolation(error, 'collections_handle_key')) {
       return NextResponse.json({ error: 'Den handlen används redan.' }, { status: 409 });
     }
     const message = error instanceof Error ? error.message : 'Kunde inte spara kategorin.';
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  // Samma som för produkter: handlen är adressen, och en omdöpt kategori får
+  // inte lämna sin gamla URL som en 404. Kategorin 0012 döptes om utan det,
+  // och undantaget för den ligger fortfarande handskrivet i next.config.ts.
+  if (handle && handle !== before.handle) {
+    await recordHandleChange('collection', before.handle, handle, auth.user);
   }
 
   await record(auth.user, 'collection.updated', String(id), {

@@ -506,7 +506,9 @@ export async function getCatalogProduct(
            active and available_for_sale as purchasable
       from product_variants
      where product_id = ${row.id}
-     order by id asc
+     -- Ordningen sätts i /admin. Id:t är andrahandsval, så att två varianter
+     -- på samma position alltid kommer i samma ordning.
+     order by position asc, id asc
   `);
 
   const variants = variantRows.rows as VariantRow[];

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
+import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 import {
   ADMIN_COOKIE,
   readSessionValue,
@@ -37,6 +38,25 @@ export async function POST(request: NextRequest) {
 
   if (!password) {
     return NextResponse.json({ error: 'Fyll i lösenordet.' }, { status: 400 });
+  }
+
+  // Lösenordet är delat och /admin kan återbetala pengar. Fördröjningen nedan
+  // bromsar en gissning i taget; den här stoppar den som gissar i tusental.
+  // Räknas per IP och inte per namn: namnet väljer den som loggar in själv.
+  const limit = await checkRateLimit({
+    scope: 'admin_login',
+    identity: clientIp(request.headers),
+    limit: 10,
+    windowSeconds: 15 * 60,
+  });
+  if (!limit.allowed) {
+    await record(user, 'admin.login_blocked');
+    return NextResponse.json(
+      {
+        error: `För många försök. Försök igen om ${Math.ceil(limit.retryAfterSeconds / 60)} minuter.`,
+      },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+    );
   }
 
   if (!(await verifyPassword(password))) {

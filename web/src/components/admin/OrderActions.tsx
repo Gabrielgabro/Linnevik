@@ -10,6 +10,8 @@ import type { OrderDetail } from '@/lib/ordersDb';
 export default function OrderActions({ order }: { order: OrderDetail }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState<'confirmation' | 'shipment' | null>(null);
+  const [resent, setResent] = useState(false);
   // Vad som faktiskt går att leverera nu. Samma räkning som spärren i
   // createFulfillment gör, men här för att slippa visa rutan alls.
   const canFulfill = ['paid', 'partially_refunded'].includes(order.paymentStatus)
@@ -17,6 +19,33 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
   const openItems = canFulfill ? order.items.filter(item => item.remainingQuantity > 0) : [];
   const fullyFulfilled = order.items.length > 0 && openItems.length === 0;
   const partiallyFulfilled = !fullyFulfilled && order.items.some(item => item.fulfilledQuantity > 0);
+  // Utskickens tillstånd: senaste loggade händelsen och vad som går att göra om.
+  const lastEmail = order.events.find(
+    event => event.kind === 'email.sent' || event.kind === 'email.failed'
+  );
+  const hasShipment = order.fulfillments.some(
+    fulfillment => fulfillment.status === 'shipped' || fulfillment.status === 'delivered'
+  );
+
+  async function resend(template: 'confirmation' | 'shipment') {
+    setSending(template);
+    setError(null);
+    setResent(false);
+    const response = await fetch(`/api/admin/orders/${order.id}/emails`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setSending(null);
+    if (!response.ok) {
+      setError(data.error ?? 'Utskicket misslyckades.');
+      return;
+    }
+    setResent(true);
+    router.refresh();
+  }
+
   async function post(event: React.FormEvent<HTMLFormElement>, path: string, payload: object) {
     event.preventDefault();
     setError(null);
@@ -138,6 +167,41 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
           </form>
         )}
       </div>
+
+      <div className="col-span-full grid gap-3 border-t border-rule pt-6">
+        <h2 className="font-heading text-xl">Kundutskick</h2>
+        {/* Ett mejl som inte gick fram loggades förr bara som email.failed i
+            historiken nedan, utan väg tillbaka. Det larmar numera — och går att
+            skicka om härifrån, med exakt samma innehåll som kunden skulle fått. */}
+        <p className="max-w-[62ch] text-[13px] text-ink-2">
+          {lastEmail
+            ? `Senaste utskicket: ${lastEmail.kind === 'email.sent' ? 'levererat' : 'misslyckades'} ${lastEmail.createdAt.toLocaleString('sv-SE')}.`
+            : 'Inget utskick är loggat på den här ordern.'}
+          {!order.email && ' Ordern saknar e-postadress.'}
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!order.email || sending !== null}
+            onClick={() => resend('confirmation')}
+          >
+            {sending === 'confirmation' ? 'Skickar…' : 'Skicka om orderbekräftelsen'}
+          </Button>
+          {hasShipment && (
+            <Button
+              type="button"
+              variant="quiet"
+              disabled={!order.email || sending !== null}
+              onClick={() => resend('shipment')}
+            >
+              {sending === 'shipment' ? 'Skickar…' : 'Skicka om leveransaviseringen'}
+            </Button>
+          )}
+          {resent && <span className="text-[13px] text-ink-3">Skickat.</span>}
+        </div>
+      </div>
+
       <div className="col-span-full"><ErrorNote>{error}</ErrorNote></div>
     </div>
   );

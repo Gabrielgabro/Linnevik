@@ -10,6 +10,7 @@
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import {
+  cartItems,
   collections,
   orderItems,
   productCollections,
@@ -141,7 +142,9 @@ export async function getProductDetail(handle: string): Promise<ProductDetail | 
     .leftJoin(orderItems, eq(orderItems.variantId, productVariants.id))
     .where(eq(productVariants.productId, product.id))
     .groupBy(productVariants.id)
-    .orderBy(asc(productVariants.sku));
+    // Samma ordning som kunden ser på produktsidan. SKU:n avgör bara mellan
+    // två varianter som aldrig flyttats isär.
+    .orderBy(asc(productVariants.position), asc(productVariants.sku));
 
   const images = await db
     .select()
@@ -237,6 +240,10 @@ export async function createProduct(input: ProductInput & { title: string }): Pr
 }
 
 export async function updateProduct(id: number, patch: ProductInput): Promise<ProductRow | null> {
+  // Handlen hamnar i en URL. Formuläret tar emot fri text, så den tvättas här
+  // och inte bara när produkten skapas — annars blir "Täcke Sebastian" en
+  // adress med blanksteg och å i sig.
+  const handlePatch = patch.handle ? { handle: slugify(patch.handle) } : {};
   const statusPatch = patch.status
     ? {
         status: patch.status,
@@ -246,25 +253,94 @@ export async function updateProduct(id: number, patch: ProductInput): Promise<Pr
     : {};
   const [row] = await getDb()
     .update(products)
-    .set({ ...patch, ...statusPatch, updatedAt: new Date() })
+    .set({ ...patch, ...handlePatch, ...statusPatch, updatedAt: new Date() })
     .where(eq(products.id, id))
     .returning();
   return row ?? null;
 }
 
 /**
- * Kastar hellre än att radera en produkt som har varianter: FK:n är `restrict`,
- * och felet därifrån säger inget begripligt.
+ * Vad som står i vägen för att radera en produkt, och varför.
+ *
+ * Sålt går före allt annat: en produkt som finns på en order raderas aldrig,
+ * hur gärna man än vill. `order_items.variant_id` är `set null`, så databasen
+ * hade tillåtit det och tyst klippt bandet mellan ordern och vad som såldes.
+ * Arkivering är svaret där — produkten försvinner från sajten (`catalogDb`
+ * läser bara `status = 'active'`) men ordern går fortfarande att läsa.
  */
-export async function deleteProduct(id: number): Promise<void> {
-  const [{ count }] = await getDb()
-    .select({ count: sql<number>`count(*)::int` })
+export type ProductRemoval =
+  | { removable: true; variantCount: number; imageCount: number }
+  | { removable: false; reason: 'sold' | 'in-cart'; message: string };
+
+export async function productRemoval(id: number): Promise<ProductRemoval> {
+  const db = getDb();
+
+  const [{ sold }] = await db
+    .select({ sold: sql<number>`count(${orderItems.id})::int` })
+    .from(orderItems)
+    .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+    .where(eq(productVariants.productId, id));
+  if (sold > 0) {
+    return {
+      removable: false,
+      reason: 'sold',
+      message:
+        'Produkten finns på en eller flera ordrar och kan inte raderas — ordern ska gå att läsa i ' +
+        'efterhand. Arkivera den i stället: då försvinner den från sajten men historiken är kvar.',
+    };
+  }
+
+  // En variant som ligger i någons korg är `restrict` mot cart_items. Att
+  // radera den under kunden hade blivit ett obegripligt 500 för oss och en
+  // tom korg för dem.
+  const [{ inCart }] = await db
+    .select({ inCart: sql<number>`count(${cartItems.id})::int` })
+    .from(cartItems)
+    .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
+    .where(eq(productVariants.productId, id));
+  if (inCart > 0) {
+    return {
+      removable: false,
+      reason: 'in-cart',
+      message:
+        'Produkten ligger i en aktiv kundkorg och kan inte raderas just nu. Arkivera den i ' +
+        'stället, eller vänta tills korgen har löpt ut.',
+    };
+  }
+
+  const [{ variantCount }] = await db
+    .select({ variantCount: sql<number>`count(*)::int` })
     .from(productVariants)
     .where(eq(productVariants.productId, id));
-  if (count > 0) {
-    throw new Error('Produkten har varianter. Ta bort dem först, eller inaktivera produkten.');
-  }
-  await getDb().delete(products).where(eq(products.id, id));
+  const [{ imageCount }] = await db
+    .select({ imageCount: sql<number>`count(*)::int` })
+    .from(productImages)
+    .where(eq(productImages.productId, id));
+
+  return { removable: true, variantCount, imageCount };
+}
+
+/**
+ * Raderar produkten med sina varianter. Bilder och kategorikopplingar följer
+ * med genom FK:ernas `cascade`; bildernas URL:er returneras så att anroparen
+ * kan städa filerna i Blob, som databasen inte känner till.
+ *
+ * Kastar hellre än att låta en FK göra det — `productRemoval` säger vad som
+ * står i vägen på svenska, medan felet från databasen inte säger något alls.
+ */
+export async function deleteProduct(id: number): Promise<{ imageUrls: string[] }> {
+  const blocked = await productRemoval(id);
+  if (!blocked.removable) throw new Error(blocked.message);
+
+  const db = getDb();
+  const images = await db
+    .select({ url: productImages.url })
+    .from(productImages)
+    .where(eq(productImages.productId, id));
+
+  await db.delete(productVariants).where(eq(productVariants.productId, id));
+  await db.delete(products).where(eq(products.id, id));
+  return { imageUrls: images.map(image => image.url) };
 }
 
 export type VariantInput = Partial<
@@ -287,6 +363,15 @@ export async function createVariant(
   productId: number,
   input: VariantInput & { sku: string; priceMinor: number }
 ): Promise<ProductVariantRow> {
+  // Utan den här kontrollen når ett felaktigt id främmandenyckeln, och svaret
+  // blir ett 500 utan förklaring i stället för ett begripligt fel.
+  const [parent] = await getDb()
+    .select({ id: products.id })
+    .from(products)
+    .where(eq(products.id, productId))
+    .limit(1);
+  if (!parent) throw new Error('Produkten finns inte.');
+
   const [row] = await getDb()
     .insert(productVariants)
     .values({
@@ -324,6 +409,17 @@ export async function deleteVariant(id: number): Promise<void> {
     .where(eq(orderItems.variantId, id));
   if (count > 0) {
     throw new Error('Varianten finns på en order och kan inte tas bort. Inaktivera den i stället.');
+  }
+  // cart_items är `restrict`. Utan den här kontrollen blir en variant som
+  // ligger i någons korg ett 500 utan förklaring.
+  const [{ inCart }] = await getDb()
+    .select({ inCart: sql<number>`count(*)::int` })
+    .from(cartItems)
+    .where(eq(cartItems.variantId, id));
+  if (inCart > 0) {
+    throw new Error(
+      'Varianten ligger i en aktiv kundkorg och kan inte tas bort just nu. Inaktivera den i stället.'
+    );
   }
   await getDb().delete(productVariants).where(eq(productVariants.id, id));
 }
@@ -528,12 +624,17 @@ export async function assertNoCycle(id: number, parentId: number | null): Promis
   }
 }
 
-export async function updateCollection(id: number, patch: CollectionInput): Promise<void> {
+/** Returnerar handlen som faktiskt skrevs — anroparen behöver den för omdirigeringen. */
+export async function updateCollection(id: number, patch: CollectionInput): Promise<string | null> {
   if (patch.parentId !== undefined) await assertNoCycle(id, patch.parentId);
-  await getDb()
+  // Samma som för produkter: handlen är en adress, inte en fritext.
+  const handlePatch = patch.handle ? { handle: slugify(patch.handle) } : {};
+  const [row] = await getDb()
     .update(collections)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(eq(collections.id, id));
+    .set({ ...patch, ...handlePatch, updatedAt: new Date() })
+    .where(eq(collections.id, id))
+    .returning({ handle: collections.handle });
+  return row?.handle ?? null;
 }
 
 /**
@@ -549,4 +650,121 @@ export async function deleteCollection(id: number): Promise<void> {
     throw new Error('Kategorin har underkategorier. Flytta eller ta bort dem först.');
   }
   await getDb().delete(collections).where(eq(collections.id, id));
+}
+
+/**
+ * Ny ordning på en produkts varianter, i den ordning id:na kommer.
+ *
+ * Samma form som `reorderImages`. Villkoret på `productId` är inte formalia:
+ * utan det kan ett id ur en annan produkt flyttas om härifrån.
+ */
+export async function reorderVariants(productId: number, orderedIds: number[]): Promise<void> {
+  const db = getDb();
+  for (const [index, id] of orderedIds.entries()) {
+    await db
+      .update(productVariants)
+      .set({ position: index, updatedAt: new Date() })
+      .where(and(eq(productVariants.id, id), eq(productVariants.productId, productId)));
+  }
+}
+
+/**
+ * Kopierar en produkt med sina varianter och kategorikopplingar.
+ *
+ * En ny artikel i en befintlig serie skrevs förr av för hand, fält för fält
+ * och variant för variant. Kopian är medvetet ofärdig på tre sätt:
+ *
+ * - **Utkast**, aldrig aktiv. En kopia som gick live i samma sekund som den
+ *   skapades vore ett misstag som kunder kan se.
+ * - **Ingen Stripe-koppling.** Id:t är deterministiskt ur handlen, och kopian
+ *   har en egen handle — den ska kopplas för sig.
+ * - **Inga bilder.** Raderna pekar på filer i Blob, och två produkter som
+ *   delar en fil betyder att den som raderas först tar bilden med sig.
+ *
+ * SKU:n är unik i hela katalogen och kan inte kopieras rakt av. Suffixet är
+ * med flit fult: det ska vara omöjligt att missa att det behöver bytas.
+ */
+export async function duplicateProduct(id: number): Promise<ProductRow> {
+  const db = getDb();
+  const [source] = await db.select().from(products).where(eq(products.id, id)).limit(1);
+  if (!source) throw new Error('Produkten finns inte.');
+
+  const handle = await availableHandle(`${source.handle}-kopia`);
+  const [copy] = await db
+    .insert(products)
+    .values({
+      handle,
+      title: `${source.title} (kopia)`,
+      titleEn: source.titleEn ? `${source.titleEn} (copy)` : null,
+      descriptionHtml: source.descriptionHtml,
+      descriptionHtmlEn: source.descriptionHtmlEn,
+      tags: source.tags,
+      productType: source.productType,
+      vendor: source.vendor,
+      supplier: source.supplier,
+      seoTitle: source.seoTitle,
+      seoDescription: source.seoDescription,
+      seoTitleEn: source.seoTitleEn,
+      seoDescriptionEn: source.seoDescriptionEn,
+      leadTime: source.leadTime,
+      status: 'draft',
+      active: false,
+      source: 'linnevik',
+    })
+    .returning();
+
+  const variants = await db
+    .select()
+    .from(productVariants)
+    .where(eq(productVariants.productId, id))
+    .orderBy(asc(productVariants.position), asc(productVariants.sku));
+
+  for (const variant of variants) {
+    // 60 tecken är gränsen i kolumnen; basen kapas hellre än att kopian faller.
+    // availableSku lägger på -2, -3 … om suffixet ändå krockar.
+    const sku = await availableSku(`${variant.sku.slice(0, 52)}-KOPIA`);
+    await db.insert(productVariants).values({
+      productId: copy.id,
+      sku,
+      optionValues: variant.optionValues,
+      priceMinor: variant.priceMinor,
+      currency: variant.currency,
+      // Lagret följer inte med: kopian har inga fysiska enheter någonstans.
+      inventoryQuantity: 0,
+      minimumOrderQuantity: variant.minimumOrderQuantity,
+      orderIncrement: variant.orderIncrement,
+      inventoryTracked: variant.inventoryTracked,
+      availableForSale: false,
+      position: variant.position,
+    });
+  }
+
+  const links = await db
+    .select({ collectionId: productCollections.collectionId, isPrimary: productCollections.isPrimary })
+    .from(productCollections)
+    .where(eq(productCollections.productId, id));
+  if (links.length) {
+    await setProductCollections(
+      copy.id,
+      links.map(link => link.collectionId),
+      links.find(link => link.isPrimary)?.collectionId ?? null
+    );
+  }
+
+  return copy;
+}
+
+/** Ledig SKU. Lägger på -2, -3 … tills den är obruten, som handlen. */
+async function availableSku(base: string): Promise<string> {
+  const taken = await getDb()
+    .select({ sku: productVariants.sku })
+    .from(productVariants)
+    .where(sql`${productVariants.sku} = ${base} or ${productVariants.sku} like ${base + '-%'}`);
+  if (!taken.some(row => row.sku === base)) return base;
+
+  const used = new Set(taken.map(row => row.sku));
+  for (let n = 2; n < 1000; n += 1) {
+    if (!used.has(`${base}-${n}`)) return `${base}-${n}`;
+  }
+  throw new Error('Kunde inte hitta en ledig SKU för kopian.');
 }

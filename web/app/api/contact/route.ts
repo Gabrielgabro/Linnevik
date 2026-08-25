@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { escapeHtml, mailTo, sendEmail } from '@/lib/mailer';
+import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
     try {
+        // Formuläret kräver ingen inloggning och skickar e-post. Utan en gräns
+        // är det en öppen utskicksmaskin — för spam, och för att bränna vårt
+        // rykte hos mottagarnas skräpfilter. Räknas per IP.
+        const limit = await checkRateLimit({
+            scope: 'contact',
+            identity: clientIp(request.headers),
+            limit: 5,
+            windowSeconds: 60 * 60,
+        });
+        if (!limit.allowed) {
+            return NextResponse.json(
+                { error: 'För många förfrågningar. Försök igen om en stund.' },
+                { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+            );
+        }
         const body = await request.json();
         // Fälten går rakt in i mejlets HTML, så de escapas här. Utan det kan
         // innehållet i ett fält bryta ut och skriva egen markup i mejlet.

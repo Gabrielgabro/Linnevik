@@ -15,6 +15,7 @@ import { sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { sendEmail, mailConfigured } from '@/lib/mailer';
 import { orderConfirmationEmail, shipmentEmail } from '@/lib/emailTemplates';
+import { raiseAlert } from '@/lib/opsAlerts';
 import { getOrderById, getOrderBySession } from '@/lib/ordersDb';
 
 /** Skriver spåret. Sväljer sina egna fel — loggning får inte fälla utskicket. */
@@ -45,6 +46,19 @@ async function deliver(
     return true;
   }
   await record(orderId, 'email.failed', { template, to, error: result.error });
+  // En kund som betalat och inte fått sin bekräftelse hör av sig till oss, inte
+  // tvärtom. Larmet gör att vi vet innan dess — mejlet går att skicka om från
+  // orderkortet.
+  await raiseAlert({
+    kind: 'email.failed',
+    key: `order:${orderId}:${template}`,
+    subject:
+      template === 'order.confirmation'
+        ? `Orderbekräftelsen för order ${orderId} gick inte fram`
+        : `Leveransaviseringen för order ${orderId} gick inte fram`,
+    detail: { order: orderId, mottagare: to, fel: result.error },
+    href: `/admin/orders/${orderId}`,
+  });
   return false;
 }
 

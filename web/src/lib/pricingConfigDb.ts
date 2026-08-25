@@ -10,7 +10,7 @@
  * `strategy: 'margin'` är av samma skäl inte valbart — se `pricingRules.ts`.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { pricingConfig, type PricingConfigRow } from '@/lib/db/schema';
 import {
@@ -184,6 +184,33 @@ export function parsePricingConfigInput(body: Record<string, unknown>): PricingC
   return { strategy, tiers, linear, orderValue, minimumOrderQuantity };
 }
 
+/**
+ * Nästa lediga versionsnamn: v1, v2, v3 …
+ *
+ * Namnet är löpande och inte ett datum, eftersom det är det korgar och ordrar
+ * bär och en människa behöver kunna säga högt ("den prissattes under v3").
+ */
+async function nextPricingVersion(): Promise<string> {
+  const result = await getDb().execute(sql`
+    select coalesce(max(substring(version from 2)::int), 0) + 1 as next
+      from pricing_config_versions
+     where version ~ '^v[0-9]+$'
+  `);
+  const next = Number((result.rows[0] as { next?: number } | undefined)?.next ?? 1);
+  return `v${next}`;
+}
+
+/**
+ * Sparar reglerna och arkiverar dem.
+ *
+ * Den aktiva raden i `pricing_config` skrivs över precis som förut — allt som
+ * läser priser läser den. Skillnaden är att den föregående regeln inte längre
+ * försvinner: varje sparning lägger en kopia i `pricing_config_versions` under
+ * ett eget versionsnamn, så att en order går att förklara i efterhand.
+ *
+ * Arkiveringen sväljer sitt eget fel. En prisändring som lyckats ska inte
+ * rullas tillbaka för att kopian inte kunde skrivas.
+ */
 export async function updatePricingConfig(
   input: PricingConfigUpdate,
   updatedBy: string
@@ -223,5 +250,48 @@ export async function updatePricingConfig(
       },
     })
     .returning();
+
+  try {
+    const version = await nextPricingVersion();
+    await getDb().execute(sql`
+      insert into pricing_config_versions (version, config, updated_by)
+      values (${version}, ${JSON.stringify(row)}::jsonb, ${updatedBy})
+      on conflict (version) do nothing
+    `);
+  } catch (error) {
+    console.error('[pricing] Kunde inte arkivera prisreglerna:', error);
+  }
+
   return row;
+}
+
+export type PricingVersionRow = {
+  version: string;
+  config: Record<string, unknown>;
+  updatedBy: string | null;
+  createdAt: Date;
+};
+
+/** Den nu gällande versionen. Stämplas på korgar och ordrar. */
+export async function currentPricingVersion(): Promise<string> {
+  const result = await getDb().execute(sql`
+    select version from pricing_config_versions order by created_at desc, id desc limit 1
+  `);
+  return String((result.rows[0] as { version?: string } | undefined)?.version ?? 'v1');
+}
+
+/** Arkivet, nyast först. */
+export async function listPricingVersions(limit = 50): Promise<PricingVersionRow[]> {
+  const result = await getDb().execute(sql`
+    select version, config, updated_by, created_at
+      from pricing_config_versions
+     order by created_at desc, id desc
+     limit ${limit}
+  `);
+  return (result.rows as Array<Record<string, unknown>>).map(row => ({
+    version: String(row.version),
+    config: (row.config ?? {}) as Record<string, unknown>,
+    updatedBy: (row.updated_by as string | null) ?? null,
+    createdAt: new Date(row.created_at as string),
+  }));
 }

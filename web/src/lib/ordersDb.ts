@@ -19,10 +19,14 @@ import {
   type RefundRow,
 } from '@/lib/db/schema';
 import type { PricedLine } from '@/lib/pricing';
+import { FALLBACK_PRICING_VERSION } from '@/lib/commerceConfig';
+import { currentPricingVersion } from '@/lib/pricingConfigDb';
 import { vatOn } from '@/lib/vat';
 import { upsertCustomerFromCheckout } from '@/lib/commerceOperations';
 import { stripeTestMode } from '@/lib/stripe';
 import { releaseOrderStock, reserveOrderStockStrict } from '@/lib/inventoryDb';
+import { amountDrifted } from '@/lib/orderChecks';
+import { raiseAlert } from '@/lib/opsAlerts';
 
 export type OrderWithItems = OrderRow & { items: OrderItemRow[] };
 
@@ -102,6 +106,10 @@ export async function createPendingOrder(
   // stämde inte det här förhandsbeloppet med vad Stripe sedan debiterade.
   const taxMinor = vatOn(netMinor, snapshot.vat ? snapshot.vat.bps / 100 : undefined);
   const total = netMinor + taxMinor;
+  // Vilken version av mängdrabatten raderna prissattes under. Beloppen fryses
+  // ändå per rad, men versionen är det som gör att regeln bakom dem går att ta
+  // fram i efterhand — se pricing_config_versions (0028).
+  const pricingVersion = await currentPricingVersion().catch(() => FALLBACK_PRICING_VERSION);
   const pendingSessionId = `pending_${crypto.randomUUID()}`;
   const payload = JSON.stringify(
     lines.map(line => ({
@@ -130,7 +138,8 @@ export async function createPendingOrder(
         discount_code_id, discount_code, discount_minor,
         shipping_rule_id, shipping_method, shipping_minor,
         tax_minor, vat_mode, vat_bps, vat_rate_id,
-        total_minor, currency, locale, cart_id, cart_version, test_mode
+        total_minor, currency, locale, cart_id, cart_version, test_mode,
+        pricing_version
       )
       select ${pendingSessionId}, 'pending', 'pending', ${subtotal},
              ${snapshot.discount?.id ?? null}, ${snapshot.discount?.code ?? null}, ${discountMinor},
@@ -138,7 +147,8 @@ export async function createPendingOrder(
              ${taxMinor}, ${snapshot.vat?.mode ?? null}, ${snapshot.vat?.bps ?? null},
              ${snapshot.vat?.rateId ?? null},
              ${total}, ${lines[0].currency}, ${locale},
-             ${cart?.id ?? null}, ${cart?.version ?? null}, ${stripeTestMode()}
+             ${cart?.id ?? null}, ${cart?.version ?? null}, ${stripeTestMode()},
+             ${pricingVersion}
       where ${cart?.id ?? null}::text is null
          or exists (select 1 from eligible_cart)
       on conflict (cart_id, cart_version)
@@ -240,7 +250,15 @@ export async function markOrderPaid(input: {
   currency: string;
 }): Promise<{ orderId: number; stockReady: boolean; newlyPaid: boolean }> {
   const [target] = await getDb()
-    .select({ id: orders.id, paymentStatus: orders.paymentStatus, status: orders.status })
+    .select({
+      id: orders.id,
+      paymentStatus: orders.paymentStatus,
+      status: orders.status,
+      // Vad vi räknade fram när kassan öppnades. Stripes belopp skrivs över
+      // det nedan — Stripe är sanningen om vad som faktiskt debiterades — men
+      // skillnaden mellan de två är värd att veta om, och den försvann förr.
+      expectedTotalMinor: orders.totalMinor,
+    })
     .from(orders)
     .where(eq(orders.stripeSessionId, input.sessionId))
     .limit(1);
@@ -340,6 +358,37 @@ export async function markOrderPaid(input: {
       };
     }
     throw new Error('Paid order could not be updated.');
+  }
+  // Debiterat belopp mot förväntat. En krona i glapp är avrundning mellan vår
+  // momsberäkning och Stripes; mer än så betyder att något ändrats under
+  // kassan — ett pris, en rabatt, en fraktregel — och då vill vi veta vilken
+  // order det gäller innan den bokförs.
+  const drift = Math.abs(input.totalMinor - target.expectedTotalMinor);
+  if (amountDrifted(target.expectedTotalMinor, input.totalMinor)) {
+    await raiseAlert({
+      kind: 'order.amount_mismatch',
+      key: `order:${row.id}:amount`,
+      subject: `Order ${row.id} debiterades ${(drift / 100).toFixed(2)} kr från det vi räknade fram`,
+      detail: {
+        order: Number(row.id),
+        vi_raknade: target.expectedTotalMinor,
+        stripe_debiterade: input.totalMinor,
+        valuta: input.currency,
+      },
+      href: `/admin/orders/${row.id}`,
+    });
+  }
+
+  // En betald order utan komplett reservation går inte att skicka. Statusen
+  // sätts redan ovan, men den syns bara för den som läser orderlistan just då.
+  if (!stockReady) {
+    await raiseAlert({
+      kind: 'order.stock_exception',
+      key: `order:${row.id}:stock`,
+      subject: `Order ${row.id} är betald men saknar lagerreservation`,
+      detail: { order: Number(row.id), belopp: input.totalMinor, epost: input.email },
+      href: `/admin/orders/${row.id}`,
+    });
   }
   return { orderId: Number(row.id), stockReady, newlyPaid };
 }
@@ -529,28 +578,38 @@ export async function recordRefund(input: {
   return row;
 }
 
+/**
+ * Statusen på en återbetalning, och orderns summa räknad om efter den.
+ *
+ * Summan räknas över `pending` *och* `succeeded`, samma regel som
+ * `recordRefund` använder. Den detaljen är inte kosmetisk: räknades bara
+ * `succeeded` skulle en återbetalning som ligger kvar i `pending` nolla
+ * `refunded_minor`, och adminvyn — som räknar återstående belopp som
+ * `total_minor - refunded_minor` — skulle erbjuda samma pengar att betala
+ * tillbaka en gång till. Först när Stripe säger `failed` eller `canceled`
+ * slutar beloppet räknas, vilket är precis när det faktiskt kom tillbaka.
+ */
 export async function updateRefundStatus(stripeRefundId: string, status: string): Promise<void> {
   await getDb().execute(sql`
     with changed as (
       update refunds set status = ${status}, updated_at = now()
       where stripe_refund_id = ${stripeRefundId}
       returning order_id
+    ), counted as (
+      select coalesce(sum(amount_minor), 0)::int as total
+      from refunds
+      where order_id in (select order_id from changed)
+        and status in ('pending', 'succeeded')
     )
     update orders set
-      refunded_minor = (
-        select coalesce(sum(amount_minor), 0)::int from refunds
-        where order_id in (select order_id from changed) and status = 'succeeded'
-      ),
+      refunded_minor = counted.total,
       payment_status = case
-        when (select coalesce(sum(amount_minor), 0) from refunds
-              where order_id in (select order_id from changed) and status = 'succeeded') >= total_minor
-          then 'refunded'
-        when (select coalesce(sum(amount_minor), 0) from refunds
-              where order_id in (select order_id from changed) and status = 'succeeded') > 0
-          then 'partially_refunded'
+        when counted.total >= total_minor then 'refunded'
+        when counted.total > 0 then 'partially_refunded'
         else 'paid'
       end,
       updated_at = now()
+    from counted
     where id in (select order_id from changed)
   `);
 }

@@ -168,3 +168,127 @@ export async function releaseExpiredReservations(actor = 'system'): Promise<numb
   const row = result.rows[0] as { released: number } | undefined;
   return row ? Number(row.released) : 0;
 }
+
+/**
+ * Sätter det fysiska saldot för hand — inventering, svinn, en leverans som
+ * kommit in. Två skäl att den inte går via `updateVariant`:
+ *
+ * 1. Saldot får aldrig understiga det som är reserverat av pågående ordrar.
+ *    Kolumnernas check-villkor säger samma sak, men ett brutet villkor blir
+ *    ett 500 utan förklaring — här blir det ett svar som säger hur många
+ *    enheter som är bundna och av vad.
+ * 2. Varje annan lagerändring skrivs i inventory_movements. En handpåläggning
+ *    som inte gör det är just den rad som saknas den dagen saldot ska förklaras.
+ *
+ * Rörelsens `quantity` är skillnaden och kan vara negativ — en justering är
+ * åt något håll, och magnituden ensam hade inte gått att läsa i efterhand.
+ */
+export async function setVariantStock(
+  variantId: number,
+  quantity: number,
+  actor: string,
+  note?: string | null
+): Promise<{ ok: boolean; before: number; reserved: number }> {
+  const result = await getDb().execute(sql`
+    with locked as materialized (
+      select id, inventory_quantity, inventory_reserved, inventory_tracked
+      from product_variants where id = ${variantId}
+      for update
+    ), eligibility as materialized (
+      select id, inventory_quantity as before, inventory_reserved as reserved,
+             (not inventory_tracked or ${quantity} >= inventory_reserved) as ok
+      from locked
+    ), updated as (
+      update product_variants pv
+      set inventory_quantity = ${quantity}, updated_at = now()
+      from eligibility e
+      where pv.id = e.id and e.ok and e.before <> ${quantity}
+    ), movement as (
+      insert into inventory_movements (variant_id, type, quantity, actor, note)
+      select id, 'adjust', ${quantity} - before, ${actor}, ${note ?? null}
+      from eligibility
+      where ok and before <> ${quantity}
+    )
+    select ok, before, reserved from eligibility
+  `);
+  const row = result.rows[0] as { ok: boolean; before: number; reserved: number } | undefined;
+  // Varianten hann tas bort mellan läsningen och den här satsen.
+  if (!row) return { ok: false, before: 0, reserved: 0 };
+  return { ok: row.ok === true, before: Number(row.before), reserved: Number(row.reserved) };
+}
+
+export type InventoryMovementView = {
+  id: number;
+  type: string;
+  quantity: number;
+  orderId: number | null;
+  note: string | null;
+  actor: string;
+  createdAt: string;
+};
+
+/**
+ * Lagerhistoriken för en variant.
+ *
+ * Tabellen har funnits sedan 0011 och skrivits av varje reservation, plock och
+ * retur, men ingen vy visade den — frågan "varför står det 3 här när jag
+ * räknade 5 i hyllan" gick bara att svara på i psql. Hämtas per variant och
+ * först när raden öppnas, så att produktsidan inte drar hem hela historiken
+ * för varenda variant i onödan.
+ */
+export async function listVariantMovements(
+  variantId: number,
+  limit = 50
+): Promise<InventoryMovementView[]> {
+  const result = await getDb().execute(sql`
+    select id, type, quantity, order_id, note, actor, created_at
+      from inventory_movements
+     where variant_id = ${variantId}
+     order by created_at desc, id desc
+     limit ${limit}
+  `);
+  return (result.rows as Array<Record<string, unknown>>).map(row => ({
+    id: Number(row.id),
+    type: String(row.type),
+    quantity: Number(row.quantity),
+    orderId: row.order_id === null || row.order_id === undefined ? null : Number(row.order_id),
+    note: (row.note as string | null) ?? null,
+    actor: String(row.actor),
+    createdAt: new Date(row.created_at as string).toISOString(),
+  }));
+}
+
+export type LowStockRow = {
+  sku: string;
+  productTitle: string;
+  available: number;
+};
+
+/**
+ * Varianter som håller på att ta slut.
+ *
+ * "Tillgängligt" är fysiskt saldo minus det som pågående ordrar reserverat —
+ * samma tal som kassan räknar på, inte hyllsaldot. Bara spårade och säljbara
+ * varianter räknas: en variant vi ändå inte säljer kan inte ta slut.
+ *
+ * Frågas av dygnskörningen. Listan är ett larm, inte en rapport: produktlistan
+ * i /admin har redan ett "Slut"-filter för den som går och tittar.
+ */
+export async function lowStockVariants(threshold: number): Promise<LowStockRow[]> {
+  const result = await getDb().execute(sql`
+    select v.sku, p.title as product_title,
+           (v.inventory_quantity - v.inventory_reserved) as available
+      from product_variants v
+      join products p on p.id = v.product_id
+     where v.inventory_tracked
+       and v.active and v.available_for_sale
+       and p.status = 'active'
+       and (v.inventory_quantity - v.inventory_reserved) <= ${threshold}
+     order by available asc, v.sku asc
+  `);
+  return (result.rows as Array<Record<string, unknown>>).map(row => ({
+    sku: String(row.sku),
+    productTitle: String(row.product_title),
+    available: Number(row.available),
+  }));
+}

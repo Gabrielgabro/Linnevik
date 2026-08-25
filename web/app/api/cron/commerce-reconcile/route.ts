@@ -14,6 +14,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { lowStockThreshold } from '@/lib/commerceConfig';
+import { lowStockVariants } from '@/lib/inventoryDb';
+import { raiseAlert } from '@/lib/opsAlerts';
+import { pruneRateLimits } from '@/lib/rateLimit';
 import { stripeConfigured } from '@/lib/stripe';
 import { reconcileRecentCheckoutSessions } from '@/lib/stripeCheckout';
 
@@ -35,7 +39,38 @@ export async function GET(request: NextRequest) {
   }
 
   const result = await reconcileRecentCheckoutSessions();
-  return NextResponse.json({ runAt: new Date().toISOString(), ...result }, {
-    status: result.failures.length ? 207 : 200,
-  });
+
+  // Lagerkollen åker med samma körning. Den hör inte ihop med avstämningen,
+  // men den vill ha exakt samma egenskap: en gång per dygn, utan att någon
+  // behöver komma ihåg att titta. Larmet går bara ut när det finns något att
+  // säga, och spärren i opsAlerts håller det till ett mejl per dygn.
+  const threshold = lowStockThreshold();
+  const lowStock = threshold > 0 ? await lowStockVariants(threshold) : [];
+  if (lowStock.length) {
+    await raiseAlert({
+      kind: 'inventory.low_stock',
+      key: 'inventory:low_stock',
+      subject: `${lowStock.length} varianter har ${threshold} eller färre kvar`,
+      detail: {
+        varianter: lowStock
+          .slice(0, 20)
+          .map(row => `${row.sku} (${row.available} st, ${row.productTitle})`),
+      },
+      href: '/admin/products',
+    });
+  }
+
+  // Utgångna ratbegränsningshinkar. Ingen skada om de ligger kvar, men
+  // tabellen ska inte växa för evigt.
+  const prunedBuckets = await pruneRateLimits();
+
+  return NextResponse.json(
+    {
+      runAt: new Date().toISOString(),
+      ...result,
+      lowStock: lowStock.length,
+      prunedBuckets,
+    },
+    { status: result.failures.length ? 207 : 200 }
+  );
 }

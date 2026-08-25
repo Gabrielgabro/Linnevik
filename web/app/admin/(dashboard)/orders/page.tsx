@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ShoppingCart } from 'lucide-react';
 import {
   EmptyState,
+  Notice,
   PageHeader,
   Tag,
   TableShell,
@@ -30,9 +31,27 @@ const ORDER_TONE: Record<string, string> = {
 
 const tone = (status: string) => ORDER_TONE[status] ?? 'var(--viz-ink-3)';
 
+/**
+ * Orderns `status` är inte samma sak som betalning eller leverans, och syntes
+ * förr inte i listan alls. Det gjorde `stock_exception` osynligt: en betald
+ * order som inte kunde reservera lager såg ut precis som alla andra. De här
+ * tillstånden får därför en egen etikett bredvid ordernumret.
+ */
+const ATTENTION: Record<string, { label: string; color: string }> = {
+  stock_exception: { label: 'Lager saknas', color: 'var(--adm-danger)' },
+  disputed: { label: 'Tvist', color: 'var(--adm-danger)' },
+  failed: { label: 'Misslyckad', color: 'var(--adm-danger)' },
+  cancelled: { label: 'Makulerad', color: 'var(--viz-ink-3)' },
+  expired: { label: 'Utgången', color: 'var(--viz-ink-3)' },
+};
+
 export default async function OrdersPage() {
   const orders = await listRecentOrders(200);
   const testCount = orders.filter(order => order.testMode).length;
+  // Betald, men lagret räckte inte. Kunden väntar på något vi inte kan skicka,
+  // och det är det enda i den här listan som kräver ett beslut i dag.
+  const blocked = orders.filter(order => order.status === 'stock_exception');
+  const disputed = orders.filter(order => order.status === 'disputed');
 
   return (
     <>
@@ -46,6 +65,35 @@ export default async function OrdersPage() {
         accent={accentFor('/admin/orders')}
         description="Betalning, rabatt, frakt, återbetalning och fulfillment i ett orderregister."
       />
+
+      {blocked.length > 0 && (
+        <Notice tone="danger" title={`${blocked.length} betalda ordrar saknar lagerreservation`}>
+          Kunden har betalat men lagret räckte inte när betalningen kom in. Fyll på lagret och
+          reservera om, eller makulera och återbetala.{' '}
+          {blocked.map((order, index) => (
+            <span key={order.id}>
+              {index > 0 && ', '}
+              <Link href={`/admin/orders/${order.id}`} className="underline">
+                #{order.id}
+              </Link>
+            </span>
+          ))}
+        </Notice>
+      )}
+
+      {disputed.length > 0 && (
+        <Notice tone="danger" title={`${disputed.length} ordrar är under tvist hos Stripe`}>
+          Stripe har hållit inne beloppet. Svara med underlag i Stripe innan tidsfristen.{' '}
+          {disputed.map((order, index) => (
+            <span key={order.id}>
+              {index > 0 && ', '}
+              <Link href={`/admin/orders/${order.id}`} className="underline">
+                #{order.id}
+              </Link>
+            </span>
+          ))}
+        </Notice>
+      )}
 
       {orders.length === 0 ? (
         <EmptyState
@@ -77,6 +125,11 @@ export default async function OrdersPage() {
                       #{order.id}
                     </Link>
                     {order.testMode && <Tag color="var(--adm-warn)">TEST</Tag>}
+                    {ATTENTION[order.status] && (
+                      <Tag color={ATTENTION[order.status].color}>
+                        {ATTENTION[order.status].label}
+                      </Tag>
+                    )}
                   </span>
                 </Td>
                 <Td className="text-ink">{order.customerName ?? order.email ?? '—'}</Td>

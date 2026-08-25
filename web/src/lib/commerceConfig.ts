@@ -1,5 +1,11 @@
 export const OWNED_CART_TTL_DAYS = 30;
-export const CURRENT_PRICING_VERSION = 'v1';
+/**
+ * Reserv när arkivet inte går att läsa. Var förr den enda "versionen" som
+ * fanns: en literal som varje korg stämplades med oavsett hur reglerna sett
+ * ut. Den riktiga versionen kommer numera från `pricing_config_versions` —
+ * se pricingConfigDb.currentPricingVersion.
+ */
+export const FALLBACK_PRICING_VERSION = 'v1';
 
 /**
  * A Checkout Session may stay open for at least 30 minutes. We reserve tracked
@@ -27,4 +33,14 @@ export function stripeTaxEnabled(): boolean {
 
 export function stripeIntegrationIdentifier(): string {
   return process.env.STRIPE_INTEGRATION_IDENTIFIER || 'linnevik_owned_qhjmztka';
+}
+
+/**
+ * Under hur många tillgängliga enheter en säljbar variant larmar i
+ * dygnskörningen. Noll stänger av larmet helt.
+ */
+export function lowStockThreshold(): number {
+  const parsed = Number(process.env.LOW_STOCK_THRESHOLD ?? 5);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 1000) return 5;
+  return parsed;
 }

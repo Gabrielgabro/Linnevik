@@ -16,7 +16,13 @@ const COLLAPSE_KEY = 'linnevik.admin.sidebar.collapsed';
  * Fäller ihop till en ikonlist på stora skärmar och blir en utfällbar panel
  * under lg.
  */
-export default function Sidebar({ user }: { user: string | null }) {
+export default function Sidebar({
+  user,
+  openAlerts = 0,
+}: {
+  user: string | null;
+  openAlerts?: number;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -132,6 +138,7 @@ export default function Sidebar({ user }: { user: string | null }) {
                   item={item}
                   active={active?.href === item.href}
                   collapsed={collapsed}
+                  badge={item.href === '/admin/alerts' ? openAlerts : 0}
                 />
               ))}
             </div>
@@ -163,10 +170,13 @@ function NavLink({
   item,
   active,
   collapsed,
+  badge = 0,
 }: {
   item: NavItem;
   active: boolean;
   collapsed: boolean;
+  /** Antal okvitterade larm. Noll döljer märket helt. */
+  badge?: number;
 }) {
   const Icon = item.icon;
   return (
@@ -197,6 +207,19 @@ function NavLink({
         className={clsx('shrink-0', collapsed && 'lg:mx-auto')}
       />
       <span className={clsx(collapsed && 'lg:sr-only')}>{item.label}</span>
+      {badge > 0 && (
+        <span
+          // I ihopfällt läge sitter märket som en prick på ikonen — siffran
+          // ryms inte, men att det finns något måste ändå synas.
+          className={clsx(
+            'ml-auto rounded-full bg-brand-fg px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums text-brand',
+            collapsed && 'lg:absolute lg:right-2 lg:top-1.5 lg:ml-0 lg:px-1 lg:py-0'
+          )}
+        >
+          {badge > 99 ? '99+' : badge}
+          <span className="sr-only"> okvitterade larm</span>
+        </span>
+      )}
     </Link>
   );
 }

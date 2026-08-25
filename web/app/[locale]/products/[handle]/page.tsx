@@ -11,15 +11,21 @@ import { SITE_URL, getSiteUrl } from '@/lib/site';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
 import JsonLd from '@/components/JsonLd';
 import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
+import { resolveHandleRedirect } from '@/lib/redirectsDb';
 
 // export const dynamic = 'force-dynamic';
 
-import { getProductStaticParams } from '@/lib/staticParams';
-
-export async function generateStaticParams() {
-    return getProductStaticParams();
-}
+// Katalogsidorna renderas per förfrågan. Priser, lager och texter ändras i
+// /admin och ska slå igenom direkt — en byggtidsstillbild av katalogen skulle
+// visa gårdagens pris för en kund som debiteras dagens.
+//
+// Här stod förr generateStaticParams. Den var verkningslös (rot-layouten läser
+// headers(), vilket gör varje sida dynamisk) men inte harmlös: tillsammans med
+// dynamicParams i [locale]/layout.tsx betydde den att en produkt skapad efter
+// bygget skulle svara 404 den dag headers()-anropet försvann. Listan av handles
+// finns kvar i staticParams.ts, där sitemapen använder den.
+export const dynamic = 'force-dynamic';
 
 type Props = {
     params: Promise<{ locale: string; handle: string }>;
@@ -80,7 +86,15 @@ export default async function ProductPage({ params }: Props) {
     const locale = normalizeLocale(localeParam);
     const t = getTranslations(locale);
     const product = await getCatalogProduct(handle, locale);
-    if (!product) notFound();
+    // Handlen kan ha bytts i /admin. Uppslaget görs först här, i den bana som
+    // ändå var på väg mot 404 — en omdirigeringstabell som frågades på varje
+    // sidvisning hade kostat en databasrundtur för varje besökare för att lösa
+    // ett problem som rör de få adresser som faktiskt flyttat.
+    if (!product) {
+        const moved = await resolveHandleRedirect('product', handle);
+        if (moved) permanentRedirect(`/${locale}${moved}`);
+        notFound();
+    }
 
     const images = product.images.edges.map(e => e.node);
 

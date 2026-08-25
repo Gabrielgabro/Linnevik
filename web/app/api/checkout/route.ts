@@ -35,7 +35,7 @@ import {
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
 import { ensureStripeCoupon, resolveDiscount, resolveShipping } from '@/lib/commerceOperations';
-import { reserveOrderStockStrict } from '@/lib/inventoryDb';
+import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
 
 export const runtime = 'nodejs';
@@ -81,6 +81,20 @@ export async function POST(request: NextRequest) {
   let pendingOrderId: number | null = null;
   let stripeSessionCreated = false;
   try {
+    // Utgångna reservationer släpps här, i det ögonblick lagret faktiskt
+    // betyder något för någon. Förr gjorde bara webhooken för en utgången
+    // session det, plus avstämningen 03:00 — tappades webhooken kunde en
+    // övergiven kassa hålla riktiga enheter bundna resten av dygnet, och nästa
+    // kund möta "slut i lager" på något som stod på hyllan. Satsen är en enda
+    // fråga mot ett index och kostar ingenting när det inte finns något att
+    // släppa. Fel här får inte fälla kassan: det värsta som händer är att
+    // reservationen ligger kvar tills cronen tar den.
+    try {
+      await releaseExpiredReservations('checkout');
+    } catch (error) {
+      console.error('[Checkout] Kunde inte släppa utgångna reservationer:', error);
+    }
+
     const locale = await getServerLanguage();
     const currentCart = await getOwnedCart(ownedCartId);
     if (!currentCart) {

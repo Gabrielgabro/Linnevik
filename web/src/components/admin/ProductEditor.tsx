@@ -8,7 +8,7 @@
 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Button,
   Combobox,
@@ -420,12 +420,102 @@ function cleanOptions(options: OptionPair[]): OptionPair[] | null {
 
 const OPTION_ERROR = 'Varje alternativ behöver både namn och värde, till exempel Storlek och 50x70.';
 
+/** Vad varje rörelsetyp betyder, på svenska. Typerna skrivs av inventoryDb. */
+const MOVEMENT_LABEL: Record<string, string> = {
+  reserve: 'Reserverad',
+  release: 'Släppt',
+  fulfill: 'Plockad',
+  return: 'Retur',
+  restock: 'Åter i lager',
+  adjust: 'Justerad',
+};
+
+type Movement = {
+  id: number;
+  type: string;
+  quantity: number;
+  orderId: number | null;
+  note: string | null;
+  actor: string;
+  createdAt: string;
+};
+
+const movementStamp = new Intl.DateTimeFormat('sv-SE', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+  timeZone: 'Europe/Stockholm',
+});
+
+/**
+ * Lagerhistoriken för en variant. Tabellen har skrivits av varje reservation,
+ * plock och retur sedan 0011, men ingen vy visade den — frågan "varför står det
+ * 3 här när jag räknade 5 i hyllan" gick bara att svara på i psql.
+ *
+ * Hämtas när raden öppnas och inte med sidan: det är den längsta datamängden i
+ * produktkortet, och intressant först när någon undrar över just den varianten.
+ */
+function StockHistory({ variantId }: { variantId: number }) {
+  const [movements, setMovements] = useState<Movement[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/variants/${variantId}/movements`)
+      .then(response => (response.ok ? response.json() : Promise.reject(new Error('fel'))))
+      .then(data => {
+        if (!cancelled) setMovements(data.movements ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Kunde inte hämta lagerhistoriken.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [variantId]);
+
+  if (error) return <p className="text-[12.5px] text-ink-3">{error}</p>;
+  if (movements === null) return <p className="text-[12.5px] text-ink-3">Hämtar historik…</p>;
+  if (movements.length === 0) {
+    return <p className="text-[12.5px] text-ink-3">Inga lagerrörelser ännu.</p>;
+  }
+
+  return (
+    <ul className="flex flex-col gap-1">
+      {movements.map(movement => (
+        <li
+          key={movement.id}
+          className="flex flex-wrap items-baseline gap-x-3 font-mono text-[11.5px] text-ink-3"
+        >
+          <span className="tabular-nums">{movementStamp.format(new Date(movement.createdAt))}</span>
+          <span className="text-ink-2">{MOVEMENT_LABEL[movement.type] ?? movement.type}</span>
+          {/* Justeringar bär tecken — de kan gå åt båda hållen. Övriga typer
+              lagras som magnitud och beskrivs av sin typ. */}
+          <span className="tabular-nums text-ink">
+            {movement.type === 'adjust' && movement.quantity > 0 ? '+' : ''}
+            {movement.quantity} st
+          </span>
+          <span>{movement.actor}</span>
+          {movement.orderId !== null && <span>order {movement.orderId}</span>}
+          {movement.note && <span className="text-ink-3">· {movement.note}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function VariantRow({
   variant,
   landedCostSek,
+  onMove,
+  canMoveUp,
+  canMoveDown,
 }: {
   variant: VariantWithUsage;
   landedCostSek: number | null;
+  /** Flyttar varianten ett steg. Ordningen är den kunden ser i väljaren. */
+  onMove: (direction: -1 | 1) => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -497,7 +587,31 @@ function VariantRow({
   };
 
   return (
-    <li className="border-b" style={{ borderColor: 'var(--viz-grid)' }}>
+    <li className="flex items-start gap-1 border-b" style={{ borderColor: 'var(--viz-grid)' }}>
+      {/* Pilar i stället för dra-och-släpp: fungerar med tangentbord, och
+          listan är kort. Samma lösning som bilderna redan har. */}
+      <span className="flex shrink-0 flex-col pt-4">
+        <button
+          type="button"
+          aria-label={`Flytta ${variant.sku} uppåt`}
+          disabled={!canMoveUp}
+          onClick={() => onMove(-1)}
+          className="px-1 text-[10px] leading-none text-ink-3 enabled:hover:text-ink disabled:opacity-25"
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          aria-label={`Flytta ${variant.sku} nedåt`}
+          disabled={!canMoveDown}
+          onClick={() => onMove(1)}
+          className="px-1 text-[10px] leading-none text-ink-3 enabled:hover:text-ink disabled:opacity-25"
+        >
+          ▼
+        </button>
+      </span>
+
+      <div className="min-w-0 flex-1">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -640,9 +754,24 @@ function VariantRow({
               </span>
             )}
           </div>
+          <div
+            className="flex flex-col gap-2 border-t pt-4"
+            style={{ borderColor: 'var(--viz-grid)' }}
+          >
+            <span
+              className="font-mono text-[10.5px] uppercase tracking-[0.12em]"
+              style={{ color: 'var(--viz-ink-3)' }}
+            >
+              Lagerhistorik
+              {variant.inventoryReserved > 0 && ` · ${variant.inventoryReserved} reserverade`}
+            </span>
+            <StockHistory variantId={variant.id} />
+          </div>
+
           <ErrorNote>{error}</ErrorNote>
         </form>
       )}
+      </div>
     </li>
   );
 }
@@ -844,6 +973,288 @@ function CollectionPanel({
   );
 }
 
+/**
+ * Varianterna i den ordning kunden möter dem. Ordningen sparas på servern och
+ * inte bara här: samma `position` styr knapparna i produktsidans variantväljare,
+ * som förr byggdes i id-ordning — alltså i den ordning varianterna råkade skapas.
+ */
+function VariantList({
+  detail,
+  landedCostSek,
+}: {
+  detail: ProductDetail;
+  landedCostSek: number | null;
+}) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  const move = async (index: number, direction: -1 | 1) => {
+    const order = detail.variants.map(variant => variant.id);
+    const target = index + direction;
+    if (target < 0 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+
+    setError(null);
+    const response = await fetch(`/api/admin/products/${detail.product.id}/variants`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order }),
+    });
+    if (!response.ok) {
+      setError('Kunde inte spara ordningen.');
+      return;
+    }
+    router.refresh();
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <ul className="flex flex-col">
+        {detail.variants.map((variant, index) => (
+          <VariantRow
+            key={variant.id}
+            variant={variant}
+            landedCostSek={landedCostSek}
+            onMove={direction => move(index, direction)}
+            canMoveUp={index > 0}
+            canMoveDown={index < detail.variants.length - 1}
+          />
+        ))}
+      </ul>
+      <ErrorNote>{error}</ErrorNote>
+    </div>
+  );
+}
+
+/**
+ * Vad som fattas innan produkten kan gå live.
+ *
+ * Ingen av punkterna blockerar — status går att sätta till `active` ändå, och
+ * ska göra det: ibland vill man publicera först och fylla på sen. Men en
+ * produkt utan bild, utan säljbar variant eller utan primär kategori ser
+ * färdig ut i listan och är det inte, och det var förr något man upptäckte på
+ * sajten. Nya varianter har dessutom `available_for_sale` avstängt som förval,
+ * så "har varianter" räcker inte som mått.
+ */
+function PublishChecklist({ detail }: { detail: ProductDetail }) {
+  const checks = [
+    { done: detail.images.length > 0, label: 'Minst en bild' },
+    {
+      done: detail.variants.some(variant => variant.active && variant.availableForSale),
+      label: 'Minst en säljbar variant',
+    },
+    { done: detail.primaryCollectionId !== null, label: 'Primär kategori (brödsmulan)' },
+    { done: Boolean(detail.product.titleEn), label: 'Engelsk titel' },
+    { done: Boolean(detail.product.stripeProductId), label: 'Kopplad till Stripe' },
+  ];
+  const missing = checks.filter(check => !check.done);
+
+  if (missing.length === 0) {
+    return (
+      <p className="text-[13px]" style={{ color: 'var(--adm-ok)' }}>
+        Allt på plats för publicering.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>Saknas för publicering</Label>
+      <ul className="flex flex-col gap-1">
+        {missing.map(check => (
+          <li key={check.label} className="text-[13px]" style={{ color: 'var(--viz-ink-2)' }}>
+            · {check.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Kopplar produkten till Stripe utan att någon behöver köra skriptet. */
+function StripeLink({ detail }: { detail: ProductDetail }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const linked = detail.product.stripeProductId;
+
+  const link = async () => {
+    setBusy(true);
+    setError(null);
+    const response = await fetch(`/api/admin/products/${detail.product.id}/stripe`, {
+      method: 'POST',
+    });
+    const data = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setError(data.error ?? 'Kunde inte koppla produkten till Stripe.');
+      return;
+    }
+    router.refresh();
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          variant={linked ? 'quiet' : 'secondary'}
+          disabled={busy}
+          onClick={link}
+        >
+          {busy ? 'Kopplar…' : linked ? 'Uppdatera i Stripe' : 'Koppla till Stripe'}
+        </Button>
+        <span className="font-mono text-[11.5px]" style={{ color: 'var(--viz-ink-3)' }}>
+          {linked ?? 'Ingen Stripe-produkt'}
+        </span>
+      </div>
+      {/* Inga priser skapas i Stripe — beloppen räknas per kund hos oss och
+          skickas som price_data i kassan. Se stripeCatalog.ts. */}
+      <p className="max-w-[62ch] text-[12.5px]" style={{ color: 'var(--viz-ink-3)' }}>
+        Kopplingen gör att försäljningen syns per produkt i Stripes rapporter. Priserna påverkas
+        inte — de räknas här och skickas med i kassan.
+      </p>
+      <ErrorNote>{error}</ErrorNote>
+    </div>
+  );
+}
+
+/**
+ * Att ta bort en produkt.
+ *
+ * Två olika saker, och skillnaden är hela poängen. Arkivera tar bort den från
+ * sajten — `catalogDb` läser bara `status = 'active'`, så produktsidan,
+ * kategorierna, sökningen och sitemapen släpper den — men allt är kvar och går
+ * att ångra. Radera tar bort raden, och det får bara ske för en produkt som
+ * aldrig sålts: orderraden pekar på varianten, och en order ska gå att läsa i
+ * efterhand även om katalogen har ändrats sedan dess.
+ *
+ * Vilken av dem som är möjlig avgörs av servern, men vi vet redan här om
+ * någon variant förekommer på en order — och en knapp som säkert kommer att
+ * nekas är bättre att inte visa.
+ */
+function DangerPanel({ detail }: { detail: ProductDetail }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { product } = detail;
+  const sold = detail.variants.reduce((sum, variant) => sum + variant.orderLineCount, 0);
+  const archived = product.status === 'archived';
+
+  const setStatus = async (status: 'archived' | 'draft', confirmText?: string) => {
+    if (confirmText && !confirm(confirmText)) return;
+    setBusy(true);
+    setError(null);
+    const response = await fetch(`/api/admin/products/${product.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setError(data.error ?? 'Kunde inte ändra status.');
+      return;
+    }
+    router.refresh();
+  };
+
+  const remove = async () => {
+    // Titeln skrivs av för hand. Ett confirm() klickas bort på reflex, och det
+    // här går inte att ångra: varianter och bilder följer med.
+    const typed = prompt(
+      `Radera ${product.title} permanent, med ${detail.variants.length} ` +
+        `${detail.variants.length === 1 ? 'variant' : 'varianter'} och ${detail.images.length} ` +
+        `${detail.images.length === 1 ? 'bild' : 'bilder'}? Skriv produktens titel för att bekräfta.`
+    );
+    if (typed === null) return;
+    if (typed.trim() !== product.title) {
+      setError('Titeln stämde inte — inget raderades.');
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    const response = await fetch(`/api/admin/products/${product.id}`, { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setBusy(false);
+      setError(data.error ?? 'Kunde inte radera produkten.');
+      return;
+    }
+    router.replace('/admin/products');
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        {archived ? (
+          <Button type="button" variant="secondary" disabled={busy} onClick={() => setStatus('draft')}>
+            Återställ som utkast
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={() =>
+              setStatus(
+                'archived',
+                `Arkivera ${product.title}? Produkten försvinner från sajten men allt sparas.`
+              )
+            }
+          >
+            Arkivera
+          </Button>
+        )}
+        {sold === 0 ? (
+          <Button type="button" variant="danger" disabled={busy} onClick={remove}>
+            Radera permanent
+          </Button>
+        ) : (
+          <span className="text-[12.5px] text-ink-3">
+            Har sålts ({sold} {sold === 1 ? 'orderrad' : 'orderrader'}) och kan inte raderas —
+            arkivera i stället.
+          </span>
+        )}
+      </div>
+      <ErrorNote>{error}</ErrorNote>
+    </div>
+  );
+}
+
+/**
+ * Kopierar produkten och går till kopian. Den skapas som utkast, utan bilder
+ * och utan lager — se duplicateProduct för varför.
+ */
+function DuplicateButton({ productId }: { productId: number }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const duplicate = async () => {
+    setBusy(true);
+    setError(null);
+    const response = await fetch(`/api/admin/products/${productId}/duplicate`, { method: 'POST' });
+    const data = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setError(data.error ?? 'Kunde inte kopiera produkten.');
+      return;
+    }
+    router.push(`/admin/products/${data.product.handle}`);
+  };
+
+  return (
+    <span className="flex items-center gap-2">
+      <Button type="button" variant="secondary" disabled={busy} onClick={duplicate}>
+        {busy ? 'Kopierar…' : 'Duplicera'}
+      </Button>
+      {error && <span className="text-[12.5px] text-danger">{error}</span>}
+    </span>
+  );
+}
+
 export default function ProductEditor({
   detail,
   collections,
@@ -875,6 +1286,21 @@ export default function ProductEditor({
         }
         title={product.title}
         accent="var(--adm-brand)"
+        actions={
+          <>
+            {/* Att se ändringen som kunden ser den krävde förr att man skrev av
+                adressen för hand. */}
+            <a
+              href={`/sv/products/${product.handle}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-ctl border border-rule px-3 py-2 text-[13.5px] text-ink-2 hover:bg-plane hover:text-ink"
+            >
+              Visa på sajten
+            </a>
+            <DuplicateButton productId={product.id} />
+          </>
+        }
         description={
           product.stripeProductId ? (
             <Tag color="var(--adm-ok)">Stripe: {product.stripeProductId}</Tag>
@@ -899,11 +1325,7 @@ export default function ProductEditor({
         title="Varianter"
         note="Priset här är det kassan tar betalt. SKU:n är produktens beständiga identitet och måste vara unik i hela katalogen."
       >
-        <ul className="flex flex-col">
-          {detail.variants.map(variant => (
-            <VariantRow key={variant.id} variant={variant} landedCostSek={landedCostSek} />
-          ))}
-        </ul>
+        <VariantList detail={detail} landedCostSek={landedCostSek} />
         <NewVariant productId={product.id} />
       </Panel>
 
@@ -912,6 +1334,23 @@ export default function ProductEditor({
         note="Den primära kategorin bestämmer brödsmulan på sajten. Hierarkin redigeras under Kategorier."
       >
         <CollectionPanel detail={detail} collections={collections} />
+      </Panel>
+
+      <Panel
+        title="Publicering"
+        note="Vad som återstår innan produkten är komplett på sajten, och kopplingen till Stripe."
+      >
+        <div className="flex flex-col gap-5">
+          <PublishChecklist detail={detail} />
+          <StripeLink detail={detail} />
+        </div>
+      </Panel>
+
+      <Panel
+        title="Ta bort"
+        note="Arkivera tar bort produkten från sajten men behåller allt — det är det normala sättet att sluta sälja något. Radera går bara på en produkt som aldrig sålts, eftersom ordrar ska gå att läsa i efterhand."
+      >
+        <DangerPanel detail={detail} />
       </Panel>
     </>
   );

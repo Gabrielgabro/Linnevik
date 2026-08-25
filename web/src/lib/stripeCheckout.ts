@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { getStripe } from '@/lib/stripe';
 import { releaseExpiredReservations } from '@/lib/inventoryDb';
+import { raiseAlert } from '@/lib/opsAlerts';
 import { sendOrderConfirmation } from '@/lib/orderEmails';
 import {
   markOrderFailed,
@@ -51,7 +52,24 @@ export async function applyCheckoutSession(
 ): Promise<CheckoutSessionResult> {
   const orderId = await reconcileCheckoutSessionReference(session);
   if (!orderId) {
-    console.warn('[Stripe checkout] Ignoring session without a matching Linnevik order:', session.id);
+    // En betald session utan order hos oss är pengar vi tagit emot utan att
+    // veta för vad. Bara den betalda varianten larmar: en övergiven eller
+    // utgången session utan matchning är ofarlig och skulle bara bli brus.
+    if (session.payment_status !== 'unpaid') {
+      await raiseAlert({
+        kind: 'webhook.unmatched_session',
+        key: `session:${session.id}`,
+        subject: 'Betald Stripe-session utan order hos oss',
+        detail: {
+          session: session.id,
+          belopp: session.amount_total,
+          valuta: session.currency,
+          epost: session.customer_details?.email ?? null,
+        },
+      });
+    } else {
+      console.warn('[Stripe checkout] Ignoring session without a matching Linnevik order:', session.id);
+    }
     return { matched: false, paid: false, newlyPaid: false, stockReady: false, orderId: null };
   }
 
@@ -186,6 +204,14 @@ export async function reconcileRecentCheckoutSessions(): Promise<{
   }
 
   const releasedReservations = await releaseExpiredReservations('reconciliation');
+  if (failures.length) {
+    await raiseAlert({
+      kind: 'reconcile.failed',
+      key: 'reconcile',
+      subject: `Avstämningen kom inte igenom på ${failures.length} sessioner`,
+      detail: { fel: failures.slice(0, 10), kontrollerade: sessions.size },
+    });
+  }
   return {
     checked: sessions.size,
     repaired,

@@ -20,7 +20,16 @@ export async function generateStaticParams() {
   }));
 }
 
-export const dynamicParams = false;
+// `dynamicParams = false` stod här förr och gjorde jobbet med att 404:a ett
+// okänt språk. Den togs bort med flit: Next avgör den inställningen för hela
+// rutten och inte per segment (se build/static-paths/app.js), så flaggan här
+// styrde även /[locale]/products/[handle] — där den hade betytt att varje
+// produkt skapad efter senaste bygget svarade 404. Att det inte hände berodde
+// bara på att rot-layouten läser headers() och därmed gör allt dynamiskt.
+//
+// Kontrollen av språket görs i stället uttryckligen nedan, i både
+// generateMetadata och layouten: ett okänt språk anropar notFound() direkt.
+
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale: localeParam } = await params;

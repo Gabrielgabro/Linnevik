@@ -1,5 +1,7 @@
 import {
   Activity,
+  BellRing,
+  Download,
   FolderTree,
   LineChart,
   Package,
@@ -61,6 +63,7 @@ export const NAV: NavGroup[] = [
         accent: 'var(--viz-s3)',
       },
       { href: '/admin/commerce', label: 'Handel', icon: Settings2, accent: 'var(--adm-warn)' },
+      { href: '/admin/export', label: 'Export', icon: Download, accent: 'var(--viz-s4)' },
     ],
   },
   {
@@ -68,6 +71,9 @@ export const NAV: NavGroup[] = [
     items: [
       { href: '/admin/clients', label: 'Kunder', icon: Users, accent: 'var(--viz-s1)' },
       { href: '/admin/activity', label: 'Aktivitet', icon: Activity, accent: 'var(--viz-ink-3)' },
+      // Sist i menyn men först i uppmärksamhet när siffran på den är röd:
+      // driftlarmen är det enda i /admin som betyder "titta nu".
+      { href: '/admin/alerts', label: 'Driftlarm', icon: BellRing, accent: 'var(--adm-danger)' },
     ],
   },
 ];

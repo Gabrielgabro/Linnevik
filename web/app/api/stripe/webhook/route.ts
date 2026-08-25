@@ -9,10 +9,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
-import { markOrderFailed, updateRefundStatus } from '@/lib/ordersDb';
+import { markOrderFailed } from '@/lib/ordersDb';
 import { sendOrderConfirmation } from '@/lib/orderEmails';
+import { raiseAlert } from '@/lib/opsAlerts';
 import { claimStripeEvent, completeStripeEvent, releaseStripeEvent } from '@/lib/stripeWebhookDb';
 import { applyCheckoutSession, reconcileCheckoutSessionReference } from '@/lib/stripeCheckout';
+import { syncRefundsForCharge, syncStripeDispute, syncStripeRefund } from '@/lib/stripeRefunds';
 
 export const runtime = 'nodejs';
 // Kroppen får inte cachas eller förvandlas — signaturen räknas på byte-nivå.
@@ -62,9 +64,28 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      // Återbetalningar kommer åt två håll. Startade i /admin finns raden
+      // redan och det här är bara en statusändring. Startade i Stripes
+      // kontrollpanel finns ingen rad alls — förr blev den händelsen tyst
+      // ignorerad, och våra siffror gled ifrån Stripes.
+      case 'refund.created':
       case 'refund.updated':
       case 'refund.failed':
-        await updateRefundStatus(event.data.object.id, event.data.object.status ?? 'pending');
+        await syncStripeRefund(event.data.object);
+        break;
+
+      // Äldre händelse som fortfarande skickas för en återbetalning gjord på
+      // debiteringen. Bär en Charge, inte en Refund.
+      case 'charge.refunded':
+        await syncRefundsForCharge(event.data.object);
+        break;
+
+      // Tvist. Pengarna är redan innehållna av Stripe när det här kommer, och
+      // tidsfristen för att svara med underlag är kort.
+      case 'charge.dispute.created':
+      case 'charge.dispute.updated':
+      case 'charge.dispute.closed':
+        await syncStripeDispute(event.data.object);
         break;
 
       case 'checkout.session.expired':
@@ -85,8 +106,19 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // 500 gör att Stripe försöker igen. Skrivningarna är idempotenta, så ett
     // omtag är ofarligt och bättre än en tappad order.
-    console.error(`[Stripe webhook] Failed to handle ${event.type}:`, error);
     await releaseStripeEvent(event.id);
+    // Stripe gör om försöket, och skrivningarna är idempotenta — men en
+    // händelse som faller om och om igen är ingen som ser utan ett larm.
+    await raiseAlert({
+      kind: 'webhook.failed',
+      key: `webhook:${event.id}`,
+      subject: `Stripe-webhooken föll på ${event.type}`,
+      detail: {
+        event: event.type,
+        eventId: event.id,
+        fel: error instanceof Error ? error.message : String(error),
+      },
+    });
     return NextResponse.json({ error: 'Handler failed.' }, { status: 500 });
   }
 

@@ -2,8 +2,9 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { cartItems, carts, productImages, products, productVariants } from '@/lib/db/schema';
 import { assertCartProductChannel, assertOrderable } from '@/lib/cartRules';
-import { CURRENT_PRICING_VERSION, OWNED_CART_TTL_DAYS } from '@/lib/commerceConfig';
+import { FALLBACK_PRICING_VERSION, OWNED_CART_TTL_DAYS } from '@/lib/commerceConfig';
 import { getPricingConfig } from '@/lib/pricing';
+import { currentPricingVersion } from '@/lib/pricingConfigDb';
 import { priceOrder } from '@/lib/pricingRules';
 import { landedCostMinorForSku } from '@/lib/landedCostLookup';
 import { vatOn, vatPercent } from '@/lib/vat';
@@ -68,7 +69,10 @@ export async function createOwnedCart(input: {
     locale: input.locale === 'en' ? 'en' : 'sv',
     currency: (input.currency || 'sek').toLowerCase(),
     customerNo: input.customerNo || null,
-    pricingVersion: CURRENT_PRICING_VERSION,
+    // Vilken version av mängdrabatten korgen föddes under. Korgen prissätts
+    // om vid varje läsning, så stämpeln säger vad som gällde när den skapades
+    // — ordern bär i sin tur den version som gällde när den frystes.
+    pricingVersion: await currentPricingVersion().catch(() => FALLBACK_PRICING_VERSION),
     expiresAt: expiresAt(),
   });
   return (await getOwnedCart(id))!;

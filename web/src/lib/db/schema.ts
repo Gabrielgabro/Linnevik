@@ -222,6 +222,10 @@ export const productVariants = pgTable(
     orderIncrement: integer('order_increment').notNull().default(1),
     inventoryTracked: boolean('inventory_tracked').notNull().default(true),
     availableForSale: boolean('available_for_sale').notNull().default(false),
+    // Ordningen kunden ser dem i, på produktsidan och i adminvyn. Utan den
+    // byggdes variantväljaren i id-ordning, alltså i den ordning varianterna
+    // råkade skapas.
+    position: integer('position').notNull().default(0),
     stripePriceId: text('stripe_price_id'),
     stripeLookupKey: text('stripe_lookup_key'),
     active: boolean('active').notNull().default(true),
@@ -231,6 +235,7 @@ export const productVariants = pgTable(
   },
   table => [
     index('product_variants_product_id_idx').on(table.productId),
+    index('product_variants_product_position_idx').on(table.productId, table.position),
     uniqueIndex('product_variants_shopify_variant_id_key')
       .on(table.shopifyVariantId)
       .where(isNotNull(table.shopifyVariantId)),
@@ -535,6 +540,9 @@ export const orders = pgTable(
     vatRateId: text('vat_rate_id'),
     totalMinor: integer('total_minor').notNull().default(0),
     refundedMinor: integer('refunded_minor').notNull().default(0),
+    // Vilken version av prisreglerna ordern prissattes under. Se 0028 och
+    // pricingConfigDb.updatePricingConfig.
+    pricingVersion: text('pricing_version'),
     currency: text('currency').notNull().default('sek'),
     locale: text('locale'),
     notes: text('notes'),
@@ -847,6 +855,71 @@ export const sampleRequestItems = pgTable(
   table => [index('sample_request_items_request_id_idx').on(table.requestId)]
 );
 
+// Driftlarm. Varje fel som förr bara blev en rad i konsolen — en fälld webhook,
+// en betald order utan lagerreservation, en tvist, ett mejl som inte gick fram —
+// landar här och mejlas ut. Tabellen är samtidigt spärren mot larmstormar:
+// samma `dedupeKey` mejlas högst en gång per fönster, men varje förekomst sparas.
+export const opsAlerts = pgTable(
+  'ops_alerts',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    kind: text('kind').notNull(),
+    dedupeKey: text('dedupe_key').notNull(),
+    subject: text('subject').notNull(),
+    detail: jsonb('detail').$type<Record<string, unknown>>().notNull().default({}),
+    // Null när larmet skrevs men mejlet hölls tillbaka av spärren, eller när
+    // SMTP saknades i miljön.
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    acknowledgedBy: text('acknowledged_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    index('ops_alerts_created_idx').on(table.createdAt),
+    index('ops_alerts_dedupe_idx').on(table.dedupeKey, table.createdAt),
+  ]
+);
+
+// Adresser som flyttat. Skrivs när en produkt eller kategori byter handle och
+// läses bara i den bana som annars hade svarat 404 — se redirectsDb.ts.
+export const urlRedirects = pgTable(
+  'url_redirects',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    // Utan språkprefix: handlen är gemensam för sv och en.
+    fromPath: text('from_path').notNull(),
+    toPath: text('to_path').notNull(),
+    kind: text('kind').notNull().default('product'),
+    hits: integer('hits').notNull().default(0),
+    lastHitAt: timestamp('last_hit_at', { withTimezone: true }),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('url_redirects_from_path_key').on(table.fromPath),
+    index('url_redirects_to_path_idx').on(table.toPath),
+    check('url_redirects_not_circular', sql`${table.fromPath} <> ${table.toPath}`),
+  ]
+);
+
+// Arkivet över prisreglerna. Den aktiva regeln bor kvar i `pricing_config`;
+// varje sparning lägger en kopia här under ett eget versionsnamn, som korgar
+// och ordrar stämplas med. Se 0028.
+export const pricingConfigVersions = pgTable(
+  'pricing_config_versions',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    version: text('version').notNull(),
+    config: jsonb('config').$type<Record<string, unknown>>().notNull(),
+    updatedBy: text('updated_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('pricing_config_versions_version_key').on(table.version),
+    index('pricing_config_versions_created_idx').on(table.createdAt),
+  ]
+);
+
 export type ProductRow = typeof products.$inferSelect;
 export type ProductVariantRow = typeof productVariants.$inferSelect;
 export type ProductImageRow = typeof productImages.$inferSelect;
@@ -865,3 +938,6 @@ export type InventoryMovementRow = typeof inventoryMovements.$inferSelect;
 export type CustomerLoginTokenRow = typeof customerLoginTokens.$inferSelect;
 export type SampleRequestRow = typeof sampleRequests.$inferSelect;
 export type SampleRequestItemRow = typeof sampleRequestItems.$inferSelect;
+export type OpsAlertRow = typeof opsAlerts.$inferSelect;
+export type UrlRedirectRow = typeof urlRedirects.$inferSelect;
+export type PricingConfigVersionRow = typeof pricingConfigVersions.$inferSelect;
