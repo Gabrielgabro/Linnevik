@@ -3,12 +3,62 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { competitorProducts, primaryOf, variantCompetitors } from '@/data/competitorPrices';
+import { products as landedProducts } from '@/data/landedCost';
 import type { VariantPricingProduct, VariantPricingVariant } from '@/lib/productsDb';
 import { Card, sek } from './VizPrimitives';
 
 const optionLabel = (v: VariantPricingVariant) => v.optionValues.map(o => o.value).join(' · ') || v.sku;
 
 const liveOf = (v: VariantPricingVariant) => v.priceMinor / 100;
+
+const digitsOf = (s: string): string[] => s.match(/\d+/g) ?? [];
+
+/**
+ * Jämför "160" mot "160 × 200" lika gärna som "50 x 70" mot "50 × 70" — vår
+ * databas anger ibland bara bredden, konkurrentdatan anger alltid hela måttet.
+ */
+const sizesMatch = (a: string, b: string) => {
+  const da = digitsOf(a);
+  const db = digitsOf(b);
+  const short = da.length <= db.length ? da : db;
+  const long = da.length <= db.length ? db : da;
+  return short.length > 0 && short.every(d => long.includes(d));
+};
+
+type MarketMatch = {
+  vendor: string;
+  size: string;
+  priceSek: number;
+  match: 'exact' | 'approx';
+  caveat?: string;
+};
+
+/**
+ * Marknadens referenspris för en specifik variant. Slår upp `sku` i
+ * `variantCompetitors` (storlekar utanför sändningsanalysen) och faller
+ * annars tillbaka på produktens vanliga jämförelse i `competitorPrices.ts`,
+ * om variantens storlek stämmer med den. Ingen träff alls betyder att
+ * marknaden research-mässigt saknar den här storleken helt — se
+ * kommentarerna i competitorPrices.ts för vilka det gäller.
+ */
+const marketMatchFor = (handle: string, variant: VariantPricingVariant): MarketMatch | null => {
+  const perVariant = variantCompetitors[variant.sku];
+  if (perVariant?.length) {
+    const c = perVariant.find(x => x.primary) ?? perVariant[0];
+    return { vendor: c.vendor, size: c.size, priceSek: c.priceSek, match: c.match, caveat: c.caveat };
+  }
+
+  const landed = landedProducts.find(p => p.handle === handle);
+  const product = landed ? competitorProducts.find(p => p.skuPrefix === landed.skuPrefix) : undefined;
+  if (!product) return null;
+
+  const ourSize = variant.optionValues.find(o => o.name.trim().toLowerCase().includes('storlek'))?.value;
+  if (!ourSize || !sizesMatch(ourSize, product.ourSize)) return null;
+
+  const primary = primaryOf(product);
+  return { vendor: primary.vendor, size: primary.size, priceSek: primary.priceSek, match: 'exact' };
+};
 
 /**
  * Skalans tak, samma runda-upp-logik som konkurrentgraferna men utan
@@ -35,6 +85,7 @@ function SliderRow({
   step,
   emphasis,
   edited,
+  market,
   onChange,
 }: {
   label: string;
@@ -43,6 +94,7 @@ function SliderRow({
   step: number;
   emphasis: boolean;
   edited: boolean;
+  market?: MarketMatch | null;
   onChange: (next: number) => void;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -92,49 +144,68 @@ function SliderRow({
   };
 
   const pct = Math.min(100, (value / max) * 100);
+  const marketPct = market ? Math.min(100, (market.priceSek / max) * 100) : null;
 
   return (
-    <div className="grid grid-cols-[178px_1fr_92px] items-center gap-3 max-[560px]:grid-cols-[1fr_auto] max-[560px]:gap-x-2.5 max-[560px]:gap-y-1">
-      <div
-        className="text-right text-[12.5px] leading-tight max-[560px]:col-span-full max-[560px]:text-left"
-        style={{ color: emphasis ? 'var(--viz-ink)' : 'var(--viz-ink-2)', fontWeight: emphasis ? 600 : 400 }}
-      >
-        {label}
-      </div>
-      <div
-        ref={trackRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        className="relative h-[22px] touch-none select-none rounded-[3px]"
-        style={{ background: 'var(--viz-grid)', cursor: dragging ? 'grabbing' : 'ew-resize' }}
-      >
+    <div className="flex flex-col gap-1">
+      <div className="grid grid-cols-[178px_1fr_92px] items-center gap-3 max-[560px]:grid-cols-[1fr_auto] max-[560px]:gap-x-2.5 max-[560px]:gap-y-1">
         <div
-          role="slider"
-          tabIndex={0}
-          aria-label={label}
-          aria-valuemin={0}
-          aria-valuemax={max}
-          aria-valuenow={Math.round(value)}
-          aria-valuetext={`${sek(value, 0)} kronor per styck`}
-          onKeyDown={onKeyDown}
-          className="absolute bottom-[3px] top-[3px] left-0 rounded-[3px_4px_4px_3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-          style={{
-            width: `${pct}%`,
-            minWidth: 2,
-            background: emphasis ? 'var(--viz-s1)' : 'var(--viz-s4)',
-            outlineColor: 'var(--viz-ink)',
-            opacity: edited ? 1 : 0.85,
-          }}
-        />
+          className="text-right text-[12.5px] leading-tight max-[560px]:col-span-full max-[560px]:text-left"
+          style={{ color: emphasis ? 'var(--viz-ink)' : 'var(--viz-ink-2)', fontWeight: emphasis ? 600 : 400 }}
+        >
+          {label}
+        </div>
+        <div
+          ref={trackRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          className="relative h-[22px] touch-none select-none rounded-[3px]"
+          style={{ background: 'var(--viz-grid)', cursor: dragging ? 'grabbing' : 'ew-resize' }}
+        >
+          {marketPct !== null && (
+            <span
+              aria-hidden
+              title={`Marknad: ${market!.vendor} ${sek(market!.priceSek, 0)} kr (${market!.size})${market!.match === 'approx' ? ' — närmaste storlek' : ''}`}
+              className="pointer-events-none absolute bottom-0 top-0 w-[2px]"
+              style={{ left: `${marketPct}%`, background: 'var(--viz-s2)' }}
+            />
+          )}
+          <div
+            role="slider"
+            tabIndex={0}
+            aria-label={label}
+            aria-valuemin={0}
+            aria-valuemax={max}
+            aria-valuenow={Math.round(value)}
+            aria-valuetext={`${sek(value, 0)} kronor per styck`}
+            onKeyDown={onKeyDown}
+            className="absolute bottom-[3px] top-[3px] left-0 rounded-[3px_4px_4px_3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            style={{
+              width: `${pct}%`,
+              minWidth: 2,
+              background: emphasis ? 'var(--viz-s1)' : 'var(--viz-s4)',
+              outlineColor: 'var(--viz-ink)',
+              opacity: edited ? 1 : 0.85,
+            }}
+          />
+        </div>
+        <span
+          className="whitespace-nowrap font-mono text-[11px] tabular-nums"
+          style={{ color: emphasis ? 'var(--viz-ink)' : 'var(--viz-ink-2)' }}
+        >
+          {sek(value, 0)} kr
+        </span>
       </div>
-      <span
-        className="whitespace-nowrap font-mono text-[11px] tabular-nums"
-        style={{ color: emphasis ? 'var(--viz-ink)' : 'var(--viz-ink-2)' }}
-      >
-        {sek(value, 0)} kr
-      </span>
+      {market?.match === 'approx' && (
+        <div className="grid grid-cols-[178px_1fr] gap-3 max-[560px]:grid-cols-1">
+          <span />
+          <span className="text-[10.5px] leading-snug" style={{ color: 'var(--viz-ink-3)' }}>
+            ≈ {market.vendor} {sek(market.priceSek, 0)} kr vid {market.size} — {market.caveat}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -155,10 +226,15 @@ function ProductPanel({ product }: { product: VariantPricingProduct }) {
   const anyEdited = edited.length > 0;
 
   const cheapest = product.variants.reduce((min, v) => (priceOf(v) < priceOf(min) ? v : min));
-  // Låst till de nuvarande priserna, inte till det som dras — annars hoppar
-  // hela skalan i sidled så fort ett reglage rör sig.
-  const max = scaleMaxOf(product.variants.map(liveOf));
+  const markets = product.variants.map(v => marketMatchFor(product.handle, v));
+  // Låst till de nuvarande priserna (och marknadens), inte till det som dras
+  // — annars hoppar hela skalan i sidled så fort ett reglage rör sig. Måste
+  // också rymma marknadspriset, annars klipps den orangea linjen av vid
+  // kanten och ser ut som en mindre skillnad än den faktiskt är (t.ex.
+  // Värnamos 220×220-duntäcke, långt dyrare än våra nuvarande priser).
+  const max = scaleMaxOf([...product.variants.map(liveOf), ...markets.map(m => m?.priceSek ?? 0)]);
   const step = stepOf(max);
+  const marketOf = new Map(product.variants.map((v, i) => [v.id, markets[i]]));
 
   const reset = () => setPrices(Object.fromEntries(product.variants.map(v => [v.id, liveOf(v)])));
 
@@ -206,6 +282,7 @@ function ProductPanel({ product }: { product: VariantPricingProduct }) {
               step={step}
               emphasis={false}
               edited={Math.round(priceOf(v)) !== Math.round(liveOf(v))}
+              market={marketOf.get(v.id)}
               onChange={next => setPrice(v, next)}
             />
           ))}
@@ -216,6 +293,7 @@ function ProductPanel({ product }: { product: VariantPricingProduct }) {
           step={step}
           emphasis
           edited={Math.round(priceOf(cheapest)) !== Math.round(liveOf(cheapest))}
+          market={marketOf.get(cheapest.id)}
           onChange={next => setPrice(cheapest, next)}
         />
       </div>

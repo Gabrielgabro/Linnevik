@@ -144,10 +144,15 @@ export const competitorProducts: CompetitorProduct[] = [
         product: 'Lilja duntäcke medium 600 g',
         spec: '90 % pyreneiskt anddun / 10 % fjäder, bomullscambric 280 TC',
         size: '150 × 210',
-        priceSek: 1769 / 1.25,
+        priceSek: 3629 / 1.25,
         channel: 'b2c',
         basis: 'b2c',
         url: 'https://varnamoofsweden.se/produkter/tacken/lilja-duntacke-medium-150x210-600-g',
+        // Omkontrollerad 2026-08-26: priset låg på 1 769 kr vid den ursprungliga
+        // insamlingen (2026-08-05), nu 3 629 kr på samma sida — mer än
+        // fördubblat på tre veckor. Kan inte avgöra om det är en genuin
+        // prishöjning eller en felaktig ursprunglig avläsning; värt att hålla
+        // ett extra öga på nästa gång boten går förbi den här sidan.
         caveat: 'Närmast identisk fyllning som vår. Ordinarie konsumentpris.',
       },
     ],
@@ -401,14 +406,17 @@ export const competitorProducts: CompetitorProduct[] = [
       },
       {
         vendor: 'Livv',
-        product: 'Kudde Ripa 600 g',
+        product: 'Kudde Ripa 700 g',
         spec: '50/50 dun/fjäder',
-        size: '50 × 60',
+        size: '50 × 70',
         priceSek: 849,
         channel: 'b2b',
         basis: 'ex',
-        url: LIVV_KUDDAR,
-        caveat: 'Mindre format (50 × 60).',
+        url: 'https://livv.se/se/textilier/kuddar/kudde-ripa-50x60cm-600g-anddun-fjader-50-50',
+        // Omkontrollerad 2026-08-26: sidan sålde tidigare bara 50×60/600g —
+        // nu är det enda alternativet 50×70/700g, samma pris. Exakt storlek
+        // mot vår nu, inte "mindre format" längre.
+        caveat: 'Exakt storlek mot vår (bytt från 50×60/600g sedan förra kontrollen).',
         watch: { fetchUrl: LIVV_KUDDAR, parser: 'livv-variant', key: 'Kudde Ripa' },
       },
       {
@@ -690,3 +698,303 @@ export const watchTargets: WatchTarget[] = competitorProducts.flatMap(p =>
       watch: c.watch,
     }))
 );
+
+// ---------------------------------------------------------------------------
+// Per-variant konkurrentpriser
+//
+// Allt ovanför gäller PRODUKTEN som helhet, jämförd vid en enda representativ
+// storlek. Egna produkter med flera varianter (se VariantPricing.tsx) behöver
+// en jämförelse per storlek/fyllning, inte en delad siffra för alla.
+//
+// Research 2026-08-26: gick igenom samma leverantörer som ovan (Tingstad,
+// Livv, Bed & Bath, Mandales, Hotex, Hotellvaror, Hotellkompaniet, IKEA) för
+// varje ytterligare storlek vi säljer i. Marknaden saknar helt enkelt vissa
+// storlekar — inget duntäcke säljs i 220×200 hos någon av leverantörerna, och
+// ingen dunkudde säljs i 60×90 (varken and- eller gåsdun). Se SIZE_EQUIVALENCE
+// nedan för de fall där en näraliggande storlek användes i stället.
+// ---------------------------------------------------------------------------
+
+/**
+ * Storlekar som räknas som likvärdiga när marknaden saknar en exakt träff.
+ * Skillnaden är för liten för att motivera ett eget prisläge, men den ska
+ * synas — varje `VariantCompetitor` som använder en av dessa par är taggad
+ * `match: 'approx'`, och gränssnittet visar då en kort förklaring.
+ */
+export const SIZE_EQUIVALENCE: { a: string; b: string; note: string }[] = [
+  { a: '50 x 90', b: '60 x 90', note: '10 cm smalare, samma fyllnadsklass' },
+  { a: '220 x 220', b: '220 x 200', note: '20 cm längre' },
+];
+
+export type VariantCompetitor = {
+  vendor: string;
+  product: string;
+  size: string;
+  priceSek: number;
+  channel: Channel;
+  basis: Basis;
+  url: string;
+  /** Flera rader kan finnas per variant — den här väljs som referenslinjen. */
+  primary?: boolean;
+  /** 'approx' när träffen bygger på ett par ur SIZE_EQUIVALENCE, inte en exakt storlek. */
+  match: 'exact' | 'approx';
+  caveat?: string;
+};
+
+/**
+ * Konkurrentpriser per egen variant-SKU (samma sträng som
+ * `product_variants.sku` i databasen) — till skillnad från
+ * `competitorProducts`, som har en jämförelse per produkt.
+ *
+ * En SKU som saknas här har antingen (a) samma storlek som produktens
+ * `ourSize` ovan — då används den produktens `primaryOf`-träff rakt av, se
+ * `VariantPricing.tsx` — eller (b) ingen marknadsträff alls, exakt eller
+ * likvärdig. Det senare gäller Kudde Sigrids 60×90-varianter: ingen av
+ * leverantörerna säljer en dunkudde i den storleken, and- eller gåsdun.
+ */
+export const variantCompetitors: Record<string, VariantCompetitor[]> = {
+  'KUD-ERI-6080': [
+    {
+      vendor: 'Tingstad',
+      product: 'Kudde Bed & Bath Premium Vit',
+      size: '60 × 80',
+      priceSek: 205,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://www.tingstad.com/se-sv/mobler-inredning/textilier/baddtextilier/kudde-bed-bath-premium-10bb37070151?size=sBOB%7C6080&color=cBOB%7C0113',
+      primary: true,
+      match: 'exact',
+    },
+    {
+      vendor: 'Bed & Bath',
+      product: 'Pillow Surprise Premium 1300 g',
+      size: '60 × 80',
+      priceSek: 26 * eurSek,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://bed-bath.com/eu/bedroom/pillows/pillow-surprise-premium-60x80-cm-1300-g/',
+      match: 'exact',
+    },
+    {
+      vendor: 'Hotex',
+      product: 'Hotellkudde Juleboda',
+      size: '60 × 80',
+      priceSek: 219,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://hotex.se/butik/evento/badosangtextilier/tacken-och-kuddar/kuddar/hotellkudde-juleboda-60x80-cm/',
+      match: 'exact',
+    },
+    {
+      vendor: 'Hotellvaror',
+      product: 'Kudde 60×80 cm (BP2)',
+      size: '60 × 80',
+      priceSek: 118,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://hotellvaror.se/kuddar/464-kudde-6080-cm.html',
+      match: 'exact',
+      caveat: 'Marknadens golv i den här storleken.',
+    },
+    {
+      vendor: 'Hotellkompaniet',
+      product: 'Hotellkudde 60x80cm',
+      size: '60 × 80',
+      priceSek: 599,
+      channel: 'b2c',
+      basis: 'b2c',
+      url: 'https://hotellkompaniet.se/produkt/hotellkudde-60x80cm/',
+      match: 'exact',
+    },
+  ],
+
+  'MAD-80200': [
+    {
+      vendor: 'Livv',
+      product: 'Bäddmadrasskydd Standard',
+      size: '80 × 200',
+      priceSek: 159,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://livv.se/se/textilier/madrasskydd/baddmadrasskydd-standard-flera-storlekar',
+      primary: true,
+      match: 'exact',
+    },
+    {
+      vendor: 'Livv',
+      product: 'Bäddmadrasskydd Secura',
+      size: '80 × 200',
+      priceSek: 239,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://livv.se/se/textilier/madrasskydd/baddmadrasskydd-secura-finns-i-flera-storlekar',
+      match: 'exact',
+    },
+    {
+      vendor: 'Mandales',
+      product: 'Mattress Cover Pink Martha',
+      size: '80 × 200',
+      priceSek: 245,
+      channel: 'b2b',
+      basis: 'ex-antag',
+      url: 'https://www.mandales.com/cat/bedroom/all-beds/mattress-protector/',
+      match: 'exact',
+    },
+    {
+      vendor: 'IKEA',
+      product: 'LUDDROS madrasskydd',
+      size: '80 × 200',
+      priceSek: 63.2,
+      channel: 'b2c',
+      basis: 'ex',
+      url: 'https://www.ikea.com/se/sv/p/luddros-madrasskydd-30461641/',
+      match: 'exact',
+      caveat: 'Sidan anger uttryckligen 63,20 kr exkl. moms bredvid 79 kr-priset.',
+    },
+    {
+      vendor: 'Bed & Bath',
+      product: 'Mattress protector Grand Luxe',
+      size: '80 × 200',
+      priceSek: 16 * eurSek,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://bed-bath.com/eu/bedroom/mattress-protectors/mattress-protector-grand-luxe-80x200-cm/',
+      match: 'exact',
+    },
+  ],
+
+  'MAD-200200': [
+    {
+      vendor: 'Hotellvaror',
+      product: 'Madrasskydd med spärrskikt',
+      size: '200 × 200',
+      priceSek: 288,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://hotellvaror.se/1210-madrasskydd',
+      primary: true,
+      match: 'exact',
+      caveat: 'Samma leverantör som produktens 160×200-jämförelse.',
+    },
+    {
+      vendor: 'Bed & Bath',
+      product: 'Mattress protector Grand Luxe',
+      size: '200 × 200',
+      priceSek: 36 * eurSek,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://bed-bath.com/eu/bedroom/mattress-protectors/mattress-protector-grand-luxe-200x200-cm/',
+      match: 'exact',
+    },
+  ],
+
+  // Täcke Jakob (60 % dun / 40 % fjäder) har ingen egen produktrad ovan — det
+  // är en ny produkt utan sändningsdata. 150×200 ligger närmast 50/50-fältet
+  // som redan används för Sebastian/Daniel, så samma leverantörer återanvänds.
+  'TAC-JAK-150200-AND': [
+    {
+      vendor: 'Tingstad',
+      product: 'Duntäcke grand luxe',
+      size: '150 × 200',
+      priceSek: 1390,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://www.tingstad.com/se-sv/mobler-inredning/textilier/baddtextilier/duntacke-grand-luxe-150x200cm-bb46060300',
+      primary: true,
+      match: 'exact',
+      caveat: '50/50 dun/fjäder — Jakobs 60/40 ligger mellan detta och Sebastians 90/10.',
+    },
+    {
+      vendor: 'Livv',
+      product: 'Täcke Ripa Dun/Fjäder',
+      size: '150 × 200',
+      priceSek: 1199,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://livv.se/se/textilier/tacken/ripa-tacke-dun-fjader',
+      match: 'exact',
+    },
+    {
+      vendor: 'Bed & Bath',
+      product: 'Down Duvet Grand Luxe 800 g',
+      size: '150 × 200',
+      priceSek: 130 * eurSek,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://bed-bath.com/eu/bedroom/duvets/down-duvet-grand-luxe-150x200-cm-800-g/',
+      match: 'exact',
+    },
+  ],
+
+  // Marknaden skiljer inte på and- och gåsdun i pris (ingen leverantör
+  // erbjuder båda till olika pris), så AND- och GAS-varianterna delar samma
+  // jämförelse rakt av — se caveat.
+  'TAC-JAK-220200-AND': [
+    {
+      vendor: 'Värnamo of Sweden',
+      product: 'Lilja duntäcke medium',
+      size: '220 × 220',
+      priceSek: 6889 / 1.25,
+      channel: 'b2c',
+      basis: 'b2c',
+      url: 'https://varnamoofsweden.se/tacken/lilja-duntacke-medium-220x220',
+      primary: true,
+      match: 'approx',
+      caveat: 'Inget duntäcke i exakt 220×200 hittades hos någon leverantör — det här är närmaste storlek.',
+    },
+  ],
+  'TAC-SEB-220200-AND': [
+    {
+      vendor: 'Värnamo of Sweden',
+      product: 'Lilja duntäcke medium',
+      size: '220 × 220',
+      priceSek: 6889 / 1.25,
+      channel: 'b2c',
+      basis: 'b2c',
+      url: 'https://varnamoofsweden.se/tacken/lilja-duntacke-medium-220x220',
+      primary: true,
+      match: 'approx',
+      caveat: 'Inget duntäcke i exakt 220×200 hittades hos någon leverantör — det här är närmaste storlek.',
+    },
+  ],
+
+  'KSK-6090X': [
+    {
+      vendor: 'Livv',
+      product: 'Kuddskydd',
+      size: '50 × 90',
+      priceSek: 49,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://livv.se/se/textilier/kuddar/kuddskydd-kuddvar-50x60cm',
+      primary: true,
+      match: 'approx',
+      caveat: 'Inget kuddskydd i exakt 60×90 hittades — det här är närmaste storlek, samma leverantör som 50×70-jämförelsen.',
+    },
+    {
+      vendor: 'Bed & Bath',
+      product: 'Pillow protective cover',
+      size: '50 × 90',
+      priceSek: 6 * eurSek,
+      channel: 'b2b',
+      basis: 'ex',
+      url: 'https://bed-bath.com/eu/bedroom/pillows/pillow-protective-cover-50x90-cm/',
+      match: 'approx',
+      caveat: 'Inget kuddskydd i exakt 60×90 hittades — det här är närmaste storlek.',
+    },
+  ],
+
+  // Kudde Sigrids KUD-SIG-AND-6090 och KUD-SIG-GAS-6090 saknas medvetet här:
+  // ingen av leverantörerna (Tingstad, Livv, Bed & Bath, Mandales, Hotex,
+  // Hygieniq, IKEA) säljer en dunkudde i 60×90 eller ens i den närliggande
+  // 50×90 — marknadens dunkuddar tar slut vid 50×70/50×90 i syntetiskt
+  // utförande, inte dun. Ingen leverantör skiljer heller på and- och gåsdun i
+  // pris. Det finns alltså ingen ärlig jämförelse att visa för de här två
+  // varianterna, inte ens en approximativ.
+};
+
+// Samma skäl som ovan: marknaden prisar inte and- och gåsdun olika, så
+// gåsdun-varianten pekar på exakt samma jämförelse som anddun-varianten
+// i stället för att dubblera datan (och riskera att den glider isär).
+variantCompetitors['TAC-JAK-150200-GAS'] = variantCompetitors['TAC-JAK-150200-AND'];
+variantCompetitors['TAC-JAK-220200-GAS'] = variantCompetitors['TAC-JAK-220200-AND'];
+variantCompetitors['TAC-SEB-220200-GAS'] = variantCompetitors['TAC-SEB-220200-AND'];
