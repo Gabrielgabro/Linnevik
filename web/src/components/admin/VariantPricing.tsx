@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import type { VariantPricingProduct, VariantPricingVariant } from '@/lib/productsDb';
@@ -192,7 +193,7 @@ function ProductPanel({ product }: { product: VariantPricingProduct }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 border-t px-1 pb-1 pt-4" style={{ borderColor: 'var(--viz-grid)' }}>
+    <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2.5">
         {product.variants
           .filter(v => v.id !== cheapest.id)
@@ -251,27 +252,49 @@ function ProductPanel({ product }: { product: VariantPricingProduct }) {
   );
 }
 
+/** Samma bildruta som kunden ser i butiken — kvadratisk, urklippt, gråbotten om bilden saknas. */
+function ProductThumb({ product }: { product: VariantPricingProduct }) {
+  return (
+    <div
+      className="relative aspect-square w-full overflow-hidden rounded-[3px]"
+      style={{ background: 'var(--viz-plane)', border: '1px solid var(--viz-rule)' }}
+    >
+      {product.imageUrl ? (
+        <Image
+          src={product.imageUrl}
+          alt={product.imageAlt ?? product.title}
+          fill
+          sizes="(min-width: 640px) 160px, 45vw"
+          className="object-cover"
+        />
+      ) : (
+        <div
+          className="grid h-full w-full place-items-center text-[10.5px] uppercase tracking-[0.08em]"
+          style={{ color: 'var(--viz-ink-3)' }}
+        >
+          Ingen bild
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
- * Egna produkter med fler än en variant, en klickbar ruta per produkt. Listan
- * byggs av `listLinnevikVariantProducts` i productsDb.ts — leverantör Linnevik,
- * fler än en variant — så en ny variantprodukt dyker upp här utan kodändring.
+ * Egna produkter med fler än en variant, som klickbara produktkort — samma
+ * bild kunden ser i butiken. Listan byggs av `listLinnevikVariantProducts` i
+ * productsDb.ts (leverantör Linnevik, fler än en variant), inte av en
+ * hårdkodad produktlista, så en ny variantprodukt dyker upp här utan
+ * kodändring.
  *
- * Rutan är stängd som standard: de flesta produkter har samma pris på alla
- * varianter, så den som bara vill se det övergripande priset (i grafen ovanför)
- * ska inte behöva bläddra förbi en vägg av reglage för att komma dit.
+ * Bara ett kort öppet i taget: reglagen tar full bredd för att vara dragbara,
+ * och får inte plats i en smal rutnätscell bredvid de andra korten.
  */
 export default function VariantPricing({ products }: { products: VariantPricingProduct[] }) {
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   if (!products.length) return null;
 
-  const toggle = (id: number) =>
-    setExpanded(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const selected = products.find(p => p.id === selectedId) ?? null;
 
   return (
     <Card
@@ -279,42 +302,60 @@ export default function VariantPricing({ products }: { products: VariantPricingP
       sub="Samma produkt kan sälja i flera storlekar eller fyllningar, och de behöver inte kosta lika mycket. Klicka på en produkt för att sätta priset per variant."
       note="Vårt pris i grafen ovanför är alltid den billigaste varianten av produkten — här sätter du resten."
     >
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2.5">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
         {products.map(product => {
           const prices = product.variants.map(liveOf);
           const min = Math.min(...prices);
           const max = Math.max(...prices);
-          const isOpen = expanded.has(product.id);
+          const isSelected = product.id === selectedId;
           return (
-            <div
+            <button
               key={product.id}
-              className="col-span-full flex flex-col rounded-[3px] border px-4 py-3"
-              style={{ borderColor: 'var(--viz-rule)', background: 'var(--viz-plane)' }}
+              type="button"
+              onClick={() => setSelectedId(isSelected ? null : product.id)}
+              aria-pressed={isSelected}
+              className="flex flex-col gap-2 rounded-[3px] p-2 text-left transition-[outline-color]"
+              style={{
+                outline: `1.5px solid ${isSelected ? 'var(--viz-s1)' : 'var(--viz-rule)'}`,
+                background: isSelected ? 'var(--viz-plane)' : 'transparent',
+              }}
             >
-              <button
-                type="button"
-                onClick={() => toggle(product.id)}
-                aria-expanded={isOpen}
-                className="flex items-center justify-between gap-3 text-left"
-              >
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-[13.5px] font-semibold" style={{ color: 'var(--viz-ink)' }}>
-                    {product.title}
-                  </span>
-                  <span className="text-[12px]" style={{ color: 'var(--viz-ink-3)' }}>
-                    {product.variants.length} varianter ·{' '}
-                    {min === max ? `${sek(min, 0)} kr` : `${sek(min, 0)}–${sek(max, 0)} kr`}
-                  </span>
+              <ProductThumb product={product} />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[12.5px] font-semibold leading-tight" style={{ color: 'var(--viz-ink)' }}>
+                  {product.title}
                 </span>
-                <span aria-hidden style={{ color: 'var(--viz-ink-3)' }}>
-                  {isOpen ? '▲' : '▼'}
+                <span className="text-[11px]" style={{ color: 'var(--viz-ink-3)' }}>
+                  {product.variants.length} varianter ·{' '}
+                  {min === max ? `${sek(min, 0)} kr` : `${sek(min, 0)}–${sek(max, 0)} kr`}
                 </span>
-              </button>
-              {isOpen && <ProductPanel product={product} />}
-            </div>
+              </span>
+            </button>
           );
         })}
       </div>
+
+      {selected && (
+        <div
+          className="flex flex-col gap-3 rounded-[3px] border px-4 py-4"
+          style={{ borderColor: 'var(--viz-rule)', background: 'var(--viz-plane)' }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[13.5px] font-semibold" style={{ color: 'var(--viz-ink)' }}>
+              {selected.title}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="rounded-sm border px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.06em]"
+              style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
+            >
+              Stäng
+            </button>
+          </div>
+          <ProductPanel key={selected.id} product={selected} />
+        </div>
+      )}
     </Card>
   );
 }

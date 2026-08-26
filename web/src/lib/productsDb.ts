@@ -124,6 +124,8 @@ export type VariantPricingProduct = {
   id: number;
   handle: string;
   title: string;
+  imageUrl: string | null;
+  imageAlt: string | null;
   variants: VariantPricingVariant[];
 };
 
@@ -156,7 +158,7 @@ export async function listLinnevikVariantProducts(): Promise<VariantPricingProdu
   for (const row of rows) {
     let entry = byProduct.get(row.productId);
     if (!entry) {
-      entry = { id: row.productId, handle: row.handle, title: row.title, variants: [] };
+      entry = { id: row.productId, handle: row.handle, title: row.title, imageUrl: null, imageAlt: null, variants: [] };
       byProduct.set(row.productId, entry);
     }
     entry.variants.push({
@@ -166,7 +168,34 @@ export async function listLinnevikVariantProducts(): Promise<VariantPricingProdu
       priceMinor: row.priceMinor,
     });
   }
-  return [...byProduct.values()].filter(p => p.variants.length > 1);
+  const result = [...byProduct.values()].filter(p => p.variants.length > 1);
+  if (!result.length) return result;
+
+  // Samma bild kunden ser på produktsidan: första bilden i positionsordning.
+  const ids = result.map(p => p.id);
+  const thumbs = await getDb()
+    .select({
+      productId: productImages.productId,
+      url: productImages.url,
+      altText: productImages.altText,
+      position: productImages.position,
+    })
+    .from(productImages)
+    .where(inArray(productImages.productId, ids))
+    .orderBy(asc(productImages.productId), asc(productImages.position), asc(productImages.id));
+  const thumbByProduct = new Map<number, { url: string; altText: string | null }>();
+  for (const row of thumbs) {
+    if (!thumbByProduct.has(row.productId)) {
+      thumbByProduct.set(row.productId, { url: row.url, altText: row.altText });
+    }
+  }
+
+  for (const p of result) {
+    const thumb = thumbByProduct.get(p.id);
+    p.imageUrl = thumb?.url ?? null;
+    p.imageAlt = thumb?.altText ?? null;
+  }
+  return result;
 }
 
 export type VariantWithUsage = ProductVariantRow & {
