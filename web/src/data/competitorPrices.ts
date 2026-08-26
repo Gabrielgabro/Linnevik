@@ -93,9 +93,18 @@ export const competitorProducts: CompetitorProduct[] = [
     skuPrefix: 'TAC-SEB',
     ourSpec: '90 % dun / 10 % småfjäder, kassettsytt, bomullscambric 233 TC',
     ourSize: '150 × 200',
-    suggestedSek: 1095,
+    // Omprissatt 2026-08-26: Jakob (60/40, samma duntäcke-familj) visade sig
+    // aldrig ha fått ett riktigt pris — bara en platshållare nästan i nivå
+    // med fibertäcket Daniel. I stället för en tredje prisnivå mitt emellan
+    // arkiverades Jakob, och Sebastian flyttades upp mot Tingstads 1 390 kr
+    // (marknadens facto-tak — Bed & Bath säljer samma vara direkt i EUR för
+    // ett par kronor mer, men Tingstad är den som faktiskt köps av). Samma
+    // pris som den bästa 50/50-konkurrenten, men med 90/10 — enklare att
+    // sälja in än "lite dyrare men bättre", och marginalen bär det (~70 %
+    // mot 421 kr landad kostnad, se CostCharts).
+    suggestedSek: 1390,
     rationale:
-      'Marknadens hotellduntäcken ligger på 1 199–1 427 kr och är alla dun/fjäder-blandningar. Vår 90/10 är en bättre produkt — 1 095 underskrider hela fältet utan att signalera billigt.',
+      'Marknadens hotellduntäcken ligger på 1 199–1 427 kr och är alla 50/50 dun/fjäder. Vår 90/10 möter Tingstads 1 390 kr rakt av i stället för att underskrida fältet — samma pris, bättre fyllning.',
     competitors: [
       {
         vendor: 'Tingstad',
@@ -370,9 +379,14 @@ export const competitorProducts: CompetitorProduct[] = [
     skuPrefix: 'KUD-SIG',
     ourSpec: '90 % gåsdun / 10 % småfjäder, bomullscambric 233 TC',
     ourSize: '50 × 70',
-    suggestedSek: 749,
+    // Omprissatt 2026-08-26, samma beslut som Sebastian: Alva (60/40) hade
+    // aldrig ett riktigt pris och arkiverades i stället för att fylla ett
+    // mellanläge. Sigrid matchar nu Tingstads 875 kr — marknadens facto-tak
+    // i det här fältet — i stället för att underskrida det. Marginalen
+    // klarar det galant (~60 % mot 344 kr landad kostnad).
+    suggestedSek: 875,
     rationale:
-      'Dunkuddefältet är tätt och högt: 825–878 kr, alla 50/50. 749 kr underskrider hela fältet med en bättre fyllning. Låg volym gör att marginalkronorna spelar mindre roll än signalvärdet.',
+      'Dunkuddefältet är tätt och högt: 825–878 kr, alla 50/50. Vår 90/10 möter Tingstads 875 kr rakt av i stället för att underskrida fältet — samma pris, bättre fyllning.',
     competitors: [
       {
         vendor: 'Tingstad',

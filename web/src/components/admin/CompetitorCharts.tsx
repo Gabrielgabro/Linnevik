@@ -362,8 +362,9 @@ export default function CompetitorCharts({
         note={
           <>
             Sortimentet delar sig i två. <b>På dun är marknaden dyr och trög</b> — 825–1 427 kr, allt är
-            50/50 dun och fjäder, och våra 90/10 är helt enkelt en bättre produkt. Där kan vi ta premiumpris
-            och ändå underskrida alla.{' '}
+            50/50 dun och fjäder, och våra 90/10 är helt enkelt en bättre produkt. Där möter vi toppen av
+            fältet rakt av i stället för att underskrida den — samma pris som Tingstad, bättre fyllning.
+            Ett tredje, billigare 60/40-läge (Alva/Jakob) fanns aldrig prissatt på riktigt och är arkiverat.{' '}
             <b>På fiber och skydd är den brutal.</b> Mandales säljer ett 800-grams fibertäcke för 190 kr,
             Livv en kudde för 95 kr och ett kuddskydd i exakt vår storlek för 45 kr. De prispunkterna
             ligger nära vår egen landade kostnad, och de går inte att möta — bara att förklara sig ifrån.
