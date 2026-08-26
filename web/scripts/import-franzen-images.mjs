@@ -49,7 +49,12 @@ const force = process.argv.includes('--force');
 const PRODUCT_ARTICLES = [
   { handle: 'lakan', artiklar: ['2676101', '2676301'] },
   { handle: 'paslakan', artiklar: ['2669101'] },
-  { handle: 'handduk-ludde', artiklar: ['2649301', '2649343'] },
+  { handle: 'orngott', artiklar: ['2669301', '2690901'] },
+  // Bara en artikel per färg, inte per storlek: Franzén återanvänder samma
+  // fem packshots för 2649301/2649401/2649501, och gråbilden ligger redan i
+  // en delad fil (2649343,2649443,2649543.jpg). Tar man med alla sex koderna
+  // blir galleriet 18 bilder varav 15 dubbletter.
+  { handle: 'frottehandduk-nevada', artiklar: ['2649301', '2649343'] },
   { handle: 'morgonrock', artiklar: ['2660001'] },
   { handle: 'morgonrock-vaffel', artiklar: ['2662101'] },
 ];
@@ -58,8 +63,10 @@ const ALT = {
   '2676101': 'Vitt hotellakan 150 × 280 cm med grön märktråd',
   '2676301': 'Vitt hotellakan 240 × 280 cm med blå märktråd',
   '2669101': 'Vitt hotellpåslakan med vävd satinrand',
-  '2649301': 'Vit frottéhandduk 450 g/m² med stapelbård',
-  '2649343': 'Mörkgrå frottéhandduk 450 g/m² med stapelbård',
+  '2669301': 'Vitt hotellörngott 55 × 75 cm med vävd satinrand',
+  '2690901': 'Vitt hotellörngott 55 × 75 cm i bomull/polyester',
+  '2649301': 'Vit frottéhandduk Nevada 450 g/m² med stapelbård',
+  '2649343': 'Mörkgrå frottéhandduk Nevada 450 g/m² med stapelbård',
   '2660001': 'Vit badrock i frotté med sjalkrage och knytskärp',
   '2662101': 'Vit våffelbadrock, 200 g/m²',
 };

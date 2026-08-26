@@ -7,11 +7,17 @@
 //
 // Skillnaden mot competitorPrices.ts: den filen jämför våra *egna* produkter
 // från Kina-sändningen mot marknaden. Den här jämför de produkter vi köper av
-// Franzén — där konkurrenten ofta säljer *exakt samma artikel*. Fyra av
-// raderna nedan är samma artikelnummer som vårt eget inköp (Nevada 50×70,
-// satinrandspåslakanet 150×230, hotellmorgonrocken och våffelrocken), och det
+// Franzén — där konkurrenten ofta säljer *exakt samma artikel*. Åtta av
+// raderna nedan bär samma artikelnummer som vårt eget inköp (Nevada i alla
+// tre storlekarna, satinrandspåslakanet 150×230 i två förpackningar,
+// satinrandsörngottet 55×75, hotellmorgonrocken och våffelrocken), och det
 // är den viktigaste informationen i filen: där konkurrerar vi inte med en
-// likvärdig produkt, utan med samma vara.
+// likvärdig produkt, utan med samma vara. Samtliga är Sovtex, som säljer
+// Textilgruppens och Borganäs artiklar direkt till slutkund.
+//
+// `sameArticle` sätts bara på den färg och storlek leverantören faktiskt för.
+// Sovtex säljer Nevada i vitt, inte i mörkgrått, så gråvarianterna får samma
+// prisrad men utan flaggan — se TOWEL_5070 mot TOWEL_5070_VIT.
 //
 // Momsbasen står per rad i `basis`, samma betydelse som i competitorPrices.ts:
 //   'ex'  — leverantören anger uttryckligen exkl. moms. Gäller Tingstad
@@ -88,7 +94,6 @@ const b2c = (inclVat: number) => Math.round((inclVat / 1.25) * 100) / 100;
 const LIVV_LAKAN = 'https://livv.se/se/textilier/lakan-orngott';
 const LIVV_HANDDUKAR = 'https://livv.se/se/textilier/handdukar';
 const LIVV_ROCKAR = 'https://livv.se/se/textilier/morgon-sparockar';
-const LIVV_TOFFLOR = 'https://livv.se/se/textilier/tofflor';
 const LIVV_PASLAKAN = 'https://livv.se/se/products/paslakan-satinrand-vit-150x230cm';
 const TING_BADD = 'https://www.tingstad.com/se-sv/mobler-inredning/textilier/baddtextilier';
 const TING_SANG = 'https://www.tingstad.com/se-sv/hotell-konferens/textilier/sangklader';
@@ -199,8 +204,122 @@ const TOWEL_5070_VIT: FranzenCompetitor[] = TOWEL_5070.map(row =>
     : row
 );
 
-/** Badlakan 90×150. Bygghemmas Enzo är samma serie som vår, i samma mått. */
-const TOWEL_90150: FranzenCompetitor[] = [
+/**
+ * Mellanhandduken 70 × 140. Sovtex säljer exakt vår artikel (2649401) — se
+ * TOWEL_70140_VIT för den raden; här är den nedtonad till "samma modell", för
+ * Sovtex för Nevada bara i vitt.
+ */
+const TOWEL_70140: FranzenCompetitor[] = [
+  {
+    vendor: 'Sovtex',
+    product: 'Nevada Frottéhandduk Vit 70x140 FP16',
+    spec: '450 g/m², 100 % bomull — Textilgruppens artikel 2649401',
+    size: '70 × 140',
+    priceSek: b2c(79),
+    channel: 'b2c',
+    basis: 'b2c',
+    url: 'https://sovtex.se/hotell-restaurang/nevada-frottehandduk-vit-70x140-cm-fp16',
+    match: 'approx',
+    primary: true,
+    caveat: 'Samma modell och mått, men Sovtex för bara vitt — vår färg finns inte hos dem.',
+  },
+  {
+    vendor: 'Bygghemma',
+    product: 'Frotté Borganäs of Sweden Basic 65x130 cm',
+    spec: '100 % bomull, vävda bårder',
+    size: '65 × 130',
+    priceSek: b2c(69),
+    channel: 'b2c',
+    basis: 'b2c',
+    url: 'https://www.bygghemma.se/inredning-och-belysning/hemtextilier/badrumstextilier/handdukar/frotte-borganas-of-sweden-basic-65x130-cm/p-847215',
+    match: 'approx',
+    caveat: 'Borganäs Basic i 65 × 130 — en aning mindre. Frånpris över färgerna.',
+  },
+  {
+    vendor: 'Livv',
+    product: 'Frotté vit 70x140 cm, 400 g/m² Sierra',
+    spec: '400 g/m², 100 % bomull',
+    size: '70 × 140',
+    priceSek: 99,
+    channel: 'b2b',
+    basis: 'ex',
+    url: LIVV_HANDDUKAR,
+    match: 'approx',
+    caveat: '400 g mot vår 450 g — tunnare kvalitet, samma kanal.',
+    watch: { fetchUrl: LIVV_HANDDUKAR, parser: 'livv-variant', key: 'Frotté, vit, 70x140 cm, 400g/m2 Sierra' },
+  },
+  {
+    vendor: 'Livv',
+    product: 'Superior Handduk Korfu 550 g, frotté vit 70x140',
+    spec: '550 g/m², 100 % bomull',
+    size: '70 × 140',
+    priceSek: 119,
+    channel: 'b2b',
+    basis: 'ex',
+    url: LIVV_HANDDUKAR,
+    match: 'approx',
+    caveat: '100 g tyngre än vår.',
+    watch: { fetchUrl: LIVV_HANDDUKAR, parser: 'livv-variant', key: 'Superior handduk Korfu 550g, frotté vit 70x140cm' },
+  },
+  {
+    vendor: 'Tingstad',
+    product: 'Badlakan Classic 70x140cm Vit',
+    spec: 'Vit, one size',
+    size: '70 × 140',
+    priceSek: 203,
+    channel: 'b2b',
+    basis: 'ex',
+    url: TING_HANDDUK,
+    match: 'exact',
+    watch: { fetchUrl: TING_HANDDUK, parser: 'tingstad-analytics', key: 'ZD143' },
+  },
+  {
+    vendor: 'Tingstad',
+    product: 'Frottéhandduk Lord Nelson Fairtrade 550 g',
+    spec: '550 g/m², Fairtrade-märkt',
+    size: '70 × 130',
+    priceSek: 219,
+    channel: 'b2b',
+    basis: 'ex',
+    url: TING_HANDDUK,
+    match: 'approx',
+    caveat: '10 cm kortare, Fairtrade och 550 g — marknadens tak.',
+    watch: { fetchUrl: TING_HANDDUK, parser: 'tingstad-analytics', key: 'DJ41000426' },
+  },
+];
+
+/** Vitt är den enda färgen där Sovtex säljer exakt vår artikel. */
+const TOWEL_70140_VIT: FranzenCompetitor[] = TOWEL_70140.map(row =>
+  row.vendor === 'Sovtex'
+    ? {
+        ...row,
+        match: 'exact' as const,
+        sameArticle: true,
+        caveat: 'Exakt vår artikel, till slutkund i storpack om 16.',
+      }
+    : row
+);
+
+/**
+ * Badlakanet 100 × 150. Bygghemmas Enzo 90 × 150 låg förr som exakt träff här,
+ * eftersom vi själva sålde en 90 × 150 som Franzén aldrig har haft. Nu när
+ * storleken är rättad till Franzéns 100 × 150 är Enzo den ungefärliga och
+ * Sovtex den exakta.
+ */
+const TOWEL_100150: FranzenCompetitor[] = [
+  {
+    vendor: 'Sovtex',
+    product: 'Nevada Frottéhandduk Vit 100x150 FP12',
+    spec: '450 g/m², 100 % bomull — Textilgruppens artikel 2649501',
+    size: '100 × 150',
+    priceSek: b2c(111),
+    channel: 'b2c',
+    basis: 'b2c',
+    url: 'https://sovtex.se/hotell-restaurang/nevada-frottehandduk-vit-100x150-cm-fp12',
+    match: 'approx',
+    primary: true,
+    caveat: 'Samma modell och mått, men Sovtex för bara vitt — vår färg finns inte hos dem.',
+  },
   {
     vendor: 'Bygghemma',
     product: 'Frotté Borganäs of Sweden Enzo 90x150 cm',
@@ -209,22 +328,9 @@ const TOWEL_90150: FranzenCompetitor[] = [
     priceSek: b2c(142),
     channel: 'b2c',
     basis: 'b2c',
-    url: 'https://www.bygghemma.se/inredning-och-belysning/hemtextilier/badlakan/frotte-borganas-of-sweden-enzo-90x150-cm/p-1799027',
-    match: 'exact',
-    primary: true,
-    caveat: 'Samma Enzo-serie som vår handduk, i exakt vårt mått. Frånpris över färgerna.',
-  },
-  {
-    vendor: 'Sovtex',
-    product: 'Nevada Frottéhandduk Vit 100x150 FP12',
-    spec: '450 g/m² — Textilgruppens artikel 2649501',
-    size: '100 × 150',
-    priceSek: b2c(111),
-    channel: 'b2c',
-    basis: 'b2c',
-    url: 'https://sovtex.se/hotell-restaurang/nevada-frottehandduk-vit-100x150-cm-fp12',
+    url: 'https://www.bygghemma.se/inredning-och-belysning/hemtextilier/badrumstextilier/badlakan/frotte-borganas-of-sweden-enzo-90x150-cm/p-1799027',
     match: 'approx',
-    caveat: '10 cm bredare än vår. Franzéns egen artikel — vi har bara inte den storleken.',
+    caveat: '10 cm smalare, och Enzo i stället för Nevada. Frånpris över färgerna.',
   },
   {
     vendor: 'Livv',
@@ -235,8 +341,8 @@ const TOWEL_90150: FranzenCompetitor[] = [
     channel: 'b2b',
     basis: 'ex',
     url: LIVV_HANDDUKAR,
-    match: 'approx',
-    caveat: '10 cm bredare och 100 g tyngre.',
+    match: 'exact',
+    caveat: '100 g tyngre än vår, samma mått.',
     watch: { fetchUrl: LIVV_HANDDUKAR, parser: 'livv-variant', key: 'Superior badlakan Korfu 550g, frotté vit 100x150cm' },
   },
   {
@@ -249,10 +355,22 @@ const TOWEL_90150: FranzenCompetitor[] = [
     basis: 'ex',
     url: TING_HANDDUK,
     match: 'approx',
-    caveat: 'Varumärkesbadlakan — fyra gånger vårt pris, med som marknadens tak.',
+    caveat: 'Varumärkesbadlakan, 10 cm smalare — nästan tre gånger vårt pris.',
     watch: { fetchUrl: TING_HANDDUK, parser: 'tingstad-analytics', key: 'DJ41005970' },
   },
 ];
+
+/** Vitt är den enda färgen där Sovtex säljer exakt vår artikel. */
+const TOWEL_100150_VIT: FranzenCompetitor[] = TOWEL_100150.map(row =>
+  row.vendor === 'Sovtex'
+    ? {
+        ...row,
+        match: 'exact' as const,
+        sameArticle: true,
+        caveat: 'Exakt vår artikel, till slutkund i storpack om 12.',
+      }
+    : row
+);
 
 /** Morgonrockarna delar fält över färgerna — ingen leverantör tar färgtillägg. */
 const ROBE_FROTTE: FranzenCompetitor[] = [
@@ -432,7 +550,7 @@ const PILLOWCASE_WIDE: FranzenCompetitor[] = [
     url: LIVV_LAKAN,
     match: 'approx',
     primary: true,
-    caveat: '55 × 75 — marknadens hotellstorlek. Vår 50 × 70 finns inte hos någon av de fem.',
+    caveat: 'Slätvävd 55 × 75, samma mått och konstruktionsklass som vårt bomull/polyester-örngott.',
     watch: { fetchUrl: LIVV_LAKAN, parser: 'livv-variant', key: 'Örngott naturvit/vit rand 55x75' },
   },
   {
@@ -445,9 +563,7 @@ const PILLOWCASE_WIDE: FranzenCompetitor[] = [
     basis: 'b2c',
     url: 'https://sovtex.se/paslakan/satinrand-orngott-vit-55x75',
     match: 'approx',
-    caveat:
-      'Franzéns eget örngott i 55 × 75 — den artikel vi skulle behöva ta in för att alls ' +
-      'kunna belägga örngottet. Se prouct_list.md.',
+    caveat: 'Franzéns eget satinrandsörngott, sålt till slutkund i 30-pack.',
   },
   {
     vendor: 'Bygghemma',
@@ -462,6 +578,21 @@ const PILLOWCASE_WIDE: FranzenCompetitor[] = [
     caveat: 'Frånpris över storlekar och färger.',
   },
 ];
+
+/**
+ * Örngottet i satinrand (artikel 2669301). Sovtex säljer exakt den artikeln,
+ * så raden lyfts från "närmaste motsvarighet" till samma vara.
+ */
+const PILLOWCASE_WIDE_SATIN: FranzenCompetitor[] = PILLOWCASE_WIDE.map(row =>
+  row.vendor === 'Sovtex'
+    ? {
+        ...row,
+        match: 'exact' as const,
+        sameArticle: true,
+        caveat: 'Exakt vår artikel, till slutkund i storpack om 30.',
+      }
+    : row
+);
 
 /**
  * Marknadens rader per vår variant-SKU. Samma nyckel som `product_variants.sku`
@@ -610,176 +741,31 @@ export const franzenVariantCompetitors: Record<string, FranzenCompetitor[]> = {
     },
   ],
 
-  'ORN-5060': [
-    {
-      vendor: 'Livv',
-      product: 'Örngott 50X60cm helvit',
-      spec: 'Helvit bomull/polyester',
-      size: '50 × 60',
-      priceSek: 59,
-      channel: 'b2b',
-      basis: 'ex',
-      url: LIVV_LAKAN,
-      match: 'exact',
-      primary: true,
-      watch: { fetchUrl: LIVV_LAKAN, parser: 'livv-variant', key: 'Örngott 50X60cm helvit' },
-    },
-    {
-      vendor: 'Livv',
-      product: 'Örngott satinrand 28 mm, vinge 50X60cm',
-      spec: 'Satinrand 28 mm, vinge',
-      size: '50 × 60',
-      priceSek: 89,
-      channel: 'b2b',
-      basis: 'ex',
-      url: LIVV_LAKAN,
-      match: 'exact',
-      caveat: 'Vingmodell med satinrand — den dyrare halvan av marknaden i vårt mått.',
-      watch: { fetchUrl: LIVV_LAKAN, parser: 'livv-variant', key: 'Örngott satinrand 28mm, vinge 50X60cm' },
-    },
-    {
-      vendor: 'Tingstad',
-      product: 'Örngott Mirage Satin 50x60cm',
-      spec: 'Satin, Redlunds',
-      size: '50 × 60',
-      priceSek: 65,
-      channel: 'b2b',
-      basis: 'ex',
-      url: TING_SANG,
-      match: 'exact',
-      watch: { fetchUrl: TING_SANG, parser: 'tingstad-analytics', key: '220RE' },
-    },
-    {
-      vendor: 'Sovtex',
-      product: 'Satinrand Påslakan Vinge 50x60',
-      spec: 'Satinrand med vinge — Textilgruppens artikel',
-      size: '50 × 60',
-      priceSek: b2c(79),
-      channel: 'b2c',
-      basis: 'b2c',
-      url: 'https://sovtex.se/paslakan/satinrand-paslakan-vinge-50x60',
-      match: 'exact',
-    },
-    ...PILLOWCASE_WIDE.filter(c => c.vendor === 'Bygghemma'),
-  ],
+  'ORN-SAT-5575': PILLOWCASE_WIDE_SATIN,
+  'ORN-BP-5575': PILLOWCASE_WIDE,
 
-  'ORN-5070': PILLOWCASE_WIDE,
+  'HAN-NEV-VIT-5070': TOWEL_5070_VIT,
+  'HAN-NEV-GRA-5070': TOWEL_5070,
 
-  'ORN-6080': [
-    {
-      vendor: 'Livv',
-      product: 'Örngott 50x90, Helvit',
-      spec: 'Helvit bomull/polyester',
-      size: '50 × 90',
-      priceSek: 99,
-      channel: 'b2b',
-      basis: 'ex',
-      url: LIVV_LAKAN,
-      match: 'approx',
-      primary: true,
-      caveat: 'Ingen av de fem för 60 × 80. 50 × 90 är närmaste yta — smalare och längre.',
-      watch: { fetchUrl: LIVV_LAKAN, parser: 'livv-variant', key: 'Örngott 50x90, Helvit' },
-    },
-    {
-      vendor: 'Tingstad',
-      product: 'Örngott Elton 50x90cm',
-      spec: 'Elton, mörkgrå',
-      size: '50 × 90',
-      priceSek: 109,
-      channel: 'b2b',
-      basis: 'ex',
-      url: TING_SANG,
-      match: 'approx',
-      caveat: 'Samma storleksavvikelse som Livvs rad ovanför.',
-      watch: { fetchUrl: TING_SANG, parser: 'tingstad-analytics', key: '238RE' },
-    },
-  ],
+  'HAN-NEV-VIT-70140': TOWEL_70140_VIT,
+  'HAN-NEV-GRA-70140': TOWEL_70140,
 
-  'HAN-ENZ-VIT-5070': TOWEL_5070_VIT,
-  'HAN-ENZ-GRA-5070': TOWEL_5070,
-  'HAN-ENZ-BEI-5070': TOWEL_5070,
-  'HAN-ENZ-BRU-5070': TOWEL_5070,
-  'HAN-ENZ-GRO-5070': TOWEL_5070,
+  'HAN-NEV-VIT-100150': TOWEL_100150_VIT,
+  'HAN-NEV-GRA-100150': TOWEL_100150,
 
-  'HAN-ENZ-VIT-90150': TOWEL_90150,
-  'HAN-ENZ-GRA-90150': TOWEL_90150,
-  'HAN-ENZ-BEI-90150': TOWEL_90150,
-  'HAN-ENZ-BRU-90150': TOWEL_90150,
-  'HAN-ENZ-GRO-90150': TOWEL_90150,
-
-  'MOR-SKO-STD': ROBE_FROTTE,
-  'MOR-SKO-LUV': ROBE_FROTTE,
+  'MOR-FRO-STD': ROBE_FROTTE,
+  'MOR-FRO-BRO': ROBE_FROTTE,
 
   'MOR-VAF-VIT': ROBE_VAFFEL_VIT,
-  'MOR-VAF-BEI': ROBE_VAFFEL,
-  'MOR-VAF-BRU': ROBE_VAFFEL,
-  'MOR-VAF-GRA': ROBE_VAFFEL,
 
-  'TOF-STD': [
-    {
-      vendor: 'Livv',
-      product: 'Comfort frottétoffla vit, öppen tå, 3 mm sula',
-      spec: 'Frotté, öppen tå, 3 mm sula',
-      size: 'One size',
-      priceSek: 8.95,
-      channel: 'b2b',
-      basis: 'ex',
-      url: LIVV_TOFFLOR,
-      match: 'exact',
-      primary: true,
-      caveat: 'Marknadens instegstoffla, under vårt pris redan innan moms.',
-      watch: { fetchUrl: LIVV_TOFFLOR, parser: 'livv-variant', key: 'Comfort frotté toffla vit, öppen tå, 3mm sula' },
-    },
-    {
-      vendor: 'Livv',
-      product: 'Superior Comfort frottétoffla, öppen tå',
-      spec: 'Frotté, öppen tå',
-      size: 'One size',
-      priceSek: 9.95,
-      channel: 'b2b',
-      basis: 'ex',
-      url: LIVV_TOFFLOR,
-      match: 'exact',
-      watch: { fetchUrl: LIVV_TOFFLOR, parser: 'livv-variant', key: 'Superior Comfort, Frottétoffla med öppen tå' },
-    },
-    {
-      vendor: 'Livv',
-      product: 'Velour comfort toffla vit, öppen tå, 5 mm sula',
-      spec: 'Velour, 5 mm sula, 29 cm',
-      size: '29 cm',
-      priceSek: 14.95,
-      channel: 'b2b',
-      basis: 'ex',
-      url: LIVV_TOFFLOR,
-      match: 'approx',
-      caveat: 'Tjockare sula och velour — vad ett steg upp i kvalitet kostar.',
-    },
-    {
-      vendor: 'Livv',
-      product: 'Balnea Spatofflor',
-      spec: 'Spatoffla, flera storlekar',
-      size: 'S–XL',
-      priceSek: 39,
-      channel: 'b2b',
-      basis: 'ex',
-      url: LIVV_TOFFLOR,
-      match: 'approx',
-      caveat: 'Spatoffla i en annan klass — marknadens tak, fyra gånger instegspriset.',
-    },
-  ],
-
-  // Medvetet tomma, inte oavslutade:
+  // Varje variant i katalogen har numera en rad här. Det gick inte förrän
+  // 0033 rättade sortimentet mot Franzéns artikelfil: de storlekar och färger
+  // som saknade marknadsdata (påslakan 220 × 230, örngott 50 × 60/50 × 70/
+  // 60 × 80, handduk 90 × 150, våffelrock i beige/brun/grå) saknade den för
+  // att de inte fanns hos Franzén heller, och är nu borta ur katalogen.
   //
-  // PAS-220230 (påslakan 220 × 230) — Tingstad för Grand Luxe upp till
-  //   200 × 230 men publicerar inget styckpris per storlek utan att man öppnar
-  //   varianten i deras eget gränssnitt, och varken Livv, Sovtex eller
-  //   Bygghemma för måttet. Franzén har det inte heller (se prouct_list.md),
-  //   så varianten är obelagd i båda ändar — den ska prissättas mot sin syster
-  //   150 × 230, inte mot en gissad marknad.
-  //
-  // TVA-HAV / TVA-MOR / TVA-SKO (handtvål) — ingen av de fem säljer handtvål,
-  //   och produkten har ingen Franzén-artikel alls. Den hör inte hemma i den
-  //   här jämförelsen förrän den har en leverantör.
+  // Tofflor och handtvål står inte här längre: de är avkopplade från Franzén
+  // och har ingen leverantör alls.
 };
 
 /** Alla leverantörer som förekommer, i den ordning vyn presenterar dem. */
