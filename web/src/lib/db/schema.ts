@@ -24,12 +24,15 @@ export const priceSuggestions = pgTable(
   {
     id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
     user: text('user').notNull(),
+    // Vilken prisdiskussion budet hör till: 'egna' (Kina-sändningen) eller
+    // 'franzen'. Var och en har ett levande förslag per diskussion — se 0032.
+    scope: text('scope').notNull().default('egna'),
     label: text('label'),
     prices: jsonb('prices').$type<Record<string, number>>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  table => [uniqueIndex('price_suggestions_user_key').on(table.user)]
+  table => [uniqueIndex('price_suggestions_user_scope_key').on(table.user, table.scope)]
 );
 
 export type PriceSuggestionRow = typeof priceSuggestions.$inferSelect;

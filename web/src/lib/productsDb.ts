@@ -130,13 +130,19 @@ export type VariantPricingProduct = {
 };
 
 /**
- * Egna produkter (leverantör Linnevik) som har fler än en variant — det är där
- * en enda "vårt pris"-siffra inte räcker, eftersom varje storlek/fyllning kan
- * behöva sättas för sig. Listan byggs av vad som faktiskt ligger i databasen,
- * inte av en hårdkodad produktlista, så en ny variantprodukt dyker upp här
- * utan kodändring.
+ * Produkter från en leverantör, med sina varianter och butiksbilden, för
+ * prissättningsvyerna. Listan byggs av vad som faktiskt ligger i databasen och
+ * inte av en hårdkodad produktlista, så en ny produkt dyker upp utan kodändring.
+ *
+ * `minVariants` finns för att de två vyerna vill ha olika saker: egna produkter
+ * är intressanta först när de har mer än en variant (annars räcker "vårt pris"
+ * i huvudgrafen), medan Franzén-vyn är den enda prisbilden som finns för de
+ * produkterna och därför ska visa även envariantsprodukter.
  */
-export async function listLinnevikVariantProducts(): Promise<VariantPricingProduct[]> {
+async function listVariantProductsBySupplier(
+  supplier: string,
+  { minVariants }: { minVariants: number }
+): Promise<VariantPricingProduct[]> {
   if (!productsConfigured()) return [];
 
   const rows = await getDb()
@@ -151,7 +157,7 @@ export async function listLinnevikVariantProducts(): Promise<VariantPricingProdu
     })
     .from(products)
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
-    .where(and(eq(products.supplier, 'Linnevik'), eq(products.active, true)))
+    .where(and(eq(products.supplier, supplier), eq(products.active, true)))
     .orderBy(asc(products.title), asc(productVariants.position), asc(productVariants.sku));
 
   const byProduct = new Map<number, VariantPricingProduct>();
@@ -168,7 +174,7 @@ export async function listLinnevikVariantProducts(): Promise<VariantPricingProdu
       priceMinor: row.priceMinor,
     });
   }
-  const result = [...byProduct.values()].filter(p => p.variants.length > 1);
+  const result = [...byProduct.values()].filter(p => p.variants.length >= minVariants);
   if (!result.length) return result;
 
   // Samma bild kunden ser på produktsidan: första bilden i positionsordning.
@@ -196,6 +202,28 @@ export async function listLinnevikVariantProducts(): Promise<VariantPricingProdu
     p.imageAlt = thumb?.altText ?? null;
   }
   return result;
+}
+
+/**
+ * Egna produkter (leverantör Linnevik) som har fler än en variant — det är där
+ * en enda "vårt pris"-siffra inte räcker, eftersom varje storlek/fyllning kan
+ * behöva sättas för sig.
+ */
+export async function listLinnevikVariantProducts(): Promise<VariantPricingProduct[]> {
+  return listVariantProductsBySupplier('Linnevik', { minVariants: 2 });
+}
+
+/**
+ * Produkterna vi köper av Franzén. Här gäller inte tvåvariantsregeln: sidan
+ * /admin/franzen är hela prisbilden för de här produkterna, så även en
+ * envariantsprodukt (tofflorna) måste gå att prissätta där.
+ *
+ * Leverantörssträngen är den som `0029_franzen_supplier_backfill.sql` satte.
+ */
+export const FRANZEN_SUPPLIER = 'Franzén Textil i Kinna';
+
+export async function listFranzenVariantProducts(): Promise<VariantPricingProduct[]> {
+  return listVariantProductsBySupplier(FRANZEN_SUPPLIER, { minVariants: 1 });
 }
 
 export type VariantWithUsage = ProductVariantRow & {

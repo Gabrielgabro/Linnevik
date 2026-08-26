@@ -42,6 +42,12 @@ export const NAV: NavGroup[] = [
         icon: LineChart,
         accent: 'var(--adm-info)',
       },
+      {
+        href: '/admin/franzen',
+        label: 'Prisbild - Franzén',
+        icon: LineChart,
+        accent: 'var(--viz-s2)',
+      },
       { href: '/admin/pricing', label: 'Mängdrabatt', icon: Percent, accent: 'var(--viz-s1)' },
     ],
   },

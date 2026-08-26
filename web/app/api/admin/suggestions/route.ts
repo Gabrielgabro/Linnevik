@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
 import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
@@ -12,6 +12,27 @@ async function currentUser(request: NextRequest) {
 }
 
 /**
+ * Vilken prisdiskussion anropet gäller. 'egna' är Kina-sändningens produkter,
+ * 'franzen' är Franzén-sortimentet. Var och en har ett levande förslag per
+ * diskussion — att spara på den ena rör inte den andra.
+ *
+ * Okända värden avvisas hellre än normaliseras: en felstavad scope som tyst
+ * blev 'egna' skulle skriva över ett bud som inte var avsett.
+ */
+const SCOPES = ['egna', 'franzen'] as const;
+type Scope = (typeof SCOPES)[number];
+
+const isScope = (value: unknown): value is Scope =>
+  typeof value === 'string' && (SCOPES as readonly string[]).includes(value);
+
+/** Scope ur en query-parameter. `null` betyder ogiltigt, inte utelämnat. */
+function scopeFromQuery(request: NextRequest): Scope | null {
+  const raw = request.nextUrl.searchParams.get('scope');
+  if (raw === null) return 'egna';
+  return isScope(raw) ? raw : null;
+}
+
+/**
  * Allas levande prisförslag, ett per person. Sorterat på namn och inte på tid,
  * så att kolumnerna i jämförelsetabellen står stilla när någon sparar om.
  */
@@ -20,7 +41,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Inte inloggad.' }, { status: 401 });
   }
 
-  const rows = await getDb().select().from(priceSuggestions).orderBy(asc(priceSuggestions.user));
+  const scope = scopeFromQuery(request);
+  if (!scope) return NextResponse.json({ error: 'Okänd prisdiskussion.' }, { status: 400 });
+
+  const rows = await getDb()
+    .select()
+    .from(priceSuggestions)
+    .where(eq(priceSuggestions.scope, scope))
+    .orderBy(asc(priceSuggestions.user));
 
   return NextResponse.json({ suggestions: rows });
 }
@@ -38,12 +66,18 @@ export async function POST(request: NextRequest) {
 
   let prices: unknown;
   let label: unknown;
+  let scopeInput: unknown;
   try {
     const body = await request.json();
     prices = body?.prices;
     label = body?.label;
+    scopeInput = body?.scope ?? 'egna';
   } catch {
     return NextResponse.json({ error: 'Kunde inte läsa förfrågan.' }, { status: 400 });
+  }
+
+  if (!isScope(scopeInput)) {
+    return NextResponse.json({ error: 'Okänd prisdiskussion.' }, { status: 400 });
   }
 
   if (
@@ -61,14 +95,15 @@ export async function POST(request: NextRequest) {
 
   const [row] = await getDb()
     .insert(priceSuggestions)
-    .values({ user, label: cleanLabel, prices: prices as Record<string, number> })
+    .values({ user, scope: scopeInput, label: cleanLabel, prices: prices as Record<string, number> })
     .onConflictDoUpdate({
-      target: priceSuggestions.user,
+      target: [priceSuggestions.user, priceSuggestions.scope],
       set: { label: cleanLabel, prices: prices as Record<string, number>, updatedAt: new Date() },
     })
     .returning();
 
   await record(user, 'suggestion.saved', String(row.id), {
+    scope: row.scope,
     label: row.label,
     products: Object.keys(row.prices).length,
     // Priserna loggas med, så att aktivitetsloggen bär historiken tabellen
@@ -94,16 +129,19 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Du kan bara ta bort ditt eget förslag.' }, { status: 403 });
   }
 
+  const scope = scopeFromQuery(request);
+  if (!scope) return NextResponse.json({ error: 'Okänd prisdiskussion.' }, { status: 400 });
+
   const [row] = await getDb()
     .delete(priceSuggestions)
-    .where(eq(priceSuggestions.user, user))
+    .where(and(eq(priceSuggestions.user, user), eq(priceSuggestions.scope, scope)))
     .returning();
 
   if (!row) {
     return NextResponse.json({ error: 'Du har inget sparat förslag.' }, { status: 404 });
   }
 
-  await record(user, 'suggestion.removed', String(row.id), { label: row.label });
+  await record(user, 'suggestion.removed', String(row.id), { scope: row.scope, label: row.label });
 
   return NextResponse.json({ removed: row.id });
 }
