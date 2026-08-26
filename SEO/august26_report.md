@@ -1,645 +1,204 @@
-# Linnevik SEO and AI Visibility Audit
+## Overall assessment
 
-**Audit date:** 5 August 2026  
-**Website:** [www.linnevik.se](https://www.linnevik.se/)  
-**Primary objective:** Increase Linnevik's visibility among hotel-industry buyers in Sweden and relevant international markets, while making the company and its products easy for search engines and AI systems to understand and cite.
+Linnevik’s SEO profile is currently **about 4.5/10**.
 
-> **Implementation status — completed in the repository on 5 August 2026.** The canonical, indexing, locale-routing, code-owned localization and entity-markup fixes in this report have been implemented and passed TypeScript validation. Deployment is still required for the live site to reflect them. Shopify-owned English catalog translations remain an external follow-up.
+The site has progressed from a weak technical foundation to a technically respectable one. It is crawlable, localized, correctly canonicalized, and equipped with useful structured data. The main weakness is now market visibility: Linnevik has too little search-focused content and external authority to compete consistently for non-branded hotel-textile searches.
 
-## Implementation record — 5 August 2026
+In short:
 
-The following audit findings have been implemented:
+- **Branded visibility:** reasonably good.
+- **Technical readiness:** good for a site of this size.
+- **Non-branded commercial visibility:** weak.
+- **Authority/backlinks:** very weak.
+- **Growth potential:** strong, because the company has genuine hotel and laundry experience that competitors cannot easily reproduce.
 
-- Standardized generated canonical, `hreflang`, Open Graph, sitemap, robots and product-schema URLs on `https://www.linnevik.se`.
-- Removed the homepage's canonical trailing-slash redirect chain.
-- Made the root locale redirect permanent and added an application-level permanent redirect from the non-`www` host to `www`.
-- Rebuilt sitemap inclusion around commercial, indexable pages only; removed login, registration, internal search and legal utility pages; removed false `lastmod` timestamps.
-- Removed the `/_next/` robots block and added explicit allow rules for OAI-SearchBot, ChatGPT-User, Claude-SearchBot and PerplexityBot.
-- Added noindex metadata to login, account, activation, reset, cart, search, checkout and thank-you routes.
-- Validated locale route parameters and disabled unknown locale parameters, preventing routes such as `/llms.txt` from rendering as a Swedish homepage.
-- Added server-rendered `lang="sv"` and `lang="en"` values using locale-aware request headers.
-- Corrected code-owned English metadata and UI text, including the English About description, contact phone number, product lead-time label and product-information heading.
-- Added Organization JSON-LD on the homepages and connected product schema to the Linnevik brand and organization entity.
-- Stamped 5 August 2026: stopped setting the locale cookie on already-localized public responses; the cookie is now persisted only on explicit language-switcher clicks.
-- Stamped 5 August 2026: added schema-only `BreadcrumbList` JSON-LD on product and collection pages.
-- Stamped 5 August 2026: expanded product JSON-LD with variant, MOQ, pack-size, VAT-excluded B2B price basis and seller data using existing product data only.
-- Stamped 5 August 2026: added `npm run check:localization` for Swedish/English translation key parity and common language-leak checks.
-- Corrected the Terms pages from the irrelevant Galil Textile AB to Linneviken AB, Linnevik's legal daughter company, while preserving Södra Vanadistvätten AB as the prominently stated parent company.
-- Corrected product missing-resource handling to return a real 404 and backend collection failures to surface as failures rather than indexable HTTP-200 error pages.
-- Normalized product meta-description whitespace before truncation.
+### Scorecard
 
-Still required outside this repository:
-
-- Translate Shopify-owned English product titles, descriptions, options and collection descriptions.
-- Add Linneviken AB's verified organization number to the Terms and Organization schema when available.
-- Deploy the changes, then resubmit the sitemap and request recrawls in Google Search Console and Bing Webmaster Tools.
-
-## Executive summary
-
-Linnevik has a crawlable, server-rendered website and some sound SEO foundations, but it is not currently positioned to win important non-brand searches such as “hotelltextilier”, “hotellinne leverantör” or “hotel textile supplier Sweden.”
-
-Heuristic readiness scores:
-
-| Area | Score | Assessment |
+| Area | Score | Current condition |
 |---|---:|---|
-| Technical SEO | 4/10 | Crawlable, but canonical, redirect, sitemap, language and status-code signals conflict |
-| On-page SEO | 4/10 | Basic metadata exists, but commercial keywords and procurement language are weak |
-| Content and search-intent coverage | 2/10 | Almost no dedicated solution, guide or case-study content |
-| International SEO | 2/10 | Separate URLs exist, but substantial English pages remain Swedish |
-| Entity authority and trust | 2/10 | Conflicting business details and little third-party corroboration |
-| AI discoverability | 4/10 | Crawl access is open and content is server-rendered, but entity data and citable content are weak |
-| Overall | **3.5/10** | Strong potential once foundational conflicts and content gaps are addressed |
+| Technical SEO | 7/10 | Solid crawl/index foundation with several remaining hygiene and caching issues |
+| On-page SEO | 4.5/10 | Unique metadata exists, but headings and product targeting are too generic |
+| Content/search-intent coverage | 2.5/10 | Almost no procurement guides, solution pages, case studies, or educational content |
+| International SEO | 6/10 | URL and `hreflang` structure is good; several English/Swedish leaks remain |
+| Structured data | 7/10 | Strong Product, Offer, Organization, and breadcrumb implementation |
+| Authority and trust | 2.5/10 | Very little topical third-party corroboration and conflicting entity details |
+| AI visibility | 6/10 | AI crawlers allowed and `llms.txt` is useful, but there is little citable expert content |
+| Performance readiness | 4/10 provisional | No caching and variable server response; CWV could not be measured |
+| **Overall** | **4.5/10** | **Technically viable, but not yet an organic acquisition engine** |
 
-The highest-impact work is:
+## What is working well
 
-1. Correct conflicting host, redirect, canonical and sitemap signals.
-2. Repair English localization and explicit language signals.
-3. Build dedicated landing pages around hotel procurement intent.
-4. Establish a consistent, machine-readable company identity.
-5. Publish case studies and operational expertise that search engines and AI systems can cite.
+The 50-URL production crawl found:
 
-## Audit scope and methodology
+- All 50 sitemap URLs returned HTTP 200.
+- Every sitemap page had a title and meta description.
+- All canonicals matched their sitemap URLs.
+- Swedish/English `lang`, reciprocal `hreflang`, and `x-default` signals were correct.
+- Missing products return a real 404 with `noindex`.
+- Search, login, and cart pages correctly use `noindex, follow`.
+- Product pages contain `Product`/`ProductGroup`, Offer, Brand, price, availability, VAT, and breadcrumb markup.
+- The sitemap now uses the preferred `www` host and credible product modification dates.
+- `robots.txt` allows public crawling and explicitly allows OAI-SearchBot and other answer-engine crawlers. OpenAI confirms that allowing OAI-SearchBot is necessary for inclusion in ChatGPT summaries and snippets. [OpenAI publisher guidance](https://help.openai.com/en/articles/12627856)
+- [`llms.txt`](https://www.linnevik.se/llms.txt) returns valid plain text and provides a useful summary of the company, purchasing model, and product categories.
 
-The audit covered:
+These are meaningful improvements over the earlier audit. Google recommends aligning canonical tags, redirects, and sitemap URLs, which the current implementation now mostly does. [Google canonical guidance](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls)
 
-- Repository inspection of the Next.js application, metadata, routing, sitemap, robots rules, structured data, translations and public page templates.
-- Direct HTTP checks against the live production site.
-- Review of all 62 URLs in the live XML sitemap.
-- Live HTML inspection of Swedish and English home, about, contact, collection, product, search and login pages.
-- Directional search-result sampling for relevant Swedish and English commercial queries.
-- AI crawler access, machine-readable identity and answer-engine readiness.
-- Competitor positioning and content coverage.
+## Highest-priority weaknesses
 
-The search-result sample is directional and is not a substitute for Google Search Console or a dedicated rank-tracking platform.
+### 1. The site does not rank visibly for important non-brand demand
 
-A reliable Core Web Vitals trace could not be completed. The dedicated performance profiler was unavailable, and Google's public PageSpeed endpoint was quota-blocked. Observable caching and loading risks are included, but LCP, INP and CLS must still be measured with a proper mobile trace.
+Directional searches for terms such as:
 
-## What is already working
+- hotelltextilier leverantör Sverige
+- hotellinne leverantör
+- hotellakan leverantör
+- hotellhanddukar grossist
+- hotel textile supplier Sweden
 
-- Important pages return meaningful server-rendered HTML. Crawlers do not depend on client-side JavaScript for primary content.
-- Swedish and English use separate URLs.
-- Self-referencing canonicals and reciprocal `hreflang` logic exist conceptually.
-- A sitemap is generated and contains 62 URLs.
-- Product pages contain basic `Product` JSON-LD.
-- Products, collections, the company story, contact information and sample ordering are internally linked.
-- Public content is allowed by the wildcard rule in `robots.txt`, including OAI-SearchBot, Claude-SearchBot and PerplexityBot.
-- Branded pages and some product and collection pages are indexed, including the English About page and the Swedish Sebastian duvet page.
-- The About page contains useful factual material: industry history, hotel partner count and bespoke project count.
+did not surface Linnevik prominently. Competitors such as [Textilia](https://textilia.se/losningar/hotell/), [Livv](https://livv.se/se), [MIKE Interiör](https://www.mikeinterior.se/produkt-kategori/textilier-for-hotell/), and [HTL-Service](https://www.htl-service.se/sv/Hotelltextilier) have broader landing-page copy and clearer category positioning.
 
-OpenAI says OAI-SearchBot must be allowed for content to be included in ChatGPT search summaries and citations. Perplexity likewise recommends allowing PerplexityBot for search inclusion.
+Linnevik currently appears primarily for its own name. That means the site is being understood as a brand, but not yet selected as a strong answer for the wider category.
 
-Sources: [OpenAI publisher guidance](https://help.openai.com/en/articles/12627856-publishers-and-developers-faq), [Perplexity crawler guidance](https://docs.perplexity.ai/docs/resources/perplexity-crawlers).
+### 2. Content depth is extremely limited
 
-## Critical technical findings
+Forty-nine of the 50 sitemap pages contained fewer than 250 server-rendered words in this crawl. This is not a Google word-count threshold—Google explicitly says there is no preferred word count—but it demonstrates how little operational expertise is currently visible. [Google people-first content guidance](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)
 
-### 1. Every sitemap URL redirects
+Examples:
 
-All 62 sitemap entries use `https://linnevik.se/...`, while production redirects those URLs to `https://www.linnevik.se/...` with HTTP 307.
+- Homepage: approximately 133 visible words.
+- Collection index: 52 words.
+- Most category pages: 65–120 words.
+- Many product pages: 55–110 words.
+- Sample pages: approximately 36–40 server-rendered words.
 
-The non-`www` hostname is also used for:
+The business has a compelling differentiator—products developed from decades of real commercial-laundry experience—but that expertise appears only briefly on the About page.
 
-- Canonicals
-- `hreflang` URLs
-- Open Graph URLs
-- Product schema URLs
-- The sitemap URL declared in `robots.txt`
+### 3. There is a live test product
 
-This creates contradictory signals: redirects favor `www`, while canonicals and the sitemap favor non-`www`. Google recommends aligning redirects, canonicals, internal links and sitemap URLs on one preferred form.
+Both of these URLs are HTTP 200, indexable, and present in the sitemap:
 
-The main source is [`web/src/lib/metadata.ts`](../web/src/lib/metadata.ts), although several pages also hardcode the non-`www` host.
+- `/sv/products/testprodukt`
+- `/en/products/testprodukt`
 
-Additionally, the homepage canonical is `https://linnevik.se/sv/`. It first redirects to the `www` host and then redirects again to remove the trailing slash before reaching `https://www.linnevik.se/sv`.
+They contain only “testprodukt,” share duplicate metadata, and have no Product schema. Remove them from the sitemap and return 404/410, unless they are becoming real products.
 
-**Impact:** Critical. Crawl resources and canonical signals are being spent reconciling a URL choice that should be unambiguous.
+Google recommends including only URLs that you actually want shown in search results. [Google sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)
 
-**Recommendation:** Standardize all generated and hardcoded URLs on `https://www.linnevik.se`, without a trailing slash on localized homepages. Ensure internal links, canonicals, `hreflang`, schema, sitemap and Open Graph URLs all match.
+### 4. “Featured” is treated as a public category
 
-Source: [Google canonical guidance](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls).
+`/collections/featured` is:
 
-### 2. Temporary redirects are used for permanent URL choices
+- Included in both languages.
+- Included in the sitemap.
+- Visible as “Featured” on the Swedish homepage and collection page.
+- Identical in title and description across languages.
+- A merchandising shelf rather than a meaningful customer category.
 
-- `linnevik.se` to `www.linnevik.se` returns HTTP 307.
-- `/` to `/sv` returns HTTP 307.
+It should normally be removed from the category index and sitemap and either noindexed or redirected to the full catalog.
 
-If `www` and Swedish are permanent defaults, these should normally use permanent 308 or 301 redirects. Google treats permanent redirects as canonical signals, while 307 is a temporary redirect.
+### 5. Most product pages signal “OutOfStock”
 
-**Recommendation:** Use a single permanent redirect from each alternate URL to the final canonical destination. Avoid redirect chains.
+Of 14 real Swedish product pages:
 
-Source: [Google redirect documentation](https://developers.google.com/search/docs/crawling-indexing/301-redirects).
+- 10 had no `InStock` variant in their structured data.
+- Only four had any `InStock` signal.
+- Several apparently made-to-order or inquiry-based products are presented as unavailable instead of offering a quote or preorder path.
 
-### 3. The sitemap reports false freshness
+Google may display availability in search results, so this can directly reduce click-through and product visibility. [Google Product structured-data guidance](https://developers.google.com/search/docs/appearance/structured-data/product)
 
-Every request assigns `lastModified: new Date()` to every URL in [`web/app/sitemap.ts`](../web/app/sitemap.ts). This tells crawlers all 62 pages changed at the moment the sitemap was requested.
+For made-to-order products, consider a properly supported preorder/backorder state and a prominent “Request a quote” or “Order a sample” action rather than a disabled purchase button.
 
-The sitemap also gives almost every content and utility page a high priority and daily change frequency, even when the page is essentially static.
+### 6. Search targeting is too generic
 
-**Recommendation:**
+The homepage title is relevant, but the H1 is:
 
-- Use actual Shopify `updatedAt` timestamps for products and collections.
-- Use real editorial modification dates for static pages.
-- Omit `lastmod` where no accurate date exists.
-- Remove login, registration and search pages from the sitemap.
-- Include only preferred, canonical, HTTP 200 URLs.
+> En ny identitet för ditt hotell
 
-Source: [Google sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap?hl=en).
+That is good brand copy but weak discovery copy. A stronger version would communicate the category and differentiator, for example:
 
-### 4. Public pages lack an HTML language attribute
+> Hotelltextilier utvecklade för professionell tvätt
 
-The rendered document begins with:
+Product titles such as “Lakan,” “Örngott,” and “Tofflor” are also too broad. Titles and supporting copy should qualify the product:
 
-```html
-<html dir="ltr">
-```
+- Hotellakan för professionell tvätt
+- Örngott för hotell och tvätteri
+- Hotellhanddukar i slitstark frotté
+- Anpassade badrockar med brodyr
 
-There is no `lang="sv"` or `lang="en"` because [`web/app/layout.tsx`](../web/app/layout.tsx) does not set it.
+Product meta descriptions are mechanically truncated at 155 characters and sometimes end mid-word. Each important product should have an authored search description.
 
-**Impact:** This weakens language classification, accessibility, pronunciation and automatic translation.
+### 7. Trust and legal entity signals conflict
 
-**Recommendation:** Render the correct BCP 47 language value for every localized page.
+The site’s Organization schema identifies Linnevik/Linneviken AB at the Tumba operating address and gives a founding date of 1986. Third-party corporate profiles currently report that Linneviken AB was formed in 2021 and has a registered address in Uppsala. [Ratsit profile](https://www.ratsit.se/5593072951-Linneviken_AB), [Bolagsfakta profile](https://www.bolagsfakta.se/5593072951-Linneviken_AB)
 
-### 5. Unsupported file paths become false homepages
+This may be explainable—the brand’s operating lineage can predate the legal company—but the machine-readable data should distinguish:
 
-`/llms.txt` and `/llms-full.txt` currently return:
+- Brand history.
+- Legal entity formation.
+- Registered address.
+- Operating/visiting address.
+- Parent-company history.
 
-- HTTP 200
-- `text/html`
-- The Swedish homepage
+The live [terms page](https://www.linnevik.se/sv/terms) also contains the unfinished placeholder “[t.ex. Stockholms tingsrätt]” and does not show an organization number. Fix this immediately and verify all legal details against official documentation.
 
-They do not return a text file or a 404. File-like paths bypass middleware and are captured as a locale by `[locale]`, after which the invalid locale is normalized to Swedish. The relevant routing behavior is in [`web/middleware.ts`](../web/middleware.ts).
+### 8. Localization is better, but incomplete
 
-This is both a soft-404/index-quality problem and a direct AI-discoverability problem, because agents requesting `/llms.txt` receive misleading HTML.
+The international structure is now sound, and most product translations are much improved. Remaining issues include:
 
-**Recommendation:**
+- “Featured” on Swedish pages.
+- Swedish option names and values on English product pages, such as `Doftprofil`, `Havskant`, and `Morgonlinne`.
+- Swedish product handles in English URLs. This is technically valid but weaker for users and English keyword relevance.
+- Swedish terms and cookie pages use English document titles.
+- Some product-image alternative text contains internal image-generation prompt language rather than customer-facing descriptions.
 
-- Validate locale route parameters and call `notFound()` for unsupported locales.
-- Serve a real `text/plain; charset=utf-8` `/llms.txt`, or return a correct 404 until one exists.
-- Apply the same logic to `/llms-full.txt`.
+### 9. Public pages are not cached
 
-`llms.txt` remains an optional and emerging convention, not a ranking shortcut. Chrome describes it as a machine-readable summary that can help agents understand a site's purpose and key links.
-
-Source: [Chrome llms.txt documentation](https://developer.chrome.com/docs/lighthouse/agentic-browsing/llms-txt?hl=en).
-
-### 6. Public pages are not CDN-cacheable
-
-Both `/sv` and `/en` return:
+Every tested HTML page returned:
 
 ```text
 Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate
 ```
 
-The middleware sets a locale cookie on every localized response. This likely forces otherwise public pages out of Vercel's CDN cache.
+The 50-page crawl averaged approximately 0.71 seconds to first byte, with the homepage reaching 1.45 seconds in the sample. That does not prove poor Core Web Vitals, but it shows avoidable server and crawl latency.
 
-**Impact:** Potentially slower time to first byte, reduced cache efficiency and higher crawl cost.
+The likely causes are the root `headers()` call and `force-dynamic` catalog routes. Reintroduce controlled caching or revalidation for public HTML and catalog content while keeping price/inventory updates fresh through tagged revalidation or separately fetched commerce state.
 
-**Recommendation:** Avoid setting the locale cookie on every cacheable public response. Set it only when a user explicitly changes locale, or otherwise separate personalization from public page delivery.
+A proper Chrome trace was unavailable, so LCP, INP, and CLS remain unmeasured. Google evaluates these using real-user 75th-percentile data. [Core Web Vitals thresholds](https://web.dev/articles/defining-core-web-vitals-thresholds)
 
-### 7. Search and account utility pages are indexable
+### 10. Authority is the largest long-term constraint
 
-The sitemap includes:
+Search sampling found very few topical third-party references to Linnevik. Most external results were generic corporate directories rather than hotel-industry publications, partner pages, associations, or procurement resources.
 
-- `/search`
-- `/login`
-- `/login/create-account`
+The homepage displays recognizable hotel logos, but there are no indexable case studies explaining:
 
-Search pages already appear in search results despite containing little useful content.
+- The customer’s operational problem.
+- Product selection and customization.
+- Laundry testing or durability.
+- Quantities and implementation.
+- Measured operational result.
+- A customer quote.
 
-**Recommendation:** Apply `noindex, follow` and remove from the sitemap:
+That leaves considerable first-hand expertise uncitable. Google’s guidance emphasizes original experience, evidence, and information that adds value beyond obvious category descriptions. [Google content guidance](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)
 
-- Internal search
-- Login and account creation
-- Cart and checkout
-- Thank-you pages
-- Verification and activation pages
-- Password reset and forgotten-password pages
-- Private account pages
+## Recommended 90-day priority order
 
-### 8. Error states can return HTTP 200
+1. Remove `testprodukt` and the public `Featured` collection from indexing and the sitemap.
+2. Correct the terms-page placeholder, organization number, registered/operating address distinction, and founding-date schema.
+3. Change made-to-order availability and conversion paths from “out of stock” to quote/preorder where factually appropriate.
+4. Rewrite the homepage H1 and primary copy around “hotelltextilier,” professional laundering, customization, and B2B procurement.
+5. Create dedicated Swedish landing pages for:
 
-The product page renders a small `<div>` when a product does not exist rather than calling `notFound()` in [`web/app/[locale]/products/[handle]/page.tsx`](../web/app/%5Blocale%5D/products/%5Bhandle%5D/page.tsx). Collection API failures also render an error page under a successful response.
+   - Hotelltextilier
+   - Sängkläder för hotell
+   - Handdukar och badtextil för hotell
+   - Kuddar och täcken för hotell
+   - Skräddarsydda hotelltextilier och brodyr
+   - Textilier för professionell tvätt
 
-**Impact:** Soft 404s, transient error content in search results and misleading crawler signals.
+6. Expand collection and product pages with specifications, wash requirements, materials, sizes, MOQ, lead time, application, customization, and verified certifications.
+7. Publish three to five substantive hotel case studies and ask participating hotels to link to them.
+8. Fix remaining language leaks and replace prompt-like image alt text.
+9. Restore public-page caching and obtain actual mobile CWV measurements.
+10. Connect Google Search Console and Merchant Center, submit the cleaned sitemap, and track non-brand queries separately from branded traffic.
 
-**Recommendation:**
-
-- Return a real 404 for missing products and collections.
-- Return an appropriate 5xx status for temporary backend failures.
-- Do not emit indexable fallback metadata such as “Error – Linnevik.”
-
-### 9. `/_next/` is blocked in robots.txt
-
-The live `robots.txt` blocks `/_next/`, which contains public CSS, JavaScript and other Next.js resources.
-
-**Recommendation:** Remove the restriction unless a verified crawler test proves that public page rendering remains complete without those resources. Keep genuinely private API and account routes restricted or noindexed as appropriate.
-
-### 10. Sitemap quality is diluted by low-value URLs
-
-Of the 62 sitemap URLs:
-
-- 32 are localized product URLs.
-- 10 are localized collection URLs.
-- 20 are static pages, including login, registration and search.
-
-The sitemap should represent pages Linnevik actively wants shown in search results. Utility URLs dilute that purpose.
-
-## Language and localization findings
-
-International SEO is presently one of the site's weakest areas.
-
-- The English About page has a Swedish meta description.
-- English product pages frequently have Swedish titles, descriptions and structured data.
-- Static labels including “Leveranstid” and “Produktinformation” remain Swedish on English product pages.
-- The English “Pillows & Blankets” collection contains a Swedish description.
-- `/en/collections/madrasskydd` is titled “Badrum.”
-- Swedish collections without descriptions fall back to English text such as “Browse Badrum at Linnevik.”
-- Both languages share untranslated Swedish handles.
-
-Sharing handles across languages is technically valid, but localized slugs would improve usability and keyword relevance where stable redirect mappings can be maintained.
-
-Because visible page content determines language, `hreflang="en"` does not repair a page whose main product content is Swedish.
-
-**Recommendations:**
-
-1. Complete Shopify translations for every title, description, option, collection and product specification.
-2. Localize all hardcoded UI labels in product and collection templates.
-3. Write locale-specific metadata rather than generic fallbacks.
-4. Add automated checks that compare page language with the route locale.
-5. Do not launch additional languages until each can be maintained fully.
-
-Source: [Google multilingual-site guidance](https://developers.google.com/search/docs/advanced/crawling/managing-multi-regional-sites).
-
-## On-page SEO findings
-
-### Homepage
-
-The Swedish homepage title is broadly relevant, but its meta description contains a visible duplication:
-
-> Linnevik levererar hållbara och hållbara textilier...
-
-The H1, “En ny identitet för ditt hotell,” is attractive brand language but weak for discovery. The main heading should state what Linnevik sells and for whom.
-
-Suggested positioning:
-
-> Hotelltextilier utvecklade för professionell tvätt och daglig drift
-
-The homepage should naturally introduce the main commercial entities:
-
-- Hotelltextilier
-- Hotellinne
-- Sängkläder för hotell
-- Handdukar och frotté
-- Kuddar och täcken
-- Morgonrockar och tofflor
-- Skräddarsydda hotellprodukter
-- Brodyr and private label
-- Professionell tvätt
-- Sweden and the Nordics
-
-### Collection pages
-
-The collection taxonomy is generic and sometimes semantically inconsistent:
-
-- The handle `madrasskydd` represents the “Badrum” collection.
-- “Featured” is indexable despite having little independent search intent.
-- Descriptions are frequently short, absent or untranslated.
-- Titles do not consistently include “för hotell” or another B2B qualifier.
-
-Each category should explain:
-
-- Who the product is designed for
-- Commercial-laundry suitability
-- Materials, weight, dimensions and construction
-- MOQ and volume pricing
-- Delivery and sample process
-- Customization, embroidery and private-label options
-- Relevant certifications
-- Links to related guides and customer cases
-
-### Product pages
-
-The strongest product descriptions contain useful operational detail, especially the Sebastian duvet. However:
-
-- Meta descriptions are cut at 160 characters without normalizing whitespace or completing a sentence.
-- Product imagery can receive empty alt text when Shopify alt text is missing.
-- English pages duplicate Swedish product data.
-- Product headings do not consistently add hotel-use context.
-- The structured price may be misleading for B2B products. The page states that the price is based on 50 units and excludes VAT, while schema presents a simple single-item offer.
-
-### Navigation and internal linking
-
-The primary navigation concentrates on Products, Search, Login, Cart and Contact. It does not prominently expose the company's expertise, custom services, case studies or knowledge content.
-
-**Recommendation:** Add top-level navigation or strong contextual links for:
-
-- Hotel textiles
-- Custom solutions
-- References/case studies
-- Knowledge/guides
-- About Linnevik
-- Samples/contact
-
-## Search visibility assessment
-
-Directional searches were performed for:
-
-- hotelltextilier Sverige leverantör
-- hotellinne leverantör Sverige
-- hotellhanddukar hotell företag Sverige
-- hotellsängkläder leverantör
-- hotel textiles supplier Sweden
-- Linnevik hotelltextilier
-
-Linnevik appeared for branded queries and some product pages, but it did not appear among the surfaced results for the sampled non-brand commercial searches.
-
-Competitors surfaced included:
-
-- [Hotex](https://hotex.se/om-oss/)
-- [Ernst Hotel Supply](https://www.ernsths.se/om-oss/)
-- [HTL-Service](https://www.htl-service.se/sv)
-- [Fritz Magnus](https://www.fritzmagnus.se/)
-- [VarUnik](https://varunik.se/sa-arbetar-vi)
-- [LUSINI](https://www.lusini.com/sv-se/series/saengklaeder-linon/)
-
-These competitors generally use more explicit procurement language around product categories, hotel specialization, customization, professional laundering, certifications and operational benefits.
-
-Searches for the Linnevik brand outside its own domain also surfaced an unrelated Swedish place named Linnevik, including travel pages. This makes entity disambiguation and third-party corroboration especially important.
-
-## Recommended keyword and landing-page architecture
-
-| Search intent | Suggested primary page | Purpose |
-|---|---|---|
-| hotelltextilier / hotelltextil leverantör | `/sv/hotelltextilier` | Central commercial category hub |
-| hotellinne / hotellakan | `/sv/hotelltextilier/sangklader` | Hotel bed-linen procurement |
-| hotellhanddukar / frotté hotell | `/sv/hotelltextilier/handdukar-frotte` | Bathroom and spa textiles |
-| hotellkuddar och täcken | `/sv/hotelltextilier/kuddar-tacken` | Bedding inserts and operational specifications |
-| hotellmorgonrockar / spatextilier | `/sv/hotelltextilier/morgonrockar-spa` | Spa, bathrobe and slipper range |
-| skräddarsydda hotellprodukter | `/sv/skraddarsytt-hotell` | Bespoke products and development process |
-| brodyr / private label hotell | `/sv/private-label-brodyr` | Branding and customization |
-| textilier för hotelltvätt | `/sv/kunskap/textilier-professionell-tvatt` | Operational expertise and laundry durability |
-| hotel textile supplier Sweden | `/en/hotel-textile-supplier-sweden` | International commercial landing page |
-| custom hotel textiles Scandinavia | `/en/custom-hotel-textiles` | International bespoke-services page |
-
-English commercial pages should launch only after the underlying product, collection and service content is genuinely translated and Linnevik's service geography is clearly defined.
-
-## AI and answer-engine visibility
-
-### Current strengths
-
-- Important content is available as rendered HTML.
-- Major AI search crawlers are not blocked by the wildcard robots rule.
-- Basic product structured data exists.
-- The About page contains potentially useful factual claims.
-
-### 1. No reliable entity definition
-
-Only `Product` schema is implemented in [`web/src/components/JsonLd.tsx`](../web/src/components/JsonLd.tsx).
-
-Add `Organization`, `OnlineStore` or the most accurate business subtype on the homepage or About page with verified values for:
-
-- `name`
-- `alternateName`
-- `legalName`
-- `url`
-- `logo`
-- `description`
-- `foundingDate`
-- `email`
-- `telephone`
-- Postal address
-- VAT or organization identifier
-- Service area
-- `sameAs` links to official external profiles
-- Relationship between Linnevik and Södra Vanadistvätten AB
-
-Google recommends Organization schema partly to disambiguate organizations and their administrative details.
-
-Source: [Google Organization schema guidance](https://developers.google.com/search/docs/appearance/structured-data/organization).
-
-### 2. Conflicting business facts weaken trust
-
-Before the correction implemented on 5 August 2026, the site presented conflicting business details. The Terms pages incorrectly named Galil Textile AB, while the footer and contact pages named Södra Vanadistvätten AB. The repository now identifies Linneviken AB as Linnevik's legal daughter company and Södra Vanadistvätten AB as its parent company, while removing Galil Textile AB.
-
-The remaining entity information presented on the site is:
-
-- Footer copyright: Södra Vanadistvätten AB
-- Legal Terms entity: Linneviken AB
-- Parent company shown on the site and in schema: Södra Vanadistvätten AB
-- Swedish contact phone: `+46 73 897 02 39`
-- English contact phone: `+46 8 123 456 78`
-- Contact visiting address: Tumba
-- Terms address: Bromma
-
-The English phone number has also been aligned with the Swedish contact number. Add the verified organization number as the final missing company-identity field, then reuse the complete source of truth in schema, social profiles and business directories.
-
-### 3. Very little independently corroborated entity evidence
-
-The sampled search results found little credible third-party material associating Linnevik with hotel textiles. AI systems are more likely to cite or confidently recommend an entity when claims are supported by independent sources.
-
-Recommended authority-building sources include:
-
-- Approved client supplier pages
-- Hotel case studies published or linked by the hotel
-- Hospitality trade publications
-- Swedish and Nordic supplier directories
-- Trade-fair and association profiles
-- Consistent LinkedIn and Google Business profiles
-- Manufacturer and certification partner pages
-
-### 4. No citable customer stories
-
-Client logos are labeled “References,” but there are no pages explaining:
-
-- The hotel and project context
-- Operational problem
-- Products supplied
-- Volume or property type
-- Laundry and durability requirements
-- Customization process
-- Result
-- Approved customer quote
-
-Detailed case studies would support rankings, conversion, brand authority and AI citations simultaneously.
-
-### 5. No knowledge layer
-
-AI answers favor specific, well-supported passages. Linnevik should publish practical answers about:
-
-- GSM
-- Thread count
-- Percale versus sateen
-- Commercial-laundry durability
-- Replacement cycles
-- Par levels
-- MOQ and lead times
-- Certifications
-- Embroidery and private label
-- Total cost per use
-
-### 6. Broken `llms.txt`
-
-Serve a real, concise `text/plain` Markdown document after core company facts and priority pages are corrected. It should include:
-
-- A one-paragraph verified company definition
-- Main service geography
-- Primary product and service categories
-- Links to the authoritative About, product-category, custom-service, certification and contact pages
-- Links to the strongest guides and customer cases
-- A clear explanation of legal and brand relationships
-
-Do not treat `llms.txt` as a substitute for regular HTML content, schema, internal linking or authority.
-
-### 7. Structured data should be expanded carefully
-
-Add:
-
-- `Organization` or the most accurate merchant subtype
-- `BreadcrumbList` on product and collection pages
-- Richer `Product` and `ProductGroup` markup for variants
-- `brand`, `seller`, SKU/MPN/GTIN where available
-- Shipping and return-policy information where accurate
-- `Article` for guides and case studies
-
-The present `Product` schema contains name, description, image, SKU and a basic Offer. It omits brand and seller identity and models only the first variant.
-
-For B2B pricing, ensure schema accurately reflects the visible MOQ, quantity basis, VAT treatment and purchase availability. Structured data must not imply that a single unit can be purchased at a volume price when that is not true.
-
-Source: [Google Product structured-data documentation](https://developers.google.com/search/docs/appearance/structured-data/product).
-
-## Recommended content program
-
-The strongest topics are those closest to actual hotel procurement decisions.
-
-### Buyer guides
-
-- Guide till hotelltextilier: kvalitet, livslängd och kostnad per användning
-- Percale eller satin för hotell?
-- Vilken GSM bör hotellhanddukar ha?
-- Så påverkar professionell tvätt livslängden på hotellinne
-- Hur många uppsättningar sänglinne behöver ett hotell?
-- Så väljer hotell kuddar och täcken för olika rumstyper
-- Standardprodukt, brodyr eller helt skräddarsytt?
-- MOQ och ledtider för specialdesignade hotellprodukter
-- Certifieringar för hotelltextilier: OEKO-TEX, GOTS och EU Ecolabel
-- Så räknar du total kostnad per användning för hotelltextilier
-
-### Case studies
-
-Create individual, approved customer cases for Nobis, Blique, Ligula, Freys and other references where permission exists.
-
-Each case should include attributable facts, original photography, relevant products, operational constraints, result, internal product links and an approved quote.
-
-### Commercial FAQ content
-
-Answer questions such as:
-
-- What is Linnevik's minimum order quantity?
-- Can hotels order free samples?
-- Which products are stocked versus made to order?
-- Which products tolerate industrial laundering?
-- Can Linnevik embroider logos or create custom packaging?
-- What countries does Linnevik deliver to?
-- What are normal lead times?
-- Which certifications apply to each product?
-- Does pricing include VAT, freight and customs?
-
-FAQ content should be visible, useful page content. Schema alone is not a substitute.
-
-## Prioritized roadmap
-
-### Phase 0: First 1–2 weeks
-
-1. Standardize all URLs on `https://www.linnevik.se`.
-2. Make permanent redirects match that canonical choice.
-3. Remove homepage trailing-slash canonical conflicts.
-4. Rebuild the sitemap with final HTTP 200 URLs and truthful modification dates.
-5. Remove utility pages from the sitemap and apply `noindex`.
-6. Add the correct HTML `lang` value.
-7. Validate locales and return real 404s for unsupported values.
-8. Fix `/llms.txt` and `/llms-full.txt` behavior.
-9. Remove the `/_next/` robots restriction.
-10. Correct English product, collection and metadata content.
-11. Resolve legal entity, phone and address inconsistencies.
-12. Avoid setting a locale cookie on every cacheable public response.
-13. Ensure missing resources return 404 and temporary failures return 5xx.
-
-### Phase 1: Weeks 2–6
-
-1. Create the hotel-textile landing-page architecture.
-2. Rewrite collection titles, descriptions and introductory content around B2B search intent.
-3. Add Organization, Breadcrumb and richer Product schema.
-4. Publish the first three buyer guides.
-5. Publish at least two detailed customer cases.
-6. Improve Open Graph images and product image alt text.
-7. Add clear trust content for certifications, manufacturing, laundry testing, MOQ, delivery regions and service model.
-8. Add stronger internal navigation to services, knowledge and references.
-
-### Phase 2: Months 2–4
-
-1. Publish one substantive guide or case study every two weeks.
-2. Secure approved links from hotel clients and hospitality partners.
-3. Build consistent LinkedIn, Google Business and relevant industry-directory profiles.
-4. Pursue hospitality trade publications and supplier directories.
-5. Expand English only around markets Linnevik can serve effectively.
-6. Track a fixed set of Google, Bing, ChatGPT and Perplexity discovery queries monthly.
-
-## Measurement plan
-
-### Search measurement
-
-- Configure a Google Search Console domain property.
-- Submit the corrected sitemap.
-- Review Pages/Indexing, Crawl Stats, Core Web Vitals and Enhancements.
-- Export at least 16 months of query and page data where available.
-- Separate branded and non-branded impressions and clicks.
-- Track average position and click-through rate for each intent cluster.
-- Configure Bing Webmaster Tools and submit the sitemap there.
-
-### AI visibility measurement
-
-- Track referrals from ChatGPT, Perplexity and other AI assistants in analytics.
-- Review server/CDN logs for OAI-SearchBot, Claude-SearchBot and PerplexityBot.
-- Verify that crawler requests receive HTTP 200 without CAPTCHA, authentication, WAF or rate-limit blocks.
-- Maintain a monthly prompt set covering supplier recommendations, product categories, commercial laundry and bespoke hotel textiles.
-- Record whether Linnevik is mentioned, cited and linked, and which source pages are selected.
-
-### Conversion measurement
-
-SEO success should be judged by qualified hotel-industry demand, not traffic alone. Track:
-
-- Sample requests
-- Contact-form completions
-- Click-to-call and click-to-email actions
-- Account applications
-- Quote requests
-- Leads by landing page and query cluster
-- Lead quality, property type and estimated purchasing value
-
-## Performance measurement still required
-
-No reliable Core Web Vitals values were available during this audit. A follow-up mobile performance audit should measure:
-
-| Metric | Target |
-|---|---:|
-| LCP | Under 2.5 seconds |
-| INP | Under 200 milliseconds |
-| CLS | Under 0.1 |
-| TTFB | Under 800 milliseconds |
-
-The follow-up should specifically test:
-
-- The effect of `private, no-store` responses and locale cookies on TTFB.
-- Collection pages that mark many images as priority.
-- Duplicate light/dark logo preloads.
-- Shopify image weight and responsive sizes.
-- Font loading and render delay.
-- Third-party analytics and visit logging.
-- Mobile interaction performance for search, cart, currency and sample flows.
-
-These targets follow current Core Web Vitals guidance, but Linnevik's actual values must be measured before performance changes are prioritized.
-
-## Final assessment
-
-Linnevik's core problem is not an inability to be crawled. Search engines can read the site, and several pages are already indexed. The larger problem is that the site sends inconsistent technical and entity signals while offering too little content for high-intent hotel procurement searches.
-
-The immediate technical corrections will improve crawl efficiency and prevent index-quality problems. The larger growth opportunity comes from combining Linnevik's real operational advantage—hotel and laundry experience since 1986—with explicit commercial landing pages, verifiable business information, detailed customer cases and practical procurement guidance.
-
-That combination will make Linnevik easier to rank, easier to trust and substantially easier for AI systems to identify, summarize and cite.
+The decisive conclusion is: **Linnevik’s technical SEO is now strong enough to support growth, but its current organic profile is not strong in the market.** The next gains will come primarily from search-intent pages, credible case studies, clearer entity data, product availability, and industry links—not from adding more technical tags.
