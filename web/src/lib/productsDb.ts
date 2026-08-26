@@ -113,6 +113,62 @@ export async function listProductsForAdmin(): Promise<ProductListRow[]> {
   }));
 }
 
+export type VariantPricingVariant = {
+  id: number;
+  sku: string;
+  optionValues: Array<{ name: string; value: string }>;
+  priceMinor: number;
+};
+
+export type VariantPricingProduct = {
+  id: number;
+  handle: string;
+  title: string;
+  variants: VariantPricingVariant[];
+};
+
+/**
+ * Egna produkter (leverantör Linnevik) som har fler än en variant — det är där
+ * en enda "vårt pris"-siffra inte räcker, eftersom varje storlek/fyllning kan
+ * behöva sättas för sig. Listan byggs av vad som faktiskt ligger i databasen,
+ * inte av en hårdkodad produktlista, så en ny variantprodukt dyker upp här
+ * utan kodändring.
+ */
+export async function listLinnevikVariantProducts(): Promise<VariantPricingProduct[]> {
+  if (!productsConfigured()) return [];
+
+  const rows = await getDb()
+    .select({
+      productId: products.id,
+      handle: products.handle,
+      title: products.title,
+      variantId: productVariants.id,
+      sku: productVariants.sku,
+      optionValues: productVariants.optionValues,
+      priceMinor: productVariants.priceMinor,
+    })
+    .from(products)
+    .innerJoin(productVariants, eq(productVariants.productId, products.id))
+    .where(and(eq(products.supplier, 'Linnevik'), eq(products.active, true)))
+    .orderBy(asc(products.title), asc(productVariants.position), asc(productVariants.sku));
+
+  const byProduct = new Map<number, VariantPricingProduct>();
+  for (const row of rows) {
+    let entry = byProduct.get(row.productId);
+    if (!entry) {
+      entry = { id: row.productId, handle: row.handle, title: row.title, variants: [] };
+      byProduct.set(row.productId, entry);
+    }
+    entry.variants.push({
+      id: row.variantId,
+      sku: row.sku,
+      optionValues: row.optionValues,
+      priceMinor: row.priceMinor,
+    });
+  }
+  return [...byProduct.values()].filter(p => p.variants.length > 1);
+}
+
 export type VariantWithUsage = ProductVariantRow & {
   /** Antal orderrader. En variant som sålts ska inaktiveras, inte raderas. */
   orderLineCount: number;

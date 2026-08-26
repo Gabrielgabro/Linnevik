@@ -5,8 +5,8 @@ import CostCharts from '@/components/admin/CostCharts';
 import { PageHeader, StatRow, StatTile, buttonClass } from '@/components/admin/ui';
 import { accentFor } from './nav';
 import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
-import { collectedAt } from '@/data/competitorPrices';
 import { landedPerPcs, products, shipment } from '@/data/landedCost';
+import { listLinnevikVariantProducts, listProductsForAdmin } from '@/lib/productsDb';
 
 const sek = (v: number, decimals = 2) =>
   v.toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -32,6 +32,15 @@ function Meta({ label, value }: { label: string; value: string }) {
 
 export default async function AdminPricingPage() {
   const user = await readSessionValue((await cookies()).get(ADMIN_COOKIE)?.value);
+  // Reglagets blå startläge ska visa vad produkten faktiskt kostar just nu,
+  // inte den statiska förslagssiffran i competitorPrices.ts.
+  const catalogRows = await listProductsForAdmin();
+  const currentPriceByHandle = Object.fromEntries(
+    catalogRows
+      .filter(row => row.priceMinMinor != null)
+      .map(row => [row.handle, row.priceMinMinor! / 100])
+  );
+  const variantProducts = await listLinnevikVariantProducts();
 
   return (
     <>
@@ -100,27 +109,7 @@ export default async function AdminPricingPage() {
 
       <CostCharts products={byLandedDesc} />
 
-      {/* Andra halvan av sidan. Egen accentfärg (orange, samma som
-          konkurrentstaplarna) så att brytpunkten syns när man skrollar. */}
-      <header
-        className="mt-4 flex flex-col gap-3 rounded-card border border-rule bg-surface px-5 py-5 shadow-card sm:px-6"
-        style={{ borderTop: '3px solid var(--viz-s2)' }}
-      >
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">
-          Konkurrentanalys · publika prislistor · insamlat {collectedAt}
-        </span>
-        <h2 className="max-w-[24ch] text-balance font-heading text-[clamp(22px,3.2vw,30px)] leading-[1.12] tracking-[-0.02em] text-ink">
-          Vad marknaden tar — och vad vi borde ta
-        </h2>
-        <p className="max-w-[68ch] text-[14px] leading-[1.6] text-ink-2">
-          För varje produkt har vi letat upp den närmast likvärdiga produkten hos svenska och
-          nordiska hotelltextilleverantörer och lagt deras listpris bredvid vår landade kostnad.
-          Tyngdpunkten ligger på B2B; konsumentpriserna finns med som referens och är omräknade till
-          exklusive moms. Där matchningen inte är exakt står avvikelsen utskriven i källtabellen.
-        </p>
-      </header>
-
-      <CompetitorCharts user={user} />
+      <CompetitorCharts user={user} currentPrices={currentPriceByHandle} variantProducts={variantProducts} />
     </>
   );
 }

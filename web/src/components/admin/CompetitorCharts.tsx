@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { landedPerPcs, products as landedProducts } from '@/data/landedCost';
 import type { AdminUser } from '@/lib/adminAuth';
+import type { VariantPricingProduct } from '@/lib/productsDb';
+import VariantPricing from './VariantPricing';
 import {
   BASIS_LABEL,
   collectedAt,
@@ -48,6 +50,19 @@ const titleOf = (skuPrefix: string) =>
 const handleOf = (skuPrefix: string) =>
   landedProducts.find(p => p.skuPrefix === skuPrefix)?.handle ?? null;
 
+/**
+ * Vad reglaget ska stå på när sidan laddas: produktens nuvarande pris i
+ * katalogen om vi har det, annars den statiska förslagssiffran i
+ * competitorPrices.ts. Också vad "återställ" och "ändrat"-markeringen jämför
+ * mot — annars visas ett pris som redan är satt i katalogen som "ändrat" bara
+ * för att det skiljer sig från den gamla analysens förslag.
+ */
+const baselineOf = (currentPrices: Record<string, number>, p: CompetitorProduct) => {
+  const handle = handleOf(p.skuPrefix);
+  const live = handle ? currentPrices[handle] : undefined;
+  return live ?? p.suggestedSek;
+};
+
 const landedOf = (skuPrefix: string) => {
   const p = landedProducts.find(x => x.skuPrefix === skuPrefix);
   return p ? landedPerPcs(p) : 0;
@@ -72,14 +87,15 @@ const INDEX_MAX = 250;
  * Skalans tak är låst till underlaget, inte till det pris som dras. Annars skulle
  * alla staplar hoppa i sidled så fort man rör reglaget.
  */
-const scaleMaxOf = (p: CompetitorProduct) => {
-  const raw = Math.max(landedOf(p.skuPrefix), p.suggestedSek, ...p.competitors.map(c => c.priceSek)) * 1.25;
+const scaleMaxOf = (p: CompetitorProduct, baseline: number) => {
+  const raw =
+    Math.max(landedOf(p.skuPrefix), p.suggestedSek, baseline, ...p.competitors.map(c => c.priceSek)) * 1.25;
   const step = raw > 400 ? 100 : raw > 100 ? 25 : 5;
   return Math.ceil(raw / step) * step;
 };
 
 /** 1 kr känns rätt på ett kuddskydd, 5 kr på ett duntäcke. */
-const stepOf = (p: CompetitorProduct) => (scaleMaxOf(p) > 400 ? 5 : 1);
+const stepOf = (p: CompetitorProduct, baseline: number) => (scaleMaxOf(p, baseline) > 400 ? 5 : 1);
 
 // Ordningen i marginal- och indexgraferna låses vid ursprungsförslagen, så att
 // raderna inte byter plats medan man drar.
@@ -101,10 +117,19 @@ type BarSpec = {
   tipNote: string;
 };
 
-export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
+export default function CompetitorCharts({
+  user,
+  currentPrices,
+  variantProducts,
+}: {
+  user: AdminUser | null;
+  /** Nuvarande pris per produkthandle, SEK exkl. moms. */
+  currentPrices: Record<string, number>;
+  variantProducts: VariantPricingProduct[];
+}) {
   const { tip, showTip, hideTip } = useTip();
   const [prices, setPrices] = useState<Record<string, number>>(() =>
-    Object.fromEntries(competitorProducts.map(p => [p.skuPrefix, p.suggestedSek]))
+    Object.fromEntries(competitorProducts.map(p => [p.skuPrefix, baselineOf(currentPrices, p)]))
   );
   const [dragging, setDragging] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<StoredSuggestion[]>([]);
@@ -137,10 +162,14 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
       prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
     );
 
-  const priceOf = (p: CompetitorProduct) => prices[p.skuPrefix] ?? p.suggestedSek;
+  const priceOf = (p: CompetitorProduct) => prices[p.skuPrefix] ?? baselineOf(currentPrices, p);
   const setPrice = (p: CompetitorProduct, next: number) =>
-    setPrices(prev => ({ ...prev, [p.skuPrefix]: Math.max(0, Math.min(scaleMaxOf(p), Math.round(next))) }));
-  const isEdited = (p: CompetitorProduct) => Math.round(priceOf(p)) !== Math.round(p.suggestedSek);
+    setPrices(prev => ({
+      ...prev,
+      [p.skuPrefix]: Math.max(0, Math.min(scaleMaxOf(p, baselineOf(currentPrices, p)), Math.round(next))),
+    }));
+  const isEdited = (p: CompetitorProduct) =>
+    Math.round(priceOf(p)) !== Math.round(baselineOf(currentPrices, p));
   const anyEdited = competitorProducts.some(isEdited);
 
   const loadSuggestions = async () => {
@@ -355,14 +384,19 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
             type="button"
             disabled={!anyEdited}
             onClick={() =>
-              setPrices(Object.fromEntries(competitorProducts.map(p => [p.skuPrefix, p.suggestedSek])))
+              setPrices(
+                Object.fromEntries(competitorProducts.map(p => [p.skuPrefix, baselineOf(currentPrices, p)]))
+              )
             }
             className="rounded-sm border px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.06em] transition-opacity disabled:opacity-35"
             style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-2)' }}
           >
-            Återställ förslagen
+            Återställ till nuvarande pris
           </button>
         </div>
+        <span className="text-[11px]" style={{ color: 'var(--viz-ink-3)' }}>
+          För produkter med flera varianter avser nuvarande pris den billigaste varianten.
+        </span>
 
         <SuggestionPanel
           user={user}
@@ -390,7 +424,8 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
         <div className="flex flex-col gap-6">
           {competitorProducts.map(p => {
             const landed = landedOf(p.skuPrefix);
-            const max = scaleMaxOf(p);
+            const baseline = baselineOf(currentPrices, p);
+            const max = scaleMaxOf(p, baseline);
             const staticBars: BarSpec[] = [
               {
                 id: `${p.skuPrefix}-landed`,
@@ -423,14 +458,15 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
                 <PriceSlider
                   product={p}
                   price={priceOf(p)}
+                  baseline={baseline}
                   max={max}
-                  step={stepOf(p)}
+                  step={stepOf(p, baseline)}
                   landed={landed}
                   edited={isEdited(p)}
                   dragging={dragging === p.skuPrefix}
                   onDragChange={active => setDragging(active ? p.skuPrefix : null)}
                   onChange={next => setPrice(p, next)}
-                  onReset={() => setPrice(p, p.suggestedSek)}
+                  onReset={() => setPrice(p, baseline)}
                 />
 
                 {visibleMembers.map(m => {
@@ -491,6 +527,8 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
         />
       </Card>
 
+      <VariantPricing products={variantProducts} />
+
       <Card
         title="Bruttomarginal vid satt pris"
         sub="Priset minus landad kostnad, som andel av priset. Delad skala 0–100 %, så raderna går att jämföra rakt av. Ändras direkt när du drar i reglaget ovanför."
@@ -522,7 +560,9 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
                   `${sek(price, 0)} kr pris − ${sek(landedOf(p.skuPrefix))} kr landad kostnad`,
                   `${sek(price - landedOf(p.skuPrefix), 0)} kr täckningsbidrag per styck`,
                 ],
-                tipNote: isEdited(p) ? `Ändrat från förslaget ${sek(p.suggestedSek, 0)} kr.` : p.rationale,
+                tipNote: isEdited(p)
+                  ? `Ändrat från nuvarande pris ${sek(baselineOf(currentPrices, p), 0)} kr.`
+                  : p.rationale,
               },
               100,
               ' %'
@@ -732,6 +772,7 @@ export default function CompetitorCharts({ user }: { user: AdminUser | null }) {
 function PriceSlider({
   product,
   price,
+  baseline,
   max,
   step,
   landed,
@@ -743,6 +784,8 @@ function PriceSlider({
 }: {
   product: CompetitorProduct;
   price: number;
+  /** Nuvarande pris i katalogen (eller den statiska förslagssiffran om produkten saknar mappning). */
+  baseline: number;
   max: number;
   step: number;
   landed: number;
@@ -798,7 +841,7 @@ function PriceSlider({
   };
 
   const pct = Math.min(100, (price / max) * 100);
-  const suggestedPct = Math.min(100, (product.suggestedSek / max) * 100);
+  const baselinePct = Math.min(100, (baseline / max) * 100);
   const marginNow = marginPct(product, price);
   const belowCost = price < landed;
 
@@ -812,7 +855,7 @@ function PriceSlider({
           <button
             type="button"
             onClick={onReset}
-            title={`Återställ till förslaget ${sek(product.suggestedSek, 0)} kr`}
+            title={`Återställ till nuvarande pris ${sek(baseline, 0)} kr`}
             className="rounded-sm border px-[5px] py-px font-mono text-[9.5px] font-normal uppercase tracking-[0.06em]"
             style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-3)' }}
           >
@@ -831,11 +874,11 @@ function PriceSlider({
         className="relative h-[26px] touch-none select-none rounded-[3px]"
         style={{ background: 'var(--viz-grid)', cursor: dragging ? 'grabbing' : 'ew-resize' }}
       >
-        {/* Var förslaget låg, så avvikelsen syns medan man drar. */}
+        {/* Var det nuvarande priset låg, så avvikelsen syns medan man drar. */}
         <span
           aria-hidden
           className="pointer-events-none absolute bottom-0 top-0 w-px"
-          style={{ left: `${suggestedPct}%`, background: 'var(--viz-ink-3)', opacity: edited ? 0.65 : 0 }}
+          style={{ left: `${baselinePct}%`, background: 'var(--viz-ink-3)', opacity: edited ? 0.65 : 0 }}
         />
         {/* Landad kostnad — under den här linjen säljer vi med förlust. */}
         <span
