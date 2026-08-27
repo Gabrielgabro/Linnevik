@@ -7,6 +7,7 @@ import CommerceCustomerPanel from '@/components/admin/CommerceCustomerPanel';
 import { Notice, PageHeader, StatusPill } from '@/components/admin/ui';
 import { accentFor } from '../../nav';
 import { getClient } from '@/lib/clientsDb';
+import { clientAddressLines, clientInvoiceGap } from '@/lib/clients';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,8 @@ export default async function ClientDetailPage({
   if (!data) notFound();
 
   const { client, contacts, commerceCustomers, orders } = data;
+  const addressLines = clientAddressLines(client);
+  const invoiceGap = clientInvoiceGap(client);
 
   return (
     <>
@@ -42,9 +45,22 @@ export default async function ClientDetailPage({
               {client.segment ? ` · ${client.segment}` : ''}
             </span>
             <StatusPill status={client.status} />
+            {addressLines.length > 0 && (
+              <span className="text-[12px] text-ink-3">{addressLines.join(', ')}</span>
+            )}
           </span>
         }
       />
+
+      {invoiceGap && (
+        <Notice tone="warn" title="Kunden kan inte faktureras än">
+          {invoiceGap === 'orgNumber'
+            ? 'Organisationsnumret saknas eller ser fel ut. Fakturor ställs ut på det numret, så kassan avvisar en fakturabeställning tills det är ifyllt.'
+            : invoiceGap === 'address'
+              ? 'Fakturaadressen är ofullständig. Gatuadress, postnummer och ort behövs alla tre.'
+              : 'Adressen ligger utanför Sverige. Vi kan för närvarande bara fakturera svenska adresser.'}
+        </Notice>
+      )}
 
       {client.nameTruncated && (
         <Notice tone="warn" title="Namnet är kapat">

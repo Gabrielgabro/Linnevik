@@ -86,9 +86,11 @@ describe('identity is verified rather than trusted', () => {
 describe('one company-number rule across every entry point', () => {
   it('validates the account page with the same helpers as registration', () => {
     // While this page kept its own looser regex it saved numbers that invoice
-    // checkout rejected, and it is the only form that can correct them.
-    expect(accountActions).toContain('normalizeCompanyRegistrationNumber(rawVat)');
-    expect(accountActions).toContain('isValidCompanyRegistrationNumber(normalizedVat)');
+    // checkout rejected, and it is the only form that can correct them. Both
+    // now go through resolveCompanyProfile, which owns the one rule — for the
+    // company name and the address as well as for the number.
+    expect(accountActions).toContain('resolveCompanyProfile');
     expect(accountActions).not.toContain('EU_COMPANY_REGEX');
+    expect(accountActions).not.toMatch(/\/\^\[A-Z\]\{2\}/);
   });
 });

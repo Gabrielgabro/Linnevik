@@ -11,6 +11,12 @@ import {
     isValidCompanyRegistrationNumber,
     normalizeCompanyRegistrationNumber,
 } from '@/lib/companyRegistration';
+import {
+    addressIsComplete,
+    isValidCompanyName,
+    normalizeAddress,
+    normalizeCompanyName,
+} from '@/lib/companyProfile';
 
 const COOKIE_NAME = 'shopify_customer_token';
 const REGISTER_RATE_PER_IP = 10;
@@ -29,6 +35,11 @@ type RegisterFields = {
     firstName?: string;
     lastName?: string;
     companyRegistrationNumber?: string;
+    companyName?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    postalCode?: string;
+    city?: string;
 };
 
 export type RegisterState = {
@@ -50,12 +61,35 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     const companyRegistrationNumber = normalizeCompanyRegistrationNumber(
         formData.get('companyRegistrationNumber')
     );
+    // Företagsnamn och faktureringsadress frågas efter redan här. De behövs för
+    // att kunna skicka en faktura, och ett konto som saknar dem stoppas först i
+    // kassan — där kunden har en korg och ingen lust att fylla i ett formulär.
+    const companyName = normalizeCompanyName(formData.get('companyName'));
+    const address = normalizeAddress({
+        line1: formData.get('addressLine1'),
+        line2: formData.get('addressLine2'),
+        postalCode: formData.get('postalCode'),
+        city: formData.get('city'),
+    });
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const fields: RegisterFields = { email, firstName, lastName, companyRegistrationNumber };
+    const fields: RegisterFields = {
+        email,
+        firstName,
+        lastName,
+        companyRegistrationNumber,
+        companyName,
+        // Fälten ekas tillbaka i den form kunden skrev dem, inte i den
+        // normaliserade — annars ser ett postnummer som inte gick att tyda ut
+        // som om formuläret hade ätit upp det.
+        addressLine1: formData.get('addressLine1')?.toString() ?? '',
+        addressLine2: formData.get('addressLine2')?.toString() ?? '',
+        postalCode: formData.get('postalCode')?.toString() ?? '',
+        city: formData.get('city')?.toString() ?? '',
+    };
 
     // Validation: required fields
-    if (!email || !companyRegistrationNumber) {
+    if (!email || !companyRegistrationNumber || !companyName || !address) {
         return {
             status: 'error',
             message: t.register.errors.missingFields,
@@ -107,6 +141,24 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
         };
     }
 
+    if (!isValidCompanyName(companyName)) {
+        return {
+            status: 'error',
+            message: t.register.errors.invalidCompanyName,
+            fields,
+        };
+    }
+
+    // Adressen kontrolleras som en helhet: en gatuadress utan postnummer går
+    // inte att fakturera på, hur välskriven den än är.
+    if (!addressIsComplete(address)) {
+        return {
+            status: 'error',
+            message: t.register.errors.invalidAddress,
+            fields,
+        };
+    }
+
     const headerList = await headers();
     const [ipLimit, emailLimit] = await Promise.all([
         checkRateLimit({
@@ -135,6 +187,8 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
             firstName,
             lastName,
             taxId: companyRegistrationNumber,
+            companyName,
+            address,
         });
 
         if (result.status === 'created') {

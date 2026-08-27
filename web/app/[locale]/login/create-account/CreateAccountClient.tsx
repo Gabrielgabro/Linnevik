@@ -8,6 +8,9 @@ import { LocaleLink } from '@/components/LocaleLink';
 
 const initialState: RegisterState = { status: 'idle' };
 
+const fieldClass =
+    'w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30';
+
 export default function CreateAccountClient() {
     const [state, formAction, isPending] = useActionState(handleRegister, initialState);
     const formKey = state.fields ? JSON.stringify(state.fields) : 'initial';
@@ -48,7 +51,7 @@ export default function CreateAccountClient() {
                                     type="text"
                                     autoComplete="given-name"
                                     maxLength={100}
-                                    className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
+                                    className={fieldClass}
                                     placeholder={t.register.firstNamePlaceholder}
                                     defaultValue={state.fields?.firstName ?? ''}
                                 />
@@ -64,11 +67,28 @@ export default function CreateAccountClient() {
                                     type="text"
                                     autoComplete="family-name"
                                     maxLength={100}
-                                    className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
+                                    className={fieldClass}
                                     placeholder={t.register.lastNamePlaceholder}
                                     defaultValue={state.fields?.lastName ?? ''}
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="companyName" className="block mb-2 text-sm font-medium text-primary">
+                                {t.register.companyNameLabel}
+                            </label>
+                            <input
+                                id="companyName"
+                                name="companyName"
+                                type="text"
+                                autoComplete="organization"
+                                required
+                                maxLength={120}
+                                className={fieldClass}
+                                placeholder={t.register.companyNamePlaceholder}
+                                defaultValue={state.fields?.companyName ?? ''}
+                            />
                         </div>
 
                         <div>
@@ -79,17 +99,89 @@ export default function CreateAccountClient() {
                                 id="companyRegistrationNumber"
                                 name="companyRegistrationNumber"
                                 type="text"
-                                autoComplete="organization"
+                                autoComplete="off"
                                 required
                                 pattern="[A-Za-z0-9 .-]{4,24}"
                                 maxLength={24}
-                                className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
+                                className={fieldClass}
                                 placeholder={t.register.companyPlaceholder}
                                 title={t.register.companyHelper}
                                 defaultValue={state.fields?.companyRegistrationNumber ?? ''}
                             />
                             <p className="mt-2 text-sm text-secondary">{t.register.companyHelper}</p>
                         </div>
+
+                        {/* Faktureringsadressen. Frågas här för att en faktura ska
+                            kunna skapas utan ett extra varv i kassan. */}
+                        <div>
+                            <label htmlFor="addressLine1" className="block mb-2 text-sm font-medium text-primary">
+                                {t.register.addressLabel}
+                            </label>
+                            <input
+                                id="addressLine1"
+                                name="addressLine1"
+                                type="text"
+                                autoComplete="street-address"
+                                required
+                                maxLength={120}
+                                className={fieldClass}
+                                placeholder={t.register.addressPlaceholder}
+                                defaultValue={state.fields?.addressLine1 ?? ''}
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="addressLine2" className="block mb-2 text-sm font-medium text-primary">
+                                {t.register.addressLine2Label}
+                            </label>
+                            <input
+                                id="addressLine2"
+                                name="addressLine2"
+                                type="text"
+                                autoComplete="address-line2"
+                                maxLength={120}
+                                className={fieldClass}
+                                defaultValue={state.fields?.addressLine2 ?? ''}
+                            />
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label htmlFor="postalCode" className="block mb-2 text-sm font-medium text-primary">
+                                    {t.register.postalCodeLabel}
+                                </label>
+                                <input
+                                    id="postalCode"
+                                    name="postalCode"
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="postal-code"
+                                    required
+                                    maxLength={16}
+                                    className={fieldClass}
+                                    placeholder={t.register.postalCodePlaceholder}
+                                    defaultValue={state.fields?.postalCode ?? ''}
+                                />
+                            </div>
+
+                            <div>
+                                <label htmlFor="city" className="block mb-2 text-sm font-medium text-primary">
+                                    {t.register.cityLabel}
+                                </label>
+                                <input
+                                    id="city"
+                                    name="city"
+                                    type="text"
+                                    autoComplete="address-level2"
+                                    required
+                                    maxLength={120}
+                                    className={fieldClass}
+                                    placeholder={t.register.cityPlaceholder}
+                                    defaultValue={state.fields?.city ?? ''}
+                                />
+                            </div>
+                        </div>
+                        <p className="-mt-2 text-sm text-secondary">{t.register.addressHelper}</p>
 
                         <div>
                             <label htmlFor="email" className="block mb-2 text-sm font-medium text-primary">
@@ -102,7 +194,7 @@ export default function CreateAccountClient() {
                                 autoComplete="email"
                                 required
                                 maxLength={254}
-                                className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
+                                className={fieldClass}
                                 placeholder={t.register.emailPlaceholder}
                                 defaultValue={state.fields?.email ?? ''}
                             />

@@ -24,10 +24,15 @@ describe('Stripe invoice checkout contracts', () => {
     expect(invoiceRoute).toContain('if (!account) {');
     expect(invoiceRoute).toContain("status: 401");
     expect(invoiceRoute).toContain("account.status !== 'active'");
-    // The organisation number and e-mail are taken from the account, never the request.
-    expect(invoiceRoute).toContain('normalizeCompanyRegistrationNumber(account.taxId)');
+    // The organisation number and e-mail are taken from the account, never the
+    // request. Both, plus the company name and address, are checked by
+    // resolveCompanyProfile — the same call the account page validates with, so
+    // this route cannot reject what that page just accepted.
+    expect(invoiceRoute).toContain('organizationNumber: account.organizationNumber');
+    expect(invoiceRoute).toContain('email: account.email');
     expect(invoiceRoute).not.toMatch(/supplied\?\.(email|organizationNumber)/);
-    expect(invoiceRoute).toContain('isValidCompanyRegistrationNumber(organizationNumber)');
+    expect(invoiceRoute).toContain('resolveCompanyProfile({');
+    expect(invoiceRoute).toContain('if (!resolved.ok) throw new CartError(');
   });
 
   it('rate-limits invoice creation per IP and per account', () => {

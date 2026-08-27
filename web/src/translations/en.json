@@ -300,17 +300,29 @@
     "companyLabel": "Company registration number (EU)",
     "companyPlaceholder": "556016-0680 or SE556016068001",
     "companyHelper": "Swedish company number or EU VAT number (e.g. SE556016068001).",
+    "companyNameLabel": "Company name",
+    "companyNamePlaceholder": "Hotell Linné AB",
+    "addressLabel": "Billing address",
+    "addressPlaceholder": "Storgatan 1",
+    "addressLine2Label": "Address line 2 (optional)",
+    "postalCodeLabel": "Postal code",
+    "postalCodePlaceholder": "123 45",
+    "cityLabel": "City",
+    "cityPlaceholder": "Stockholm",
+    "addressHelper": "This address appears on your invoices. We currently invoice Swedish addresses only.",
     "backToLogin": "Back to login",
     "terms": "By creating an account you agree to our terms of use and privacy policy.",
     "success": "Account created! Check your email for a link to sign in.",
     "emailDeliveryFailed": "Your account is ready, but the sign-in link could not be sent. Try again from the login page.",
     "errors": {
-      "missingFields": "Please enter email and company registration number.",
+      "missingFields": "Fill in company name, registration number, billing address and email.",
       "invalidEmailFormat": "Please enter a valid email address.",
       "emailTooLong": "Email address is too long.",
       "firstNameInvalid": "First name must be between 1 and 100 characters.",
       "lastNameInvalid": "Last name must be between 1 and 100 characters.",
       "invalidCompanyNumber": "Enter a valid Swedish company number or EU VAT number.",
+      "invalidCompanyName": "Enter the company name (2–120 characters).",
+      "invalidAddress": "Enter a complete billing address with street, postal code and city.",
       "generic": "Account creation failed. Please try again.",
       "rateLimited": "Too many registration attempts. Wait a while and try again."
     },
@@ -344,14 +356,37 @@
     "welcome": "Welcome to your account",
     "infoHeading": "Account information",
     "logout": "Log out",
+    "company": {
+      "heading": "Company details",
+      "description": "These details appear on your invoices and pre-fill the checkout.",
+      "save": "Save details",
+      "saving": "Saving…",
+      "saved": "Your company details have been saved.",
+      "ready": "This account can pay by invoice.",
+      "incomplete": "Complete these details to pay by invoice.",
+      "labels": {
+        "companyName": "Company name",
+        "organizationNumber": "Registration number",
+        "addressLine1": "Billing address",
+        "addressLine2": "Address line 2 (optional)",
+        "postalCode": "Postal code",
+        "city": "City"
+      },
+      "errors": {
+        "notLoggedIn": "You are not signed in. Sign in from the account page first.",
+        "companyName": "Enter the company name (2–120 characters).",
+        "organizationNumber": "Enter a valid Swedish registration number or EU VAT number.",
+        "address": "Enter a complete address with street, postal code and city.",
+        "country": "We can currently invoice Swedish addresses only.",
+        "saveFailed": "Could not save your details right now. Please try again.",
+        "loadFailed": "Could not load your details right now. Please try again."
+      }
+    },
     "labels": {
       "name": "Name",
-      "email": "Email address",
-      "vat": "Company registration number (VAT)"
+      "email": "Email address"
     },
     "noEmail": "-",
-    "noVat": "Not provided",
-    "vatNote": "This number was provided at registration and cannot be changed here.",
     "ordersHeading": "Your orders",
     "ordersCount": "{count} most recent orders",
     "ordersEmptyHeading": "No orders yet",
@@ -444,16 +479,6 @@
       "unexpectedError": "An unexpected error occurred.",
       "resetFailed": "Could not reset the password. The link may have expired – request a new one."
     }
-  },
-  "vatStatus": {
-    "notLoggedIn": "You are not logged in. Please log in from the account page first.",
-    "invalidFormat": "Enter a valid VAT number (e.g., SE123456789).",
-    "saved": "VAT number saved.",
-    "notProvided": "VAT is marked as not provided.",
-    "updateFailed": "Could not update VAT right now. Please try again.",
-    "isSaved": "VAT is saved.",
-    "noVatYet": "No VAT number saved yet.",
-    "loadFailed": "Could not load VAT status right now. Please try again."
   },
   "contact": {
     "metadata": {

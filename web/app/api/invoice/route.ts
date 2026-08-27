@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
 import { getDb } from '@/lib/db';
-import { customers } from '@/lib/db/schema';
+import { clients, customers } from '@/lib/db/schema';
 import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
 import { GOODS_TAX_CODE, SHIPPING_TAX_CODE, checkoutTaxMode, vatBps, VatConfigurationError } from '@/lib/vat';
 import { createPendingOrder, attachSession, abandonPendingOrder, getOrderByCartVersion, setPendingOrderCustomerDetails } from '@/lib/ordersDb';
@@ -18,18 +18,24 @@ import { CartError, getOwnedCart, markOwnedCartCheckoutStarted, validateOwnedCar
 import { ownedCommerceEnabled } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
+import { getTranslations } from '@/lib/i18n';
 import { claimDiscountCapacity, DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout, usableStripeCustomerId } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 import {
-  isValidCompanyRegistrationNumber,
-  normalizeCompanyRegistrationNumber,
-} from '@/lib/companyRegistration';
+  INVOICE_COUNTRY,
+  normalizeAddress,
+  resolveCompanyProfile,
+  stripeAddress,
+  STRIPE_TAX_ID_TYPE,
+  type CompanyProfileGap,
+  type PostalAddress,
+} from '@/lib/companyProfile';
 
 export const runtime = 'nodejs';
 
-const ALLOWED_COUNTRY = 'SE';
+const ALLOWED_COUNTRY = INVOICE_COUNTRY;
 const INVOICE_DUE_DAYS = 30;
 // An invoice is unsecured 30-day credit against reserved stock, so it is gated
 // harder than card checkout: only a signed-in company account can raise one,
@@ -43,6 +49,17 @@ type AddressInput = {
   line2?: unknown;
   city?: unknown;
   postalCode?: unknown;
+};
+
+/** Vilket fält som fattas, sagt så att kunden vet vad hen ska gå och fylla i. */
+const PROFILE_GAP_MESSAGES: Record<CompanyProfileGap, string> = {
+  email: 'Ditt företagskonto saknar en giltig e-postadress.',
+  organizationNumber:
+    'Ditt företagskonto saknar ett giltigt organisationsnummer. Uppdatera uppgifterna på Mitt konto först.',
+  companyName: 'Företagsnamn krävs för faktura. Fyll i det på Mitt konto eller i formuläret ovan.',
+  address:
+    'En fullständig faktureringsadress krävs. Fyll i gatuadress, postnummer och ort på Mitt konto eller i formuläret ovan.',
+  country: 'Vi kan för närvarande bara fakturera svenska adresser.',
 };
 
 type InvoiceBody = {
@@ -60,39 +77,61 @@ type InvoiceProfile = {
   email: string;
   organizationNumber: string;
   companyName: string;
-  address: Record<string, string | null>;
+  address: PostalAddress;
 };
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function readAddress(input: AddressInput | undefined): Record<string, string | null> | null {
-  const line1 = text(input?.line1);
-  const city = text(input?.city);
-  const postalCode = text(input?.postalCode);
-  if (!line1 || !city || !postalCode) return null;
-  return {
-    line1,
-    line2: text(input?.line2) || null,
-    city,
-    postal_code: postalCode,
-    state: null,
-    country: ALLOWED_COUNTRY,
-  };
-}
 
-type InvoiceAccount = Awaited<ReturnType<typeof loadInvoiceAccount>>;
+type InvoiceAccountData = {
+  id: number;
+  email: string;
+  status: string;
+  stripeCustomerId: string | null;
+  companyName: string;
+  organizationNumber: string;
+  address: PostalAddress | null;
+};
 
-async function loadInvoiceAccount() {
+/**
+ * The signed-in account together with the company record it belongs to.
+ *
+ * The company record is the owning one for the invoice identity; the web
+ * account's own columns remain as a fallback for accounts whose company record
+ * predates them being filled in.
+ */
+async function loadInvoiceAccount(): Promise<InvoiceAccountData | null> {
   const session = await getCurrentCustomerFromCookies();
   if (!session) return null;
-  const [customer] = await getDb()
-    .select()
+  const [row] = await getDb()
+    .select({ customer: customers, client: clients })
     .from(customers)
+    .leftJoin(clients, eq(clients.id, customers.clientId))
     .where(eq(customers.id, Number(session.id)))
     .limit(1);
-  return customer ?? null;
+  if (!row) return null;
+
+  const { customer, client } = row;
+  const clientAddress = client
+    ? normalizeAddress({
+        line1: client.addressLine1,
+        line2: client.addressLine2,
+        postal_code: client.postalCode,
+        city: client.city,
+        country: client.country,
+      })
+    : null;
+  return {
+    id: customer.id,
+    email: customer.email,
+    status: customer.status,
+    stripeCustomerId: customer.stripeCustomerId,
+    companyName: client?.name ?? customer.company ?? '',
+    organizationNumber: client?.orgNumber ?? customer.taxId ?? '',
+    address: clientAddress ?? normalizeAddress(customer.defaultBillingAddress),
+  };
 }
 
 /**
@@ -100,24 +139,23 @@ async function loadInvoiceAccount() {
  * organisation number are authoritative and cannot be overridden from the
  * request. The buyer may only adjust the company name and the address printed
  * on this particular invoice.
+ *
+ * Company name and address fall back to the company record — the one the
+ * account page writes and admin curates — so an account that has never been
+ * through a card checkout can still be invoiced. Validation is
+ * `resolveCompanyProfile`, the same call the account page makes, so this route
+ * cannot reject what that page just accepted.
  */
-function resolveProfile(body: InvoiceBody, account: NonNullable<InvoiceAccount>): InvoiceProfile {
+function resolveProfile(body: InvoiceBody, account: InvoiceAccountData): InvoiceProfile {
   const supplied = body.profile;
-  const email = text(account.email).toLowerCase();
-  const organizationNumber = normalizeCompanyRegistrationNumber(account.taxId);
-  const companyName = text(supplied?.companyName) || text(account.company);
-  const storedAddress = account.defaultBillingAddress as Record<string, string | null> | null | undefined;
-  const address = readAddress(supplied?.address) ?? storedAddress ?? null;
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new CartError('Ditt företagskonto saknar en giltig e-postadress.', 400);
-  if (!isValidCompanyRegistrationNumber(organizationNumber)) {
-    throw new CartError('Ditt företagskonto saknar ett giltigt organisationsnummer. Uppdatera kontot först.', 400);
-  }
-  if (!companyName) throw new CartError('Företagsnamn krävs för faktura.', 400);
-  if (!address?.line1 || !address?.city || !address?.postal_code || address.country !== ALLOWED_COUNTRY) {
-    throw new CartError('En svensk faktura- och leveransadress krävs för faktura.', 400);
-  }
-  return { email, organizationNumber, companyName, address };
+  const resolved = resolveCompanyProfile({
+    email: account.email,
+    organizationNumber: account.organizationNumber,
+    companyName: text(supplied?.companyName) || account.companyName,
+    address: normalizeAddress(supplied?.address) ?? account.address,
+  });
+  if (!resolved.ok) throw new CartError(PROFILE_GAP_MESSAGES[resolved.missing], 400);
+  return resolved.profile;
 }
 
 type InvoiceLine = {
@@ -127,6 +165,33 @@ type InvoiceLine = {
   quantity: number;
   variantId: number;
 };
+
+/**
+ * Register the buyer's VAT number as a Stripe tax ID on the customer.
+ *
+ * The number already travels in `custom_fields` and in metadata, but only a
+ * real tax-ID object makes Stripe print it as a VAT registration on the
+ * invoice and feed it to automatic tax. Existing ids are checked first: Stripe
+ * has no upsert here, and creating the same one twice is an error.
+ *
+ * A failure is logged and swallowed. This is presentation on a receivable that
+ * already carries the number in a custom field, and it is not worth failing an
+ * order over — Stripe may reject a structurally valid number that VIES cannot
+ * confirm, which says nothing about whether the sale is good.
+ */
+async function ensureStripeTaxId(customerId: string, organizationNumber: string): Promise<void> {
+  try {
+    const existing = await getStripe().customers.listTaxIds(customerId, { limit: 100 });
+    if (existing.data.some(taxId => taxId.value === organizationNumber)) return;
+    await getStripe().customers.createTaxId(
+      customerId,
+      { type: STRIPE_TAX_ID_TYPE, value: organizationNumber },
+      { idempotencyKey: `linnevik_tax_id_${customerId}_${organizationNumber}` }
+    );
+  } catch (error) {
+    console.error('[Invoice] Could not attach the VAT number to the Stripe customer:', error);
+  }
+}
 
 /**
  * Add the items to a draft invoice and send it.
@@ -274,6 +339,7 @@ export async function POST(request: NextRequest) {
     }
 
     const locale = await getServerLanguage();
+    const t = getTranslations(locale);
     const ownedCart = await validateOwnedCartForCheckout(cartId);
     const priced = ownedCart.lines.map(line => ({
       variantId: line.variantId,
@@ -324,21 +390,22 @@ export async function POST(request: NextRequest) {
       });
       if (existing) {
         await getStripe().customers.update(existing, {
-          email: profile.email, name: profile.companyName, address: profile.address,
+          email: profile.email, name: profile.companyName, address: stripeAddress(profile.address),
           metadata: { linnevik_org_no: profile.organizationNumber },
         });
         return existing;
       }
       const customer = await getStripe().customers.create({
-        email: profile.email, name: profile.companyName, address: profile.address,
+        email: profile.email, name: profile.companyName, address: stripeAddress(profile.address),
         metadata: { linnevik_org_no: profile.organizationNumber },
       }, { idempotencyKey: `linnevik_invoice_customer_${profile.email}` });
       return customer.id;
     })();
+    await ensureStripeTaxId(customerId, profile.organizationNumber);
     const localCustomerId = await upsertCustomerFromCheckout({
       email: profile.email, stripeCustomerId: customerId, name: profile.companyName,
       shippingAddress: profile.address, billingAddress: profile.address,
-      taxId: { type: 'org_no', value: profile.organizationNumber },
+      taxId: { type: STRIPE_TAX_ID_TYPE, value: profile.organizationNumber },
     });
     await setPendingOrderCustomerDetails({
       orderId, customerId: localCustomerId, email: profile.email, customerName: profile.companyName,
@@ -354,7 +421,17 @@ export async function POST(request: NextRequest) {
       auto_advance: false,
       ...(taxMode.kind === 'automatic' ? { automatic_tax: { enabled: true } } : {}),
       ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
-      custom_fields: [{ name: 'Organisationsnummer', value: profile.organizationNumber }],
+      // Organisationsnumret står kvar här även när det också gick in som ett
+      // riktigt tax_id: fältet syns oavsett hur Stripe väljer att rendera
+      // momsregistreringen. Ordernumret är referensen kundens ekonomiavdelning
+      // uppger när de hör av sig.
+      custom_fields: [
+        { name: 'Organisationsnummer', value: profile.organizationNumber },
+        { name: 'Ordernummer', value: String(orderId) },
+      ],
+      // Betalningsvillkoren är desamma som köpvillkoren på sajten (§4), och
+      // står på fakturan därför att det är där kunden faktiskt läser dem.
+      footer: [t.terms.section4Text2, t.terms.section4Text3].join(' '),
       metadata: {
         linnevik_order_id: String(orderId),
         linnevik_shipping_minor: String(shipping.amountMinor),

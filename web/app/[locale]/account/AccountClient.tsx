@@ -1,11 +1,16 @@
 'use client';
 
+import { useActionState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
 import { logout } from '../login/actions';
+import { saveCompanyDetails, type CompanyFields, type CompanyProfileState } from './actions';
 import type { CustomerOrder } from '@/lib/customerAccount';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
+
+const inputClass =
+    'mt-1 w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30';
 
 /** Serialiserad form: datum går som ISO-sträng över server/klient-gränsen. */
 export type AccountSampleRequest = {
@@ -19,21 +24,46 @@ type Props = {
     initialEmail?: string;
     initialFirstName?: string | null;
     initialLastName?: string | null;
-    initialVatNumber?: string;
+    /** Företagsuppgifterna som de ligger sparade, för att förifylla formuläret. */
+    initialCompany?: CompanyFields;
+    /** Sant när de sparade uppgifterna räcker för att skapa en faktura. */
+    invoiceReady?: boolean;
     orders?: CustomerOrder[];
     sampleRequests?: AccountSampleRequest[];
+};
+
+const emptyCompany: CompanyFields = {
+    companyName: '',
+    organizationNumber: '',
+    addressLine1: '',
+    addressLine2: '',
+    postalCode: '',
+    city: '',
 };
 
 export default function AccountClient({
     initialEmail,
     initialFirstName,
     initialLastName,
-    initialVatNumber,
+    initialCompany,
+    invoiceReady = false,
     orders = [],
     sampleRequests = []
 }: Props) {
     const router = useRouter();
     const { t, locale } = useTranslation();
+    const [companyState, saveCompany, isSavingCompany] = useActionState<CompanyProfileState, FormData>(
+        saveCompanyDetails,
+        { status: 'idle', fields: initialCompany ?? emptyCompany, invoiceReady }
+    );
+    // Efter en sparning gäller serverns svar; dessförinnan det som lästes in
+    // på sidan. Fälten ekas normaliserade tillbaka, så postnumret hoppar till
+    // "123 45" när det sparats — samma form som fakturan visar.
+    const company = companyState.fields ?? initialCompany ?? emptyCompany;
+    const companyReady = companyState.invoiceReady ?? invoiceReady;
+    // Vid fel behåller formuläret det kunden skrev; efter en lyckad sparning
+    // monteras det om så att de normaliserade värdena syns.
+    const companyFormKey = companyState.status === 'success' ? JSON.stringify(company) : 'editing';
 
     const displayName = [initialFirstName, initialLastName].filter(Boolean).join(' ') || t.account.fallbackName;
     const greeting = t.account.greeting.replace('{name}', displayName);
@@ -92,21 +122,115 @@ export default function AccountClient({
                                 <p className="text-primary font-medium">{initialEmail || t.account.noEmail}</p>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        {/* VAT Number */}
-                        <div className="space-y-2 md:col-span-2">
-                            <label className="text-sm font-medium text-secondary">{t.account.labels.vat}</label>
-                            <div className="rounded-lg border border-light bg-[#f9fafb] dark:bg-[#111827] px-4 py-3">
-                                <p className="text-primary font-medium">{initialVatNumber || t.account.noVat}</p>
-                            </div>
-                            {initialVatNumber && (
-                                <p className="text-xs text-secondary mt-1">
-                                    {t.account.vatNote}
+                {/* Företagsuppgifter — det fakturan ställs ut på. Redigerbara här
+                    därför att det här är enda stället kunden kan komplettera ett
+                    konto som kassan avvisar för ofullständiga uppgifter. */}
+                {isLoggedIn && (
+                    <form
+                        key={companyFormKey}
+                        action={saveCompany}
+                        className="rounded-2xl border border-light bg-white dark:bg-[#1f2937] p-8 shadow-sm space-y-6"
+                    >
+                        <div>
+                            <h2 className="text-2xl font-semibold text-primary">{t.account.company.heading}</h2>
+                            <p className="text-secondary mt-1">{t.account.company.description}</p>
+                            <p className={`mt-2 text-sm ${companyReady ? 'text-secondary' : 'text-amber-700 dark:text-amber-400'}`}>
+                                {companyReady ? t.account.company.ready : t.account.company.incomplete}
+                            </p>
+                        </div>
+
+                        <div className="grid gap-5 md:grid-cols-2">
+                            <label className="block text-sm font-medium text-secondary md:col-span-2">
+                                {t.account.company.labels.companyName}
+                                <input
+                                    name="companyName"
+                                    autoComplete="organization"
+                                    maxLength={120}
+                                    required
+                                    defaultValue={company.companyName}
+                                    className={inputClass}
+                                />
+                            </label>
+
+                            <label className="block text-sm font-medium text-secondary md:col-span-2">
+                                {t.account.company.labels.organizationNumber}
+                                <input
+                                    name="organizationNumber"
+                                    autoComplete="off"
+                                    maxLength={24}
+                                    required
+                                    defaultValue={company.organizationNumber}
+                                    className={inputClass}
+                                />
+                            </label>
+
+                            <label className="block text-sm font-medium text-secondary md:col-span-2">
+                                {t.account.company.labels.addressLine1}
+                                <input
+                                    name="addressLine1"
+                                    autoComplete="street-address"
+                                    maxLength={120}
+                                    required
+                                    defaultValue={company.addressLine1}
+                                    className={inputClass}
+                                />
+                            </label>
+
+                            <label className="block text-sm font-medium text-secondary md:col-span-2">
+                                {t.account.company.labels.addressLine2}
+                                <input
+                                    name="addressLine2"
+                                    autoComplete="address-line2"
+                                    maxLength={120}
+                                    defaultValue={company.addressLine2}
+                                    className={inputClass}
+                                />
+                            </label>
+
+                            <label className="block text-sm font-medium text-secondary">
+                                {t.account.company.labels.postalCode}
+                                <input
+                                    name="postalCode"
+                                    inputMode="numeric"
+                                    autoComplete="postal-code"
+                                    maxLength={16}
+                                    required
+                                    defaultValue={company.postalCode}
+                                    className={inputClass}
+                                />
+                            </label>
+
+                            <label className="block text-sm font-medium text-secondary">
+                                {t.account.company.labels.city}
+                                <input
+                                    name="city"
+                                    autoComplete="address-level2"
+                                    maxLength={120}
+                                    required
+                                    defaultValue={company.city}
+                                    className={inputClass}
+                                />
+                            </label>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4">
+                            <Button type="submit" variant="primary" disabled={isSavingCompany}>
+                                {isSavingCompany ? t.account.company.saving : t.account.company.save}
+                            </Button>
+                            {companyState.message && (
+                                <p
+                                    role={companyState.status === 'error' ? 'alert' : undefined}
+                                    className={`text-sm ${companyState.status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}
+                                >
+                                    {companyState.message}
                                 </p>
                             )}
                         </div>
-                    </div>
-                </div>
+                    </form>
+                )}
 
                 {/* Orders Section */}
                 <div className="rounded-2xl border border-light bg-white dark:bg-[#1f2937] p-8 shadow-sm">

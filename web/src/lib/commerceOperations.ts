@@ -13,6 +13,14 @@ import {
 } from '@/lib/db/schema';
 import { discountAmount, normalizeDiscountCode, shippingAmount } from '@/lib/commerceRules';
 import { commerceCustomerNo } from '@/lib/commerceCustomer';
+import {
+  INVOICE_COUNTRY,
+  normalizeAddress,
+  normalizeCompanyName,
+  resolveCompanyProfile,
+  STRIPE_TAX_ID_TYPE,
+  type PostalAddress,
+} from '@/lib/companyProfile';
 import { getStripe } from '@/lib/stripe';
 
 export type AppliedDiscount = {
@@ -298,6 +306,11 @@ export async function upsertCustomerFromCheckout(input: {
   const names = (input.name ?? '').trim().split(/\s+/).filter(Boolean);
   const firstName = names.shift() ?? null;
   const lastName = names.join(' ') || null;
+  // Adresserna kommer från Stripe eller från kassaformuläret och skrivs ned i
+  // samma form som resten av systemet läser dem — annars blir "12345" och
+  // "123 45" två olika adresser beroende på vilken kassa kunden gick igenom.
+  const shippingAddress = normalizeAddress(input.shippingAddress);
+  const billingAddress = normalizeAddress(input.billingAddress);
   const client = await ensureClientForCommerceCustomer({
     email,
     customerNo: input.customerNo,
@@ -305,6 +318,12 @@ export async function upsertCustomerFromCheckout(input: {
     lastName,
     phone: input.phone,
     status: 'active',
+    // Namnet i en kassa är företagsnamnet när kunden fakturerar och
+    // personnamnet när någon betalar med kort. Bara det som faktiskt ser ut
+    // som ett företagsnamn får bli kundnamn — se fillClientProfileGaps.
+    companyName: input.taxId?.value ? normalizeCompanyName(input.name) : null,
+    orgNumber: input.taxId?.value ?? null,
+    address: billingAddress ?? shippingAddress,
   });
   const result = await getDb().execute(sql`
     insert into customers (
@@ -313,8 +332,8 @@ export async function upsertCustomerFromCheckout(input: {
     ) values (
       ${client.id}, ${email}, ${input.stripeCustomerId ?? null}, ${client.customerNo},
       ${firstName}, ${lastName}, ${client.name}, ${input.phone ?? null},
-      ${JSON.stringify(input.shippingAddress ?? null)}::jsonb,
-      ${JSON.stringify(input.billingAddress ?? null)}::jsonb,
+      ${JSON.stringify(shippingAddress)}::jsonb,
+      ${JSON.stringify(billingAddress)}::jsonb,
       ${input.taxId?.value ?? null}, ${input.taxId?.type ?? null}
     )
     on conflict (lower(email)) do update set
@@ -355,6 +374,8 @@ export async function registerCustomer(input: {
   firstName?: string | null;
   lastName?: string | null;
   taxId?: string | null;
+  companyName?: string | null;
+  address?: PostalAddress | null;
 }): Promise<RegisterCustomerResult> {
   const email = input.email.trim().toLowerCase();
   const [existing] = await getDb()
@@ -369,12 +390,21 @@ export async function registerCustomer(input: {
     firstName: input.firstName,
     lastName: input.lastName,
     status: 'active',
+    companyName: input.companyName,
+    orgNumber: input.taxId,
+    address: input.address,
   });
   const result = await getDb().execute(sql`
-    insert into customers (client_id, email, customer_no, first_name, last_name, company, tax_id)
+    insert into customers (
+      client_id, email, customer_no, first_name, last_name, company, tax_id, tax_id_type,
+      default_billing_address, default_shipping_address
+    )
     values (
       ${client.id}, ${email}, ${client.customerNo}, ${input.firstName ?? null},
-      ${input.lastName ?? null}, ${client.name}, ${input.taxId ?? null}
+      ${input.lastName ?? null}, ${client.name}, ${input.taxId ?? null},
+      ${input.taxId ? STRIPE_TAX_ID_TYPE : null},
+      ${JSON.stringify(input.address ?? null)}::jsonb,
+      ${JSON.stringify(input.address ?? null)}::jsonb
     )
     on conflict (lower(email)) do nothing
     returning id
@@ -466,7 +496,18 @@ export async function updateCustomer(id: number, input: CustomerInput): Promise<
   return row;
 }
 
-type CommerceClientIdentity = {
+/**
+ * Företagsuppgifterna ett webbkonto för med sig in i kundregistret. Alla
+ * fälten är redan normaliserade av lib/companyProfile.ts när de kommer hit.
+ */
+export type ClientCompanyProfile = {
+  companyName?: string | null;
+  orgNumber?: string | null;
+  address?: PostalAddress | null;
+  invoiceEmail?: string | null;
+};
+
+type CommerceClientIdentity = ClientCompanyProfile & {
   preferredClientId?: number;
   email: string;
   customerNo?: string | null;
@@ -476,9 +517,68 @@ type CommerceClientIdentity = {
   status?: string | null;
 };
 
+/** Företagsuppgifterna som kolumner på `clients`. */
+function clientProfileColumns(profile: ClientCompanyProfile) {
+  const address = profile.address ?? null;
+  return {
+    orgNumber: profile.orgNumber || null,
+    invoiceEmail: profile.invoiceEmail || null,
+    addressLine1: address?.line1 || null,
+    addressLine2: address?.line2 || null,
+    postalCode: address?.postal_code || null,
+    city: address?.city || null,
+    country: address?.country || INVOICE_COUNTRY,
+  };
+}
+
 /**
- * Kopplar webbkontot till Kunder. Kundnummer vinner över mejl, eftersom flera
- * personer kan beställa för samma företag. Saknas en träff skapas en stabil
+ * Fyller tomma fält på en befintlig kundpost, aldrig ifyllda.
+ *
+ * Registreringen och kassan är svagare källor än admin: den som sitter i
+ * Kunder har rättat namnet mot arkivlistan och ska inte få det överskrivet av
+ * det en inköpsassistent skrev i ett kassaformulär. Kundens egen redigering på
+ * kontosidan går en annan väg — se `saveCompanyProfile`.
+ */
+async function fillClientProfileGaps(
+  client: ClientRow,
+  profile: ClientCompanyProfile
+): Promise<ClientRow> {
+  const columns = clientProfileColumns(profile);
+  const patch: Partial<typeof columns> & { name?: string } = {};
+
+  if (!client.orgNumber && columns.orgNumber) patch.orgNumber = columns.orgNumber;
+  if (!client.invoiceEmail && columns.invoiceEmail) patch.invoiceEmail = columns.invoiceEmail;
+  // Adressen skrivs som en enhet: en gatuadress från en post och ett postnummer
+  // från en annan är inte en adress, det är två halva.
+  if (!client.addressLine1 && columns.addressLine1) {
+    patch.addressLine1 = columns.addressLine1;
+    patch.addressLine2 = columns.addressLine2;
+    patch.postalCode = columns.postalCode;
+    patch.city = columns.city;
+    patch.country = columns.country;
+  }
+  // Ett WEB-konto som skapades innan registreringen frågade efter företagsnamn
+  // fick personens namn eller mejladressen som kundnamn. Ett riktigt firmanamn
+  // är bättre än båda. Bara sådana platshållarnamn byts: en post med eget
+  // kundnummer är inlagd eller rättad i admin och äger sitt namn själv.
+  const namedByPlaceholder = client.customerNo.startsWith('WEB-') && /@/.test(client.name);
+  if (profile.companyName && namedByPlaceholder && profile.companyName !== client.name) {
+    patch.name = profile.companyName;
+  }
+
+  if (Object.keys(patch).length === 0) return client;
+  const [row] = await getDb()
+    .update(clients)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(clients.id, client.id))
+    .returning();
+  return row ?? client;
+}
+
+/**
+ * Kopplar webbkontot till Kunder. Kundnummer vinner över organisationsnummer,
+ * som vinner över mejl: alla tre kan peka på samma företag, men kundnumret är
+ * det tvätteriet självt känner igen kunden på. Saknas en träff skapas en stabil
  * WEB-post som sedan kan kompletteras i admin utan att orderkopplingen bryts.
  */
 async function ensureClientForCommerceCustomer(
@@ -502,6 +602,17 @@ async function ensureClientForCommerceCustomer(
       .where(eq(clients.customerNo, input.customerNo.trim()))
       .limit(1);
   }
+  if (!client && input.orgNumber) {
+    // Två anställda på samma företag ska landa på samma kundpost även när de
+    // registrerar sig var för sig med olika mejladresser. Äldsta posten vinner
+    // om registret hunnit få dubbletter — den har historiken.
+    [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.orgNumber, input.orgNumber))
+      .orderBy(asc(clients.id))
+      .limit(1);
+  }
   if (!client) {
     const [match] = await db
       .select({ client: clients })
@@ -516,14 +627,20 @@ async function ensureClientForCommerceCustomer(
     // Hashen används bara till ett deterministiskt internt kundnummer, inte
     // till säkerhet. Samma mejl kan därför inte skapa två CRM-poster vid samtidiga anrop.
     const customerNo = commerceCustomerNo(email);
+    // Firmanamnet först: kundregistret listar företag, inte personer. Personens
+    // namn och till sist mejladressen finns kvar som reserv för de konton som
+    // skapades innan registreringen frågade efter företagsnamn.
     const name =
-      [input.firstName, input.lastName].filter(Boolean).join(' ').trim() || email;
+      input.companyName?.trim() ||
+      [input.firstName, input.lastName].filter(Boolean).join(' ').trim() ||
+      email;
     [client] = await db
       .insert(clients)
       .values({
         customerNo,
         name,
         status: input.status === 'active' ? 'Aktiv kund' : 'Vilande',
+        ...clientProfileColumns(input),
       })
       .onConflictDoNothing({ target: clients.customerNo })
       .returning();
@@ -533,6 +650,8 @@ async function ensureClientForCommerceCustomer(
   }
 
   if (!client) throw new Error('Kunde inte koppla webbkontot till kundregistret.');
+
+  client = await fillClientProfileGaps(client, input);
 
   // There is no case-insensitive unique constraint on contacts. Serialize the
   // existence check and insert for this exact company/address so two parallel
@@ -557,6 +676,114 @@ async function ensureClientForCommerceCustomer(
   `);
 
   return client;
+}
+
+/**
+ * Företagsuppgifterna som de ser ut för ett inloggat konto.
+ *
+ * Företagsposten går före webbkontot fält för fält: den är det ägande
+ * registret, och den är den admin rättar i. Webbkontots egna kolumner finns
+ * kvar som reserv för konton vars företagspost ännu inte hunnit fyllas i.
+ */
+export type StoredCompanyProfile = {
+  email: string;
+  companyName: string;
+  organizationNumber: string;
+  address: PostalAddress | null;
+  /** Sant när uppgifterna räcker för att skapa en faktura. */
+  invoiceReady: boolean;
+};
+
+function clientAddress(client: ClientRow | undefined): PostalAddress | null {
+  if (!client) return null;
+  return normalizeAddress({
+    line1: client.addressLine1,
+    line2: client.addressLine2,
+    city: client.city,
+    postal_code: client.postalCode,
+    country: client.country,
+  });
+}
+
+export async function loadCompanyProfile(customerId: number): Promise<StoredCompanyProfile | null> {
+  const [row] = await getDb()
+    .select({ customer: customers, client: clients })
+    .from(customers)
+    .leftJoin(clients, eq(clients.id, customers.clientId))
+    .where(eq(customers.id, customerId))
+    .limit(1);
+  if (!row) return null;
+
+  const client = row.client ?? undefined;
+  const address = clientAddress(client) ?? normalizeAddress(row.customer.defaultBillingAddress);
+  const profile: StoredCompanyProfile = {
+    email: row.customer.email,
+    companyName: normalizeCompanyName(client?.name ?? row.customer.company ?? ''),
+    organizationNumber: client?.orgNumber ?? row.customer.taxId ?? '',
+    address,
+    invoiceReady: false,
+  };
+  profile.invoiceReady = resolveCompanyProfile({
+    email: profile.email,
+    companyName: profile.companyName,
+    organizationNumber: profile.organizationNumber,
+    address: profile.address,
+  }).ok;
+  return profile;
+}
+
+/**
+ * Kundens egen redigering av företagsuppgifterna. Till skillnad från
+ * `fillClientProfileGaps` skriver den över det som redan står där: det är
+ * kundens eget företag, och en flytt ska slå igenom utan att någon behöver
+ * gå in i admin.
+ *
+ * Både företagsposten och webbkontot uppdateras. Företagsposten är den
+ * fakturan läser; webbkontots kopia är den kassan förifyller ur. Att bara
+ * skriva den ena hade gett kunden två olika adresser på två sidor.
+ *
+ * Har företaget flera inloggningar ändrar den här skrivningen adressen för
+ * dem alla. Det är avsikten — det är en företagsadress, inte en personlig.
+ */
+export async function saveCompanyProfile(
+  customerId: number,
+  input: { companyName: string; organizationNumber: string; address: PostalAddress }
+): Promise<void> {
+  const db = getDb();
+  const [row] = await db
+    .select({ clientId: customers.clientId })
+    .from(customers)
+    .where(eq(customers.id, customerId))
+    .limit(1);
+  if (!row) throw new Error('Okänt konto.');
+
+  await db
+    .update(clients)
+    .set({
+      name: input.companyName,
+      // Ett namn kunden själv har skrivit är per definition inte längre det
+      // som kapades av 24-teckensfältet i arkivlistan.
+      nameTruncated: false,
+      orgNumber: input.organizationNumber,
+      addressLine1: input.address.line1,
+      addressLine2: input.address.line2,
+      postalCode: input.address.postal_code,
+      city: input.address.city,
+      country: input.address.country,
+      updatedAt: new Date(),
+    })
+    .where(eq(clients.id, row.clientId));
+
+  await db
+    .update(customers)
+    .set({
+      company: input.companyName,
+      taxId: input.organizationNumber,
+      taxIdType: STRIPE_TAX_ID_TYPE,
+      defaultBillingAddress: input.address,
+      updatedAt: new Date(),
+    })
+    .where(eq(customers.id, customerId));
 }
 
 export type DiscountInput = Partial<Omit<DiscountCodeRow, 'id' | 'createdAt' | 'updatedAt'>> & {

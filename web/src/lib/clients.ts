@@ -10,6 +10,14 @@
  */
 
 import type { ClientRow } from '@/lib/db/schema';
+import {
+  addressIsComplete,
+  formatAddressLines,
+  isInvoiceCountry,
+  normalizeAddress,
+  type PostalAddress,
+} from '@/lib/companyProfile';
+import { isValidCompanyRegistrationNumber } from '@/lib/companyRegistration';
 
 export const CONTACT_STATUSES = [
   'Ej kontaktad',
@@ -113,4 +121,36 @@ export type ClientWithCounts = ClientRow & {
 
 export function contactName(contact: { firstName: string; lastName: string | null }): string {
   return [contact.firstName, contact.lastName].filter(Boolean).join(' ');
+}
+
+
+/** Kundens fakturaadress i den form resten av systemet läser den. */
+export function clientAddress(client: ClientRow): PostalAddress | null {
+  return normalizeAddress({
+    line1: client.addressLine1,
+    line2: client.addressLine2,
+    postal_code: client.postalCode,
+    city: client.city,
+    country: client.country,
+  });
+}
+
+/** Adressen som rader, tom lista när kunden inte har någon. */
+export function clientAddressLines(client: ClientRow): string[] {
+  const address = clientAddress(client);
+  return address ? formatAddressLines(address) : [];
+}
+
+/**
+ * Vad som fattas innan kunden kan faktureras, eller null när allt finns.
+ *
+ * Samma krav som kassan ställer, så att en kund som ser komplett ut i admin
+ * också går igenom där. Ordningen är den man rimligen fyller i fälten.
+ */
+export function clientInvoiceGap(client: ClientRow): 'orgNumber' | 'address' | 'country' | null {
+  if (!client.orgNumber || !isValidCompanyRegistrationNumber(client.orgNumber)) return 'orgNumber';
+  const address = clientAddress(client);
+  if (!addressIsComplete(address)) return 'address';
+  if (!isInvoiceCountry(address.country)) return 'country';
+  return null;
 }

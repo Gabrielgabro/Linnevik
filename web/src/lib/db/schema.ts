@@ -112,11 +112,30 @@ export const clients = pgTable(
     reminderFee: numeric('reminder_fee', { precision: 10, scale: 2 }),
     // Namnet kapades av 24-teckensfältet i källfilen och behöver kompletteras.
     nameTruncated: boolean('name_truncated').notNull().default(false),
+    // Fakturaidentiteten. Ett företagsnamn räcker inte för en faktura — den
+    // ska bära organisationsnummer och postadress — och de hör hemma på
+    // företaget, inte på den enskilda inloggning som råkade skapa det. Skrivs
+    // alltid genom lib/companyProfile.ts så att formen är densamma överallt.
+    orgNumber: text('org_number'),
+    // Fakturor går hit när ekonomiavdelningen är någon annan än den som loggar
+    // in. Tom betyder "samma adress som kontot".
+    invoiceEmail: text('invoice_email'),
+    addressLine1: text('address_line1'),
+    addressLine2: text('address_line2'),
+    postalCode: text('postal_code'),
+    city: text('city'),
+    country: text('country').notNull().default('SE'),
     notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  table => [uniqueIndex('clients_customer_no_key').on(table.customerNo)]
+  table => [
+    uniqueIndex('clients_customer_no_key').on(table.customerNo),
+    // Uppslagning vid registrering: två anställda på samma företag ska landa
+    // på samma kundpost. Inte unikt — se 0035 om varför.
+    index('clients_org_number_idx').on(table.orgNumber).where(isNotNull(table.orgNumber)),
+    check('clients_country_check', sql`${table.country} ~ '^[A-Z]{2}$'`),
+  ]
 );
 
 export const clientContacts = pgTable(

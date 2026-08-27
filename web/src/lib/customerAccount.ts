@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { sql, eq, desc, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { orders, orderItems } from '@/lib/db/schema';
+import { normalizeAddress } from '@/lib/companyProfile';
 import { readCustomerSessionValue, CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
 
 type CustomerAddress = Record<string, string | null>;
@@ -30,10 +31,19 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
 
     try {
         const db = getDb();
+        // Företagsposten läses med, inte bara webbkontot: företagsnamn,
+        // organisationsnummer och faktureringsadress ägs av `clients`, och det
+        // är dem kassan förifyller och fakturan ställs ut på. Webbkontots egna
+        // kolumner ligger kvar som reserv för konton vars företagspost ännu
+        // inte har fyllts i.
         const result = await db.execute(sql`
-            select email, first_name, last_name, tax_id, company, default_billing_address,
-                   customer_no, stripe_customer_id, status
-            from customers where id = ${customerId} limit 1
+            select c.email, c.first_name, c.last_name, c.company, c.tax_id,
+                   c.default_billing_address, c.customer_no, c.stripe_customer_id, c.status,
+                   cl.name as client_name, cl.org_number,
+                   cl.address_line1, cl.address_line2, cl.postal_code, cl.city, cl.country
+            from customers c
+            left join clients cl on cl.id = c.client_id
+            where c.id = ${customerId} limit 1
         `);
         const row = result.rows[0] as
             | {
@@ -46,9 +56,24 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
                   customer_no: string | null;
                   stripe_customer_id: string | null;
                   status: string;
+                  client_name: string | null;
+                  org_number: string | null;
+                  address_line1: string | null;
+                  address_line2: string | null;
+                  postal_code: string | null;
+                  city: string | null;
+                  country: string | null;
               }
             | undefined;
         if (!row) return null;
+
+        const clientAddress = normalizeAddress({
+            line1: row.address_line1,
+            line2: row.address_line2,
+            postal_code: row.postal_code,
+            city: row.city,
+            country: row.country,
+        });
 
         return {
             id: String(customerId),
@@ -56,9 +81,9 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
             email: row.email,
             firstName: row.first_name,
             lastName: row.last_name,
-            vatNumber: row.tax_id || undefined,
-            company: row.company,
-            billingAddress: row.default_billing_address,
+            vatNumber: row.org_number || row.tax_id || undefined,
+            company: row.client_name || row.company,
+            billingAddress: clientAddress ?? normalizeAddress(row.default_billing_address),
             customerNo: row.customer_no,
             stripeCustomerId: row.stripe_customer_id,
             status: row.status,

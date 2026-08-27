@@ -300,17 +300,29 @@
     "companyLabel": "Företagsregistreringsnummer (EU)",
     "companyPlaceholder": "556016-0680 eller SE556016068001",
     "companyHelper": "Svenskt organisationsnummer eller EU-momsnummer (t.ex. SE556016068001).",
+    "companyNameLabel": "Företagsnamn",
+    "companyNamePlaceholder": "Hotell Linné AB",
+    "addressLabel": "Faktureringsadress",
+    "addressPlaceholder": "Storgatan 1",
+    "addressLine2Label": "Adressrad 2 (valfritt)",
+    "postalCodeLabel": "Postnummer",
+    "postalCodePlaceholder": "123 45",
+    "cityLabel": "Ort",
+    "cityPlaceholder": "Stockholm",
+    "addressHelper": "Adressen används på dina fakturor. Vi fakturerar för närvarande endast svenska adresser.",
     "backToLogin": "Tillbaka till inloggning",
     "terms": "Genom att skapa ett konto godkänner du våra användarvillkor och integritetspolicy.",
     "success": "Konto skapat! Kontrollera din e-post för en länk att logga in med.",
     "emailDeliveryFailed": "Kontot är klart, men inloggningslänken kunde inte skickas. Försök igen från inloggningssidan.",
     "errors": {
-      "missingFields": "Ange e-post och organisationsnummer.",
+      "missingFields": "Fyll i företagsnamn, organisationsnummer, faktureringsadress och e-post.",
       "invalidEmailFormat": "Ange en giltig e-postadress.",
       "emailTooLong": "E-postadressen är för lång.",
       "firstNameInvalid": "Förnamn måste vara mellan 1 och 100 tecken.",
       "lastNameInvalid": "Efternamn måste vara mellan 1 och 100 tecken.",
       "invalidCompanyNumber": "Ange ett giltigt svenskt organisationsnummer eller EU-momsnummer.",
+      "invalidCompanyName": "Ange företagets namn (2–120 tecken).",
+      "invalidAddress": "Ange en fullständig faktureringsadress med gatuadress, postnummer och ort.",
       "generic": "Kontoskapandet misslyckades. Försök igen.",
       "rateLimited": "För många registreringsförsök. Vänta en stund och försök igen."
     },
@@ -344,14 +356,37 @@
     "welcome": "Välkommen till ditt konto",
     "infoHeading": "Kontoinformation",
     "logout": "Logga ut",
+    "company": {
+      "heading": "Företagsuppgifter",
+      "description": "Uppgifterna här står på dina fakturor och förifylls i kassan.",
+      "save": "Spara uppgifter",
+      "saving": "Sparar…",
+      "saved": "Företagsuppgifterna är sparade.",
+      "ready": "Kontot kan betala mot faktura.",
+      "incomplete": "Komplettera uppgifterna för att kunna betala mot faktura.",
+      "labels": {
+        "companyName": "Företagsnamn",
+        "organizationNumber": "Organisationsnummer",
+        "addressLine1": "Faktureringsadress",
+        "addressLine2": "Adressrad 2 (valfritt)",
+        "postalCode": "Postnummer",
+        "city": "Ort"
+      },
+      "errors": {
+        "notLoggedIn": "Du är inte inloggad. Logga in via kontosidan först.",
+        "companyName": "Ange företagets namn (2–120 tecken).",
+        "organizationNumber": "Ange ett giltigt svenskt organisationsnummer eller EU-momsnummer.",
+        "address": "Ange en fullständig adress med gatuadress, postnummer och ort.",
+        "country": "Vi kan för närvarande bara fakturera svenska adresser.",
+        "saveFailed": "Kunde inte spara uppgifterna just nu. Försök igen.",
+        "loadFailed": "Kunde inte hämta uppgifterna just nu. Försök igen."
+      }
+    },
     "labels": {
       "name": "Namn",
-      "email": "E-postadress",
-      "vat": "Organisationsnummer (VAT)"
+      "email": "E-postadress"
     },
     "noEmail": "-",
-    "noVat": "Ej angivet",
-    "vatNote": "Detta nummer användes vid registrering och kan inte ändras här.",
     "ordersHeading": "Dina beställningar",
     "ordersCount": "{count} senaste beställningar",
     "ordersEmptyHeading": "Inga beställningar ännu",
@@ -444,16 +479,6 @@
       "unexpectedError": "Ett oväntat fel uppstod.",
       "resetFailed": "Kunde inte återställa lösenordet. Länken kan ha gått ut – begär en ny."
     }
-  },
-  "vatStatus": {
-    "notLoggedIn": "Du är inte inloggad. Logga in via kontosidan först.",
-    "invalidFormat": "Ange ett giltigt VAT-nummer (t.ex. SE123456789).",
-    "saved": "VAT-nummer sparat.",
-    "notProvided": "VAT är markerat som ej angivet.",
-    "updateFailed": "Kunde inte uppdatera VAT just nu. Försök igen.",
-    "isSaved": "VAT är sparat.",
-    "noVatYet": "Inget VAT-nummer sparat ännu.",
-    "loadFailed": "Kunde inte hämta VAT-status just nu. Försök igen."
   },
   "contact": {
     "metadata": {

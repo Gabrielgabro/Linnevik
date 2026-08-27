@@ -4,20 +4,24 @@ import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { cookies } from 'next/headers';
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
-import { getDb } from '@/lib/db';
-import { customers } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
-import {
-    isValidCompanyRegistrationNumber,
-    normalizeCompanyRegistrationNumber,
-} from '@/lib/companyRegistration';
+import { loadCompanyProfile, saveCompanyProfile } from '@/lib/commerceOperations';
+import { resolveCompanyProfile, type CompanyProfileGap } from '@/lib/companyProfile';
 
-export type VatState = {
+export type CompanyFields = {
+    companyName: string;
+    organizationNumber: string;
+    addressLine1: string;
+    addressLine2: string;
+    postalCode: string;
+    city: string;
+};
+
+export type CompanyProfileState = {
     status: 'idle' | 'success' | 'error';
     message?: string;
-    email?: string;
-    vatNumber?: string;
-    vatProvided?: boolean;
+    fields?: CompanyFields;
+    /** Sant när uppgifterna räcker för att skapa en faktura i kassan. */
+    invoiceReady?: boolean;
 };
 
 async function getActionTranslations(): Promise<Translations> {
@@ -27,103 +31,126 @@ async function getActionTranslations(): Promise<Translations> {
     return getTranslations(lang);
 }
 
-async function getSessionCustomer() {
+function readFields(formData: FormData): CompanyFields {
+    const value = (key: string) => formData.get(key)?.toString() ?? '';
+    return {
+        companyName: value('companyName'),
+        organizationNumber: value('organizationNumber'),
+        addressLine1: value('addressLine1'),
+        addressLine2: value('addressLine2'),
+        postalCode: value('postalCode'),
+        city: value('city'),
+    };
+}
+
+/** Ett meddelande per sak som fattas, så att kunden vet vilket fält som är fel. */
+function gapMessage(t: Translations, gap: CompanyProfileGap): string {
+    const messages = t.account.company.errors;
+    switch (gap) {
+        case 'companyName':
+            return messages.companyName;
+        case 'organizationNumber':
+            return messages.organizationNumber;
+        case 'address':
+            return messages.address;
+        case 'country':
+            return messages.country;
+        case 'email':
+            return messages.notLoggedIn;
+    }
+}
+
+/**
+ * Sparar företagsuppgifterna från kontosidan.
+ *
+ * Kontrollen är exakt densamma som fakturarutten gör — `resolveCompanyProfile`
+ * anropas av båda. Så länge den här sidan hade egna, lösare regler kunde den
+ * spara uppgifter som kassan sedan avvisade med "komplettera ditt konto", och
+ * det här är den enda sidan som kan komplettera det.
+ */
+export async function saveCompanyDetails(
+    _: CompanyProfileState,
+    formData: FormData
+): Promise<CompanyProfileState> {
+    const t = await getActionTranslations();
+    const customer = await getCurrentCustomerFromCookies();
+    const fields = readFields(formData);
+
+    if (!customer) {
+        return { status: 'error', message: t.account.company.errors.notLoggedIn, fields };
+    }
+
+    const resolved = resolveCompanyProfile({
+        email: customer.email,
+        companyName: fields.companyName,
+        organizationNumber: fields.organizationNumber,
+        address: {
+            line1: fields.addressLine1,
+            line2: fields.addressLine2,
+            postalCode: fields.postalCode,
+            city: fields.city,
+        },
+    });
+
+    if (!resolved.ok) {
+        return { status: 'error', message: gapMessage(t, resolved.missing), fields };
+    }
+
+    try {
+        await saveCompanyProfile(Number(customer.id), {
+            companyName: resolved.profile.companyName,
+            organizationNumber: resolved.profile.organizationNumber,
+            address: resolved.profile.address,
+        });
+    } catch (error) {
+        console.error('[account] Failed to save company profile', error);
+        return { status: 'error', message: t.account.company.errors.saveFailed, fields };
+    }
+
+    return {
+        status: 'success',
+        message: t.account.company.saved,
+        invoiceReady: true,
+        // Det sparade, normaliserade värdet ekas tillbaka så att formuläret
+        // visar postnumret i samma form som fakturan kommer att göra.
+        fields: {
+            companyName: resolved.profile.companyName,
+            organizationNumber: resolved.profile.organizationNumber,
+            addressLine1: resolved.profile.address.line1,
+            addressLine2: resolved.profile.address.line2 ?? '',
+            postalCode: resolved.profile.address.postal_code,
+            city: resolved.profile.address.city,
+        },
+    };
+}
+
+/** Uppgifterna som de ligger sparade, för att förifylla formuläret. */
+export async function loadCompanyDetails(): Promise<CompanyProfileState> {
+    const t = await getActionTranslations();
     const customer = await getCurrentCustomerFromCookies();
     if (!customer) {
-        return null;
-    }
-    return customer;
-}
-
-async function getOwnedCustomerVat(customerId: number): Promise<{ vatNumber?: string; vatProvided: boolean } | null> {
-    const db = getDb();
-    const [row] = await db.select({ taxId: customers.taxId }).from(customers).where(eq(customers.id, customerId)).limit(1);
-    if (!row) return null;
-    return { vatNumber: row.taxId || undefined, vatProvided: Boolean(row.taxId) };
-}
-
-async function setOwnedCustomerVat(customerId: number, vatNumber: string | null): Promise<void> {
-    const db = getDb();
-    await db.update(customers).set({ taxId: vatNumber, updatedAt: new Date() }).where(eq(customers.id, customerId));
-}
-
-export async function saveVatStatus(_: VatState, formData: FormData): Promise<VatState> {
-    const t = await getActionTranslations();
-    const customer = await getSessionCustomer();
-
-    if (!customer) {
-        return {
-            status: 'error',
-            message: t.vatStatus.notLoggedIn,
-        };
-    }
-
-    // Must use exactly the same rules as registration and invoice checkout.
-    // While this page had its own looser regex it would happily save a number
-    // that invoice checkout then rejected with "update your account first" —
-    // and this is the only form that can update it, so the buyer was stuck.
-    const rawVat = formData.get('vatNumber')?.toString() ?? '';
-    const normalizedVat = normalizeCompanyRegistrationNumber(rawVat);
-    const hasVat = normalizedVat.length > 0;
-
-    if (hasVat && !isValidCompanyRegistrationNumber(normalizedVat)) {
-        return {
-            status: 'error',
-            message: t.vatStatus.invalidFormat,
-            email: customer.email,
-            vatNumber: normalizedVat,
-        };
+        return { status: 'error', message: t.account.company.errors.notLoggedIn };
     }
 
     try {
-        await setOwnedCustomerVat(Number(customer.id), hasVat ? normalizedVat : null);
-
+        const profile = await loadCompanyProfile(Number(customer.id));
+        if (!profile) {
+            return { status: 'error', message: t.account.company.errors.notLoggedIn };
+        }
         return {
-            status: 'success',
-            message: hasVat ? t.vatStatus.saved : t.vatStatus.notProvided,
-            email: customer.email,
-            vatNumber: hasVat ? normalizedVat : undefined,
-            vatProvided: hasVat,
+            status: 'idle',
+            invoiceReady: profile.invoiceReady,
+            fields: {
+                companyName: profile.companyName,
+                organizationNumber: profile.organizationNumber,
+                addressLine1: profile.address?.line1 ?? '',
+                addressLine2: profile.address?.line2 ?? '',
+                postalCode: profile.address?.postal_code ?? '',
+                city: profile.address?.city ?? '',
+            },
         };
     } catch (error) {
-        console.error('[account] Failed to save VAT status', error);
-        return {
-            status: 'error',
-            message: t.vatStatus.updateFailed,
-            email: customer.email,
-            vatNumber: hasVat ? normalizedVat : undefined,
-        };
-    }
-}
-
-export async function loadVatStatus(previousState: VatState): Promise<VatState> {
-    void previousState;
-    const t = await getActionTranslations();
-    const customer = await getSessionCustomer();
-
-    if (!customer) {
-        return {
-            status: 'error',
-            message: t.vatStatus.notLoggedIn,
-        };
-    }
-
-    try {
-        const vatInfo = await getOwnedCustomerVat(Number(customer.id));
-
-        return {
-            status: 'success',
-            message: vatInfo?.vatProvided ? t.vatStatus.isSaved : t.vatStatus.noVatYet,
-            email: customer.email,
-            vatNumber: vatInfo?.vatNumber,
-            vatProvided: vatInfo?.vatProvided,
-        };
-    } catch (error) {
-        console.error('[account] Failed to load VAT status', error);
-        return {
-            status: 'error',
-            message: t.vatStatus.loadFailed,
-            email: customer.email,
-        };
+        console.error('[account] Failed to load company profile', error);
+        return { status: 'error', message: t.account.company.errors.loadFailed };
     }
 }

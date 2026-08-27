@@ -11,6 +11,17 @@
  */
 
 import { CHANNELS, CLIENT_STATUSES, CONTACT_STATUSES, PRIORITIES, SEGMENTS } from '@/lib/clients';
+import {
+  ADDRESS_FIELD_MAX,
+  INVOICE_COUNTRY,
+  isValidPostalCode,
+  normalizeCountry,
+  normalizePostalCode,
+} from '@/lib/companyProfile';
+import {
+  isValidCompanyRegistrationNumber,
+  normalizeCompanyRegistrationNumber,
+} from '@/lib/companyRegistration';
 
 export class InputError extends Error {}
 
@@ -71,6 +82,21 @@ function url(body: Body, key: string): string | null {
   }
 }
 
+/**
+ * Organisationsnumret normaliseras med samma regler som registreringen —
+ * ett nummer som skrivs in i admin ska matcha det kunden själv angav, annars
+ * hittar inte kopplingen mellan webbkonto och kundpost varandra.
+ */
+function orgNumber(body: Body, key: string): string | null {
+  const raw = text(body, key, 24);
+  if (raw === null) return null;
+  const normalized = normalizeCompanyRegistrationNumber(raw);
+  if (!isValidCompanyRegistrationNumber(normalized)) {
+    throw new InputError('Organisationsnumret ser fel ut. Ange t.ex. 556016-0680 eller SE556016068001.');
+  }
+  return normalized;
+}
+
 export type ClientInput = {
   customerNo: string;
   name: string;
@@ -78,6 +104,13 @@ export type ClientInput = {
   status: string;
   priority: string | null;
   reminderFee: string | null;
+  orgNumber: string | null;
+  invoiceEmail: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string;
   notes: string | null;
 };
 
@@ -86,6 +119,16 @@ export function parseClientInput(body: Body): ClientInput {
   const name = text(body, 'name');
   if (!customerNo) throw new InputError('Kundnummer saknas.');
   if (!name) throw new InputError('Kundnamn saknas.');
+
+  // Adressen får vara tom — en prospekt har ingen — men det som fylls i ska
+  // vara fakturerbart, annars faller kassan på den först när kunden handlar.
+  const country = normalizeCountry(body.country) || INVOICE_COUNTRY;
+  const rawPostalCode = text(body, 'postalCode', 16);
+  const postalCode = rawPostalCode === null ? null : normalizePostalCode(rawPostalCode, country);
+  if (postalCode !== null && !isValidPostalCode(postalCode, country)) {
+    throw new InputError('Postnumret ser fel ut. Svenska postnummer skrivs som 123 45.');
+  }
+
   return {
     customerNo,
     name,
@@ -93,6 +136,13 @@ export function parseClientInput(body: Body): ClientInput {
     status: oneOf(body, 'status', CLIENT_STATUSES) ?? 'Tvätterikund',
     priority: oneOf(body, 'priority', PRIORITIES),
     reminderFee: decimal(body, 'reminderFee'),
+    orgNumber: orgNumber(body, 'orgNumber'),
+    invoiceEmail: email(body, 'invoiceEmail'),
+    addressLine1: text(body, 'addressLine1', ADDRESS_FIELD_MAX),
+    addressLine2: text(body, 'addressLine2', ADDRESS_FIELD_MAX),
+    postalCode,
+    city: text(body, 'city', ADDRESS_FIELD_MAX),
+    country,
     notes: text(body, 'notes', 2000),
   };
 }

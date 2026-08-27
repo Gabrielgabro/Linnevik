@@ -111,6 +111,44 @@ export default function ClientForm(props: Props) {
         />
       </div>
 
+      {/* Fakturauppgifterna. Det är de här fälten fakturan ställs ut på, och
+          de går före kundens egna på webbkontot — se companyProfile.ts. */}
+      <fieldset className="grid grid-cols-2 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
+        <legend className="mb-1 text-[13px] font-medium" style={{ color: 'var(--viz-ink-3)' }}>
+          Fakturauppgifter
+        </legend>
+        <Field
+          label="Organisationsnummer"
+          name="orgNumber"
+          placeholder="556016-0680"
+          defaultValue={client?.orgNumber ?? ''}
+        />
+        <Field
+          label="Fakturamejl"
+          name="invoiceEmail"
+          type="email"
+          placeholder="Samma som kontots om tomt"
+          defaultValue={client?.invoiceEmail ?? ''}
+        />
+        <Field
+          label="Adress"
+          name="addressLine1"
+          defaultValue={client?.addressLine1 ?? ''}
+        />
+        <Field
+          label="Adressrad 2"
+          name="addressLine2"
+          defaultValue={client?.addressLine2 ?? ''}
+        />
+        <Field
+          label="Postnummer"
+          name="postalCode"
+          placeholder="123 45"
+          defaultValue={client?.postalCode ?? ''}
+        />
+        <Field label="Ort" name="city" defaultValue={client?.city ?? ''} />
+      </fieldset>
+
       <TextArea label="Anteckningar" name="notes" defaultValue={client?.notes} rows={3} />
 
       <ErrorNote>{error}</ErrorNote>
