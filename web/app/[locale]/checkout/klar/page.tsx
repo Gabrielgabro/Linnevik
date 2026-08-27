@@ -41,15 +41,16 @@ export default async function CheckoutCompletePage({ params, searchParams }: Pro
     if (!order) notFound();
 
     const isPaid = order.status === 'paid';
+    const isInvoice = order.paymentMethod === 'invoice';
 
     return (
         <main className="min-h-screen bg-white dark:bg-[#111827]">
             <div className="max-w-2xl mx-auto px-6 pt-32 pb-16">
                 <h1 className="text-3xl font-semibold text-primary">
-                    {isPaid ? t.checkout.complete.title : t.checkout.complete.pendingTitle}
+                    {isPaid ? t.checkout.complete.title : isInvoice ? t.checkout.complete.invoiceTitle : t.checkout.complete.pendingTitle}
                 </h1>
                 <p className="mt-3 text-gray-600 dark:text-gray-300">
-                    {isPaid ? t.checkout.complete.body : t.checkout.complete.pendingBody}
+                    {isPaid ? t.checkout.complete.body : isInvoice ? t.checkout.complete.invoiceBody : t.checkout.complete.pendingBody}
                 </p>
 
                 <div className="mt-8 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
@@ -71,7 +72,7 @@ export default async function CheckoutCompletePage({ params, searchParams }: Pro
                         ))}
                     </ul>
 
-                    {isPaid && (
+                    {(isPaid || isInvoice) && (
                         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-1 text-sm">
                             <div className="flex justify-between text-gray-600 dark:text-gray-300">
                                 <span>{t.checkout.complete.vat}</span>

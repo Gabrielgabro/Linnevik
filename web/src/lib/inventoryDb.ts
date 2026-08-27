@@ -126,8 +126,13 @@ export async function releaseOrderStock(orderId: number, actor: string, reason?:
 export async function releaseExpiredReservations(actor = 'system'): Promise<number> {
   const result = await getDb().execute(sql`
     with active_res as (
-      select id, variant_id, order_id, quantity from inventory_reservations
-      where status = 'active' and expires_at is not null and expires_at <= now()
+      select r.id, r.variant_id, r.order_id, r.quantity from inventory_reservations r
+      join orders o on o.id = r.order_id
+      where r.status = 'active' and r.expires_at is not null and r.expires_at <= now()
+        -- Invoice expiry is handled by Stripe-aware reconciliation, which
+        -- voids the outstanding invoice before releasing stock. Releasing it
+        -- here would leave a customer with a live invoice for an expired cart.
+        and o.payment_method <> 'invoice'
       for update
     ), released_by_variant as materialized (
       select variant_id, sum(quantity)::int as quantity

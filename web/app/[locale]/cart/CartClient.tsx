@@ -4,6 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import Image from 'next/image';
 import { LocaleLink } from '@/components/LocaleLink';
 import CheckoutButton from '@/components/CheckoutButton';
+import InvoiceCheckoutButton from '@/components/InvoiceCheckoutButton';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { useState } from 'react';
 
@@ -183,6 +184,23 @@ export default function CartClient() {
                         pendingLabel={t.cart.summary.checkoutPending}
                         errorLabel={t.cart.summary.checkoutError}
                         discountCode={discountCode}
+                    />
+
+                    <InvoiceCheckoutButton
+                        cartId={cart?.id}
+                        discountCode={discountCode}
+                        label={t.cart.summary.invoiceSubmit}
+                        description={t.cart.summary.invoiceDescription}
+                        openLabel={t.cart.summary.invoiceOpen}
+                        pendingLabel={t.cart.summary.invoicePending}
+                        errorLabel={t.cart.summary.invoiceError}
+                        emailLabel={t.cart.summary.invoiceEmail}
+                        organizationLabel={t.cart.summary.invoiceOrganization}
+                        companyLabel={t.cart.summary.invoiceCompany}
+                        addressLabel={t.cart.summary.invoiceAddress}
+                        addressLine2Label={t.cart.summary.invoiceAddressLine2}
+                        postalCodeLabel={t.cart.summary.invoicePostalCode}
+                        cityLabel={t.cart.summary.invoiceCity}
                     />
 
                     <LocaleLink

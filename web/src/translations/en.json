@@ -708,7 +708,19 @@
       "checkout": "Proceed to checkout",
       "continueShopping": "Continue shopping",
       "checkoutPending": "Opening checkout…",
-      "checkoutError": "Checkout could not be opened. Please try again."
+      "checkoutError": "Checkout could not be opened. Please try again.",
+      "invoiceOpen": "Pay by invoice (30 days)",
+      "invoiceDescription": "We will email a Stripe invoice with 30-day payment terms. Signed-in customers' saved email and organisation number are used.",
+      "invoiceSubmit": "Send invoice",
+      "invoicePending": "Creating invoice…",
+      "invoiceError": "The invoice could not be created. Please try again.",
+      "invoiceEmail": "Email address",
+      "invoiceOrganization": "Organisation number",
+      "invoiceCompany": "Company name",
+      "invoiceAddress": "Billing and delivery address",
+      "invoiceAddressLine2": "Address line 2 (optional)",
+      "invoicePostalCode": "Postal code",
+      "invoiceCity": "City"
     }
   },
   "search": {
@@ -821,6 +833,8 @@
     "complete": {
       "title": "Thank you for your order!",
       "body": "We have received your payment and a confirmation is on its way to your inbox.",
+      "invoiceTitle": "Invoice sent",
+      "invoiceBody": "A Stripe invoice with 30-day payment terms has been emailed to you. The order will be fulfilled once payment is confirmed.",
       "pendingTitle": "Payment processing",
       "pendingBody": "Your payment has not been confirmed yet. This page will update once it clears.",
       "orderNumber": "Order number",

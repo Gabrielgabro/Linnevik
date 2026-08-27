@@ -74,6 +74,7 @@ async function fulfilledPerItem(orderId: number): Promise<Map<number, number>> {
 
 export type OrderSnapshot = {
   customerNo?: string | null;
+  paymentMethod?: 'checkout' | 'invoice';
   discount?: { id: number; code: string; amountMinor: number } | null;
   shipping?: { id: number; name: string; amountMinor: number } | null;
   /** Hur momsen räknades vid köpet. Se lib/vat.ts och migration 0021. */
@@ -138,7 +139,7 @@ export async function createPendingOrder(
         discount_code_id, discount_code, discount_minor,
         shipping_rule_id, shipping_method, shipping_minor,
         tax_minor, vat_mode, vat_bps, vat_rate_id,
-        total_minor, currency, locale, cart_id, cart_version, test_mode,
+        total_minor, currency, locale, cart_id, cart_version, test_mode, payment_method,
         pricing_version
       )
       select ${pendingSessionId}, 'pending', 'pending', ${subtotal},
@@ -148,7 +149,7 @@ export async function createPendingOrder(
              ${snapshot.vat?.rateId ?? null},
              ${total}, ${lines[0].currency}, ${locale},
              ${cart?.id ?? null}, ${cart?.version ?? null}, ${stripeTestMode()},
-             ${pricingVersion}
+             ${snapshot.paymentMethod ?? 'checkout'}, ${pricingVersion}
       where ${cart?.id ?? null}::text is null
          or exists (select 1 from eligible_cart)
       on conflict (cart_id, cart_version)
@@ -196,6 +197,35 @@ export async function attachSession(orderId: number, sessionId: string): Promise
       .limit(1);
     if (!existing) throw new Error('Stripe session could not be attached to the order.');
   }
+}
+
+/**
+ * Invoice orders have customer data before they are paid (unlike hosted
+ * Checkout, which supplies it in the completed-session webhook). Persist it
+ * alongside the pending order so the invoice and the local order agree.
+ */
+export async function setPendingOrderCustomerDetails(input: {
+  orderId: number;
+  customerId: number;
+  email: string;
+  customerName: string;
+  shippingAddress: Record<string, string | null>;
+  billingAddress: Record<string, string | null>;
+  taxId: string;
+}): Promise<void> {
+  await getDb()
+    .update(orders)
+    .set({
+      customerId: input.customerId,
+      email: input.email,
+      customerName: input.customerName,
+      shippingAddress: input.shippingAddress,
+      billingAddress: input.billingAddress,
+      taxIdType: 'org_no',
+      taxIdValue: input.taxId,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(orders.id, input.orderId), eq(orders.paymentStatus, 'pending')));
 }
 
 /**

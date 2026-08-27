@@ -506,6 +506,9 @@ export const orders = pgTable(
     id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
     stripeSessionId: text('stripe_session_id').notNull(),
     stripePaymentIntentId: text('stripe_payment_intent_id'),
+    // `checkout` is paid immediately through a Checkout Session; `invoice`
+    // is a Stripe Invoicing receivable with the invoice ID as its reference.
+    paymentMethod: text('payment_method').notNull().default('checkout'),
     cartId: text('cart_id').references(() => carts.id, { onDelete: 'set null' }),
     cartVersion: integer('cart_version'),
     status: text('status').notNull().default('pending'),

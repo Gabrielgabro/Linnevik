@@ -708,7 +708,19 @@
       "checkout": "Gå till kassan",
       "continueShopping": "Fortsätt handla",
       "checkoutPending": "Öppnar kassan…",
-      "checkoutError": "Kassan kunde inte öppnas. Försök igen."
+      "checkoutError": "Kassan kunde inte öppnas. Försök igen.",
+      "invoiceOpen": "Betala mot faktura (30 dagar)",
+      "invoiceDescription": "Vi skickar en Stripe-faktura med 30 dagars betalningsvillkor. Inloggade kunders sparade e-post och organisationsnummer används.",
+      "invoiceSubmit": "Skicka faktura",
+      "invoicePending": "Skapar faktura…",
+      "invoiceError": "Fakturan kunde inte skapas. Försök igen.",
+      "invoiceEmail": "E-postadress",
+      "invoiceOrganization": "Organisationsnummer",
+      "invoiceCompany": "Företagsnamn",
+      "invoiceAddress": "Faktura- och leveransadress",
+      "invoiceAddressLine2": "Adressrad 2 (valfritt)",
+      "invoicePostalCode": "Postnummer",
+      "invoiceCity": "Ort"
     }
   },
   "search": {
@@ -821,6 +833,8 @@
     "complete": {
       "title": "Tack för din beställning!",
       "body": "Vi har tagit emot din betalning och en bekräftelse är på väg till din e-post.",
+      "invoiceTitle": "Fakturan är skickad",
+      "invoiceBody": "En Stripe-faktura med 30 dagars betalningsvillkor har skickats till din e-post. Ordern levereras när betalningen har bekräftats.",
       "pendingTitle": "Betalningen behandlas",
       "pendingBody": "Din betalning är inte bekräftad ännu. Sidan uppdateras när den gått igenom.",
       "orderNumber": "Ordernummer",

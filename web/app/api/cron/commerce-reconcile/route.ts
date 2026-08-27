@@ -20,6 +20,7 @@ import { raiseAlert } from '@/lib/opsAlerts';
 import { pruneRateLimits } from '@/lib/rateLimit';
 import { stripeConfigured } from '@/lib/stripe';
 import { reconcileRecentCheckoutSessions } from '@/lib/stripeCheckout';
+import { reconcileRecentStripeInvoices } from '@/lib/stripeInvoices';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 });
   }
 
+  const invoiceResult = await reconcileRecentStripeInvoices();
   const result = await reconcileRecentCheckoutSessions();
 
   // Lagerkollen åker med samma körning. Den hör inte ihop med avstämningen,
@@ -68,9 +70,10 @@ export async function GET(request: NextRequest) {
     {
       runAt: new Date().toISOString(),
       ...result,
+      invoices: invoiceResult,
       lowStock: lowStock.length,
       prunedBuckets,
     },
-    { status: result.failures.length ? 207 : 200 }
+    { status: result.failures.length || invoiceResult.failures.length ? 207 : 200 }
   );
 }
