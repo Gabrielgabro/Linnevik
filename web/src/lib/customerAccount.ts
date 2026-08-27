@@ -98,12 +98,47 @@ export async function getCurrentCustomerFromCookies(): Promise<CurrentCustomer |
     return getCurrentCustomerFromMagicLinkSession();
 }
 
+/**
+ * Kundens vy av en order är inte samma sak som våra tre interna kolumner.
+ * `status`, `payment_status` och `fulfillment_status` beskriver olika saker och
+ * kan peka åt varsitt håll — en makulerad order kan fortfarande stå som
+ * 'unfulfilled'. Kunden ska se ett enda tillstånd, och det viktigaste vinner:
+ * makulerad före återbetald före leverans före betalning.
+ */
+export type CustomerOrderStatus =
+    | 'cancelled'
+    | 'refunded'
+    | 'partially_refunded'
+    | 'delivered'
+    | 'partially_delivered'
+    | 'processing'
+    | 'awaiting_payment'
+    | 'attention';
+
+export function resolveCustomerOrderStatus(order: {
+    status: string;
+    paymentStatus: string;
+    fulfillmentStatus: string;
+}): CustomerOrderStatus {
+    if (['cancelled', 'failed', 'expired'].includes(order.status)) return 'cancelled';
+    if (order.paymentStatus === 'refunded') return 'refunded';
+    if (order.paymentStatus === 'partially_refunded') return 'partially_refunded';
+    // Betald men blockerad hos oss (lagerbrist, tvist): kunden ska inte tro att
+    // paketet är på väg, men detaljerna hör hemma i ett mejl, inte i en badge.
+    if (['stock_exception', 'disputed', 'on_hold'].includes(order.status)) return 'attention';
+    if (order.fulfillmentStatus === 'fulfilled') return 'delivered';
+    if (order.fulfillmentStatus === 'partial') return 'partially_delivered';
+    if (['paid', 'closed'].includes(order.status) || order.paymentStatus === 'paid') return 'processing';
+    return 'awaiting_payment';
+}
+
 export type CustomerOrder = {
     id: string;
     number: number;
     processedAt: string;
     financialStatus: string;
     fulfillmentStatus: string;
+    customerStatus: CustomerOrderStatus;
     totalPrice: { amount: string; currencyCode: string };
     lineItems: {
         edges: {
@@ -145,6 +180,7 @@ async function getOwnedCustomerOrders(customerId: number, limit: number): Promis
             processedAt: order.createdAt.toISOString(),
             financialStatus: order.paymentStatus,
             fulfillmentStatus: order.fulfillmentStatus,
+            customerStatus: resolveCustomerOrderStatus(order),
             totalPrice: { amount: (order.totalMinor / 100).toFixed(2), currencyCode: currency },
             lineItems: {
                 edges: itemRows

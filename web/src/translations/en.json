@@ -402,6 +402,16 @@
       "FULFILLED": "Fulfilled",
       "UNFULFILLED": "Unfulfilled"
     },
+    "orderStatuses": {
+      "cancelled": "Cancelled",
+      "refunded": "Refunded",
+      "partially_refunded": "Partially refunded",
+      "delivered": "Delivered",
+      "partially_delivered": "Partially delivered",
+      "processing": "In progress",
+      "awaiting_payment": "Awaiting payment",
+      "attention": "Needs attention"
+    },
     "fallbackName": "User",
     "samplesHeading": "Sample requests",
     "samplesSubheading": "Samples you have requested from us.",

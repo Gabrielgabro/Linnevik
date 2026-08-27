@@ -402,6 +402,16 @@
       "FULFILLED": "Levererad",
       "UNFULFILLED": "Ej levererad"
     },
+    "orderStatuses": {
+      "cancelled": "Makulerad",
+      "refunded": "Återbetald",
+      "partially_refunded": "Delvis återbetald",
+      "delivered": "Levererad",
+      "partially_delivered": "Delvis levererad",
+      "processing": "Behandlas",
+      "awaiting_payment": "Väntar på betalning",
+      "attention": "Kontakta oss"
+    },
     "fallbackName": "Användare",
     "samplesHeading": "Provförfrågningar",
     "samplesSubheading": "Prover du har begärt av oss.",

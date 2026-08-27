@@ -5,9 +5,24 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
 import { logout } from '../login/actions';
 import { saveCompanyDetails, type CompanyFields, type CompanyProfileState } from './actions';
-import type { CustomerOrder } from '@/lib/customerAccount';
+import type { CustomerOrder, CustomerOrderStatus } from '@/lib/customerAccount';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
+
+/**
+ * En order visas med ett enda tillstånd för kunden. Färgen säger vad hen ska
+ * känna: grönt är klart, rött är stoppat, grått är avslutat utan leverans.
+ */
+const ORDER_STATUS_STYLE: Record<CustomerOrderStatus, { color: string }> = {
+    cancelled: { color: 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800' },
+    refunded: { color: 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800' },
+    partially_refunded: { color: 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' },
+    delivered: { color: 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20' },
+    partially_delivered: { color: 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' },
+    processing: { color: 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' },
+    awaiting_payment: { color: 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' },
+    attention: { color: 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20' },
+};
 
 const inputClass =
     'mt-1 w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30';
@@ -78,7 +93,8 @@ export default function AccountClient({
     const formatOrderCount = (count: number) =>
         t.account.ordersCount.replace('{count}', count.toString());
 
-    const statusLabel = (status: string) => t.account.statuses[status as keyof typeof t.account.statuses] || status;
+    const orderStatusLabel = (status: CustomerOrderStatus) =>
+        t.account.orderStatuses?.[status as keyof typeof t.account.orderStatuses] || status;
 
     return (
         <main className="min-h-screen bg-white dark:bg-[#111827] pt-28 pb-16">
@@ -250,15 +266,7 @@ export default function AccountClient({
                                     day: 'numeric',
                                 });
 
-                                const statusMap: Record<string, { label: string; color: string }> = {
-                                    PAID: { label: statusLabel('PAID'), color: 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20' },
-                                    PENDING: { label: statusLabel('PENDING'), color: 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20' },
-                                    FULFILLED: { label: statusLabel('FULFILLED'), color: 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' },
-                                    UNFULFILLED: { label: statusLabel('UNFULFILLED'), color: 'text-gray-700 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20' },
-                                };
-
-                                const financialStatus = statusMap[order.financialStatus] || { label: order.financialStatus, color: 'text-gray-700 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20' };
-                                const fulfillmentStatus = statusMap[order.fulfillmentStatus] || { label: order.fulfillmentStatus, color: 'text-gray-700 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20' };
+                                const status = ORDER_STATUS_STYLE[order.customerStatus] ?? ORDER_STATUS_STYLE.processing;
 
                                 return (
                                     <div
@@ -273,11 +281,8 @@ export default function AccountClient({
                                                 </h3>
                                                 <p className="text-sm text-secondary">{orderDate}</p>
                                                 <div className="flex gap-2 mt-2">
-                                                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${financialStatus.color}`}>
-                                                        {financialStatus.label}
-                                                    </span>
-                                                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${fulfillmentStatus.color}`}>
-                                                        {fulfillmentStatus.label}
+                                                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${status.color}`}>
+                                                        {orderStatusLabel(order.customerStatus)}
                                                     </span>
                                                 </div>
                                             </div>
