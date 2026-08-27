@@ -1,17 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { LocaleLink } from '@/components/LocaleLink';
 
 type Props = {
   cartId?: string;
   discountCode?: string;
+  /** True only for a signed-in company account. Guests pay by card. */
+  eligible: boolean;
   label: string;
   description: string;
   openLabel: string;
   pendingLabel: string;
   errorLabel: string;
-  emailLabel: string;
-  organizationLabel: string;
+  signInLabel: string;
   companyLabel: string;
   addressLabel: string;
   addressLine2Label: string;
@@ -20,16 +22,17 @@ type Props = {
 };
 
 /**
- * The invoice choice deliberately collects the legal invoice recipient before
- * we create a Stripe receivable. Signed-in customers can leave email and org
- * number blank: the API reads the authenticated customer record instead.
+ * Paying by invoice is 30-day credit against reserved stock, so it is offered
+ * only to signed-in company accounts. The e-mail and organisation number on the
+ * invoice always come from that account; the buyer may adjust the company name
+ * and the address for this order.
  */
 export default function InvoiceCheckoutButton(props: Props) {
   const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState({
-    email: '', organizationNumber: '', companyName: '', line1: '', line2: '', city: '', postalCode: '',
+    companyName: '', line1: '', line2: '', city: '', postalCode: '',
   });
 
   function change(field: keyof typeof profile, value: string) {
@@ -48,8 +51,6 @@ export default function InvoiceCheckoutButton(props: Props) {
           cartId: props.cartId,
           discountCode: props.discountCode,
           profile: {
-            email: profile.email,
-            organizationNumber: profile.organizationNumber,
             companyName: profile.companyName,
             address: {
               line1: profile.line1, line2: profile.line2, city: profile.city, postalCode: profile.postalCode,
@@ -66,6 +67,16 @@ export default function InvoiceCheckoutButton(props: Props) {
     }
   }
 
+  if (!props.eligible) {
+    return (
+      <section className="mt-4 border-t border-gray-200 pt-4 text-sm text-secondary dark:border-gray-700">
+        <LocaleLink href="/account" className="text-accent hover:underline">
+          {props.signInLabel}
+        </LocaleLink>
+      </section>
+    );
+  }
+
   return (
     <section className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
       {!open ? (
@@ -80,16 +91,6 @@ export default function InvoiceCheckoutButton(props: Props) {
       ) : (
         <div className="space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/40">
           <p className="text-sm text-secondary">{props.description}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-secondary">
-              {props.emailLabel}
-              <input value={profile.email} onChange={event => change('email', event.target.value)} type="email" autoComplete="email" className="mt-1 w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-600" />
-            </label>
-            <label className="text-sm text-secondary">
-              {props.organizationLabel}
-              <input value={profile.organizationNumber} onChange={event => change('organizationNumber', event.target.value)} autoComplete="off" className="mt-1 w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-600" />
-            </label>
-          </div>
           <label className="block text-sm text-secondary">
             {props.companyLabel}
             <input value={profile.companyName} onChange={event => change('companyName', event.target.value)} autoComplete="organization" className="mt-1 w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-600" />

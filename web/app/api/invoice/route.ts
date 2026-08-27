@@ -21,11 +21,18 @@ import { getServerLanguage } from '@/lib/language';
 import { ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
+import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
 const ALLOWED_COUNTRY = 'SE';
 const INVOICE_DUE_DAYS = 30;
+// An invoice is unsecured 30-day credit against reserved stock, so it is gated
+// harder than card checkout: only a signed-in company account can raise one,
+// and the number it can raise is capped per IP and per account.
+const INVOICE_RATE_PER_IP = 5;
+const INVOICE_RATE_PER_ACCOUNT = 5;
+const INVOICE_RATE_WINDOW_SECONDS = 24 * 60 * 60;
 
 type AddressInput = {
   line1?: unknown;
@@ -37,9 +44,9 @@ type AddressInput = {
 type InvoiceBody = {
   cartId?: unknown;
   discountCode?: unknown;
+  // E-mail and organisation number come from the signed-in account and are
+  // never read from the request; only these two are buyer-adjustable.
   profile?: {
-    email?: unknown;
-    organizationNumber?: unknown;
     companyName?: unknown;
     address?: AddressInput;
   };
@@ -81,7 +88,9 @@ function readAddress(input: AddressInput | undefined): Record<string, string | n
   };
 }
 
-async function loggedInvoiceCustomer() {
+type InvoiceAccount = Awaited<ReturnType<typeof loadInvoiceAccount>>;
+
+async function loadInvoiceAccount() {
   const session = await getCurrentCustomerFromCookies();
   if (!session) return null;
   const [customer] = await getDb()
@@ -92,20 +101,23 @@ async function loggedInvoiceCustomer() {
   return customer ?? null;
 }
 
-async function resolveProfile(body: InvoiceBody): Promise<InvoiceProfile> {
-  const logged = await loggedInvoiceCustomer();
+/**
+ * The invoice recipient is the signed-in account: its e-mail and its
+ * organisation number are authoritative and cannot be overridden from the
+ * request. The buyer may only adjust the company name and the address printed
+ * on this particular invoice.
+ */
+function resolveProfile(body: InvoiceBody, account: NonNullable<InvoiceAccount>): InvoiceProfile {
   const supplied = body.profile;
-  const email = (logged?.email ?? text(supplied?.email)).toLowerCase();
-  const organizationNumber = normalizeOrganizationNumber(logged?.taxId ?? supplied?.organizationNumber);
-  // The account's organisation number is authoritative, but the buyer may
-  // correct the company name printed on this particular invoice.
-  const companyName = text(supplied?.companyName) || text(logged?.company);
-  const storedAddress = logged?.defaultBillingAddress as Record<string, string | null> | null | undefined;
+  const email = text(account.email).toLowerCase();
+  const organizationNumber = normalizeOrganizationNumber(account.taxId);
+  const companyName = text(supplied?.companyName) || text(account.company);
+  const storedAddress = account.defaultBillingAddress as Record<string, string | null> | null | undefined;
   const address = readAddress(supplied?.address) ?? storedAddress ?? null;
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new CartError('En giltig e-postadress krävs för faktura.', 400);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new CartError('Ditt företagskonto saknar en giltig e-postadress.', 400);
   if (!validOrganizationNumber(organizationNumber)) {
-    throw new CartError('Ange ett giltigt organisationsnummer.', 400);
+    throw new CartError('Ditt företagskonto saknar ett giltigt organisationsnummer. Uppdatera kontot först.', 400);
   }
   if (!companyName) throw new CartError('Företagsnamn krävs för faktura.', 400);
   if (!address?.line1 || !address?.city || !address?.postal_code || address.country !== ALLOWED_COUNTRY) {
@@ -117,6 +129,46 @@ async function resolveProfile(body: InvoiceBody): Promise<InvoiceProfile> {
 export async function POST(request: NextRequest) {
   if (!ownedCommerceEnabled() || !stripeConfigured()) {
     return NextResponse.json({ error: 'Invoice checkout is not configured.' }, { status: 503 });
+  }
+
+  const ipLimit = await checkRateLimit({
+    scope: 'invoice',
+    identity: clientIp(request.headers),
+    limit: INVOICE_RATE_PER_IP,
+    windowSeconds: INVOICE_RATE_WINDOW_SECONDS,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { error: 'För många fakturaförsök. Försök igen senare.' },
+      { status: 429, headers: { 'Retry-After': String(ipLimit.retryAfterSeconds) } }
+    );
+  }
+
+  const account = await loadInvoiceAccount();
+  if (!account) {
+    return NextResponse.json(
+      { error: 'Logga in med ditt företagskonto för att betala mot faktura.' },
+      { status: 401 }
+    );
+  }
+  if (account.status !== 'active') {
+    return NextResponse.json(
+      { error: 'Ditt företagskonto kan inte betala mot faktura. Kontakta oss.' },
+      { status: 403 }
+    );
+  }
+
+  const accountLimit = await checkRateLimit({
+    scope: 'invoice_account',
+    identity: String(account.id),
+    limit: INVOICE_RATE_PER_ACCOUNT,
+    windowSeconds: INVOICE_RATE_WINDOW_SECONDS,
+  });
+  if (!accountLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Kontot har nått gränsen för antal fakturor. Försök igen senare.' },
+      { status: 429, headers: { 'Retry-After': String(accountLimit.retryAfterSeconds) } }
+    );
   }
 
   let body: InvoiceBody;
@@ -137,7 +189,7 @@ export async function POST(request: NextRequest) {
       console.error('[Invoice] Could not release expired reservations:', error);
     });
 
-    const profile = await resolveProfile(body);
+    const profile = resolveProfile(body, account);
     const currentCart = await getOwnedCart(cartId);
     if (!currentCart) return NextResponse.json({ error: 'Cart not found.' }, { status: 404 });
     if (currentCart.status === 'checkout_started') {
@@ -188,13 +240,12 @@ export async function POST(request: NextRequest) {
     }
 
     const customerId = await (async () => {
-      const logged = await loggedInvoiceCustomer();
-      if (logged?.stripeCustomerId) {
-        await getStripe().customers.update(logged.stripeCustomerId, {
+      if (account.stripeCustomerId) {
+        await getStripe().customers.update(account.stripeCustomerId, {
           email: profile.email, name: profile.companyName, address: profile.address,
           metadata: { linnevik_org_no: profile.organizationNumber },
         });
-        return logged.stripeCustomerId;
+        return account.stripeCustomerId;
       }
       const customer = await getStripe().customers.create({
         email: profile.email, name: profile.companyName, address: profile.address,

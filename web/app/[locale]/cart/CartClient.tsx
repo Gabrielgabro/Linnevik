@@ -8,7 +8,7 @@ import InvoiceCheckoutButton from '@/components/InvoiceCheckoutButton';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { useState } from 'react';
 
-export default function CartClient() {
+export default function CartClient({ invoiceEligible = false }: { invoiceEligible?: boolean }) {
     const { t } = useTranslation();
     const { cart, isLoading, updateItem, removeItem } = useCart();
     const [discountCode, setDiscountCode] = useState('');
@@ -189,13 +189,13 @@ export default function CartClient() {
                     <InvoiceCheckoutButton
                         cartId={cart?.id}
                         discountCode={discountCode}
+                        eligible={invoiceEligible}
                         label={t.cart.summary.invoiceSubmit}
                         description={t.cart.summary.invoiceDescription}
                         openLabel={t.cart.summary.invoiceOpen}
                         pendingLabel={t.cart.summary.invoicePending}
                         errorLabel={t.cart.summary.invoiceError}
-                        emailLabel={t.cart.summary.invoiceEmail}
-                        organizationLabel={t.cart.summary.invoiceOrganization}
+                        signInLabel={t.cart.summary.invoiceSignIn}
                         companyLabel={t.cart.summary.invoiceCompany}
                         addressLabel={t.cart.summary.invoiceAddress}
                         addressLine2Label={t.cart.summary.invoiceAddressLine2}

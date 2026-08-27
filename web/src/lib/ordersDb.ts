@@ -23,7 +23,7 @@ import { FALLBACK_PRICING_VERSION } from '@/lib/commerceConfig';
 import { currentPricingVersion } from '@/lib/pricingConfigDb';
 import { vatOn } from '@/lib/vat';
 import { upsertCustomerFromCheckout } from '@/lib/commerceOperations';
-import { stripeTestMode } from '@/lib/stripe';
+import { getStripe, stripeConfigured, stripeTestMode } from '@/lib/stripe';
 import { releaseOrderStock, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { amountDrifted } from '@/lib/orderChecks';
 import { raiseAlert } from '@/lib/opsAlerts';
@@ -293,6 +293,26 @@ export async function markOrderPaid(input: {
     .where(eq(orders.stripeSessionId, input.sessionId))
     .limit(1);
   if (!target) throw new Error(`No Linnevik order is linked to Stripe session ${input.sessionId}.`);
+
+  // An order cancelled in admin must not be revived by a late payment — e.g. a
+  // customer paying an invoice that was voided a moment too late. The money did
+  // reach Stripe, so flag it for a human (refund / credit note) instead of
+  // silently flipping the order back to paid.
+  if (target.status === 'cancelled') {
+    await raiseAlert({
+      kind: 'webhook.unmatched_session',
+      key: `cancelled-order-paid:${input.sessionId}`,
+      subject: 'Betalning mottagen för en avbruten order',
+      detail: {
+        order: target.id,
+        session: input.sessionId,
+        belopp: input.totalMinor,
+        valuta: input.currency,
+      },
+    });
+    return { orderId: target.id, stockReady: false, newlyPaid: false };
+  }
+
   const newlyPaid = !['paid', 'partially_refunded', 'refunded'].includes(target.paymentStatus);
 
   // A second successful event (or scheduled reconciliation) must not inspect
@@ -532,6 +552,40 @@ export async function updateOrderManagement(
   patch: { status?: string; notes?: string | null },
   actor: string
 ): Promise<OrderRow | null> {
+  // Cancelling an invoice order has to void the Stripe receivable too. Done
+  // before the local write so a Stripe failure aborts the cancel cleanly and
+  // never leaves a live invoice behind a cancelled order. The `invoice.voided`
+  // webhook that follows is idempotent against the writes below.
+  if (patch.status === 'cancelled') {
+    const [existing] = await getDb()
+      .select({
+        paymentMethod: orders.paymentMethod,
+        stripeSessionId: orders.stripeSessionId,
+        status: orders.status,
+      })
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1);
+    if (
+      existing &&
+      existing.status !== 'cancelled' &&
+      existing.paymentMethod === 'invoice' &&
+      existing.stripeSessionId.startsWith('in_') &&
+      stripeConfigured()
+    ) {
+      const invoice = await getStripe().invoices.retrieve(existing.stripeSessionId);
+      if (invoice.status === 'draft' || invoice.status === 'open') {
+        await getStripe().invoices.voidInvoice(existing.stripeSessionId);
+        await getDb().insert(orderEvents).values({
+          orderId: id,
+          kind: 'order.updated',
+          actor,
+          detail: { stripeInvoiceVoided: existing.stripeSessionId },
+        });
+      }
+    }
+  }
+
   const [row] = await getDb()
     .update(orders)
     .set({
