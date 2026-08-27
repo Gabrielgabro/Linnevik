@@ -249,6 +249,51 @@ const INVOICE_MEMO: Record<string, string> = {
 };
 
 /**
+ * Säljarens egen identitet på fakturan.
+ *
+ * Stripes säljarblock renderar bara namn, adress och telefon från
+ * kontoinställningarna. En svensk leverantörsfaktura ska dessutom bära
+ * säljarens organisationsnummer och uppgiften om F-skatt, och foten är enda
+ * stället i mallen där de får plats. Numret ligger i env så att en ändring av
+ * bolagsuppgifterna inte kräver en deploy av den här filen.
+ */
+const SELLER_LEGAL_NAME = process.env.INVOICE_SELLER_NAME ?? 'Linneviken AB';
+const SELLER_ORG_NUMBER = process.env.INVOICE_SELLER_ORG_NUMBER ?? '559307-2951';
+const SELLER_F_TAX = (process.env.INVOICE_SELLER_F_TAX ?? 'true') === 'true';
+
+function sellerFooterLine(locale: string): string {
+  const identity = `${SELLER_LEGAL_NAME}, org.nr ${SELLER_ORG_NUMBER}.`;
+  if (!SELLER_F_TAX) return identity;
+  return locale === 'sv'
+    ? `${identity} Godkänd för F-skatt.`
+    : `${identity} Approved for Swedish F-tax.`;
+}
+
+/**
+ * Säljarens egna momsregistreringar, hämtade från Stripe-kontot.
+ *
+ * Passerar de här med på fakturan skriver Stripe ut dem i säljarblocket; utan
+ * dem stod bara namn och adress där. Listan hämtas en gång per process — den
+ * ändras när bolaget registrerar sig i ett nytt land, inte per faktura. Ett
+ * fel sväljs: en faktura ska inte falla på att ett presentationsfält inte gick
+ * att hämta, och organisationsnumret står ändå i foten.
+ */
+let accountTaxIdsCache: string[] | null = null;
+async function sellerTaxIds(): Promise<string[]> {
+  if (accountTaxIdsCache?.length) return accountTaxIdsCache;
+  try {
+    const list = await getStripe().taxIds.list({ owner: { type: 'account' }, limit: 10 });
+    // Ett tomt svar cachas inte: registreras momsnumret på kontot i morgon
+    // ska nästa faktura bära det, utan en omstart av processen.
+    accountTaxIdsCache = list.data.map(taxId => taxId.id);
+  } catch (error) {
+    console.error('[Invoice] Could not read the seller tax IDs from Stripe:', error);
+    return [];
+  }
+  return accountTaxIdsCache;
+}
+
+/**
  * Add the items to a draft invoice and send it.
  *
  * Split out so an attempt interrupted anywhere in here can be replayed by the
@@ -486,6 +531,7 @@ export async function POST(request: NextRequest) {
     // råkat surfa på engelska en svensk faktura med engelska villkor i foten.
     const invoiceLocale = invoiceLocales(profile.address)[0];
     const t = getTranslations(invoiceLocale);
+    const accountTaxIds = await sellerTaxIds();
     const invoice = await getStripe().invoices.create({
       customer: customerId,
       currency: priced[0].currency,
@@ -496,6 +542,9 @@ export async function POST(request: NextRequest) {
       // Stripe defaultar till US Letter för allt utom japansk lokal. En svensk
       // leverantörsfaktura ska vara A4 — den arkiveras och skrivs ut.
       rendering: { pdf: { page_size: 'a4' } },
+      // Säljarens momsregistrering, annars står bara namn och adress i
+      // säljarblocket. Tom lista utelämnas: Stripe avvisar ett tomt fält.
+      ...(accountTaxIds.length ? { account_tax_ids: accountTaxIds } : {}),
       ...(taxMode.kind === 'automatic' ? { automatic_tax: { enabled: true } } : {}),
       ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
       // Numret står kvar här även när det också gick in som ett riktigt tax_id:
@@ -511,7 +560,7 @@ export async function POST(request: NextRequest) {
       ],
       // Betalningsvillkoren är desamma som köpvillkoren på sajten (§4), och
       // står på fakturan därför att det är där kunden faktiskt läser dem.
-      footer: [t.terms.section4Text2, t.terms.section4Text3].join(' '),
+      footer: [t.terms.section4Text2, t.terms.section4Text3, sellerFooterLine(invoiceLocale)].join(' '),
       metadata: {
         linnevik_order_id: String(orderId),
         linnevik_shipping_minor: String(shipping.amountMinor),
