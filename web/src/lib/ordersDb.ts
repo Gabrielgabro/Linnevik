@@ -466,7 +466,11 @@ export async function markOrderFailed(sessionId: string, status: 'expired' | 'fa
   const result = await getDb().execute(sql`
     with updated_order as (
       update orders set status = ${status}, payment_status = ${status}, updated_at = now()
+      -- En avbeställd order är ett beslut någon fattat och skrivit under med
+      -- sitt namn. Den voidade fakturan som följer på beslutet får inte skriva
+      -- om det till "failed", som betyder att en betalning gick fel.
       where stripe_session_id = ${sessionId} and payment_status = 'pending'
+        and status <> 'cancelled'
       returning id, cart_id
     ), event as (
       insert into order_events (order_id, kind, actor, detail)
@@ -605,6 +609,13 @@ export async function updateOrderManagement(
     });
     if (patch.status === 'cancelled') {
       await releaseOrderStock(id, actor, 'Order cancelled');
+      // Betalningen kommer aldrig. Utan det här låg ordern kvar som `pending`
+      // och plockades upp av fakturaavstämningen varje natt, som i sin tur
+      // hade skrivit om den avbeställda ordern till `failed`.
+      await getDb().execute(sql`
+        update orders set payment_status = 'failed', updated_at = now()
+        where id = ${id} and payment_status = 'pending'
+      `);
     }
   }
   return row ?? null;

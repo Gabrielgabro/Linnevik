@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isValidCompanyRegistrationNumber,
   normalizeCompanyRegistrationNumber,
+  swedishOrganizationNumber,
 } from '@/lib/companyRegistration';
 
 describe('company registration numbers', () => {
@@ -32,5 +33,19 @@ describe('company registration numbers', () => {
   it('rejects invented country prefixes and punctuation-only input', () => {
     expect(isValidCompanyRegistrationNumber('ZZ123456789')).toBe(false);
     expect(normalizeCompanyRegistrationNumber('---')).toBe('');
+  });
+
+  it('derives the printed organisation number from a Swedish VAT number', () => {
+    // Fakturan skrev ut momsnumret under rubriken "Organisationsnummer".
+    // Det vi lagrar är momsnumret; organisationsnumret är de tio siffrorna
+    // i mitten, skrivna med bindestreck.
+    expect(swedishOrganizationNumber('SE556481331801')).toBe('556481-3318');
+    expect(swedishOrganizationNumber('SE556016068002')).toBe('556016-0680');
+  });
+
+  it('has no organisation number to print for a non-Swedish registration', () => {
+    expect(swedishOrganizationNumber('DE123456789')).toBeNull();
+    expect(swedishOrganizationNumber('556481-3318')).toBeNull();
+    expect(swedishOrganizationNumber('')).toBeNull();
   });
 });

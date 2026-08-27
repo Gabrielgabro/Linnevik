@@ -42,3 +42,18 @@ export function isValidCompanyRegistrationNumber(value: string): boolean {
   }
   return true;
 }
+
+/**
+ * Organisationsnumret som står bakom ett svenskt momsregistreringsnummer,
+ * skrivet på den form Bolagsverket och en svensk faktura använder: 556481-3318.
+ *
+ * Det vi lagrar är momsnumret (SE556481331801) — det är formen Stripe vill ha
+ * och den enda som fungerar utanför Sverige. På fakturan är de två ändå skilda
+ * uppgifter, och att skriva ut momsnumret under rubriken "Organisationsnummer"
+ * är helt enkelt fel. Returnerar null för allt som inte är svenskt.
+ */
+export function swedishOrganizationNumber(registrationNumber: string): string | null {
+  if (!/^SE\d{12}$/.test(registrationNumber)) return null;
+  const digits = registrationNumber.slice(2, 12);
+  return `${digits.slice(0, 6)}-${digits.slice(6)}`;
+}

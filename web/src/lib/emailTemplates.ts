@@ -205,6 +205,52 @@ export function shipmentEmail(
 }
 
 /**
+ * Fakturan är skapad och skickad.
+ *
+ * Skickas när fakturan lämnat oss, inte när den betalas — orderbekräftelsen
+ * kommer först 30 dagar senare, och utan det här mejlet fick köparen ingenting
+ * alls från oss vid köptillfället. Länken går till Stripes fakturasida, där
+ * fakturan både kan läsas, laddas ned som pdf och betalas.
+ */
+export function invoiceCreatedEmail(
+  order: EmailOrder,
+  invoice: { hostedUrl: string | null; number: string | null; dueDate: Date | null }
+): { subject: string; html: string } {
+  const greeting = order.customerName ? `Hej ${escapeHtml(order.customerName)},` : 'Hej,';
+  const due = invoice.dueDate
+    ? new Intl.DateTimeFormat('sv-SE', { dateStyle: 'long' }).format(invoice.dueDate)
+    : null;
+
+  return {
+    subject: `Faktura${invoice.number ? ` ${invoice.number}` : ''} · order #${order.id}`,
+    html: layout({
+      title: `Din faktura för order #${order.id}`,
+      preheader: `${formatMinor(order.totalMinor, order.currency)}${due ? ` att betala senast ${due}` : ''}.`,
+      body: `
+        <p style="margin:0 0 8px;">${greeting}</p>
+        <p style="margin:0 0 8px;color:${INK_2};">
+          Tack för din beställning. Vi har reserverat varorna och skickat fakturan
+          till dig${due ? `, med betalning senast <strong style="color:${INK};">${escapeHtml(due)}</strong>` : ''}.
+          Ordern plockas och skickas enligt överenskommelse.
+        </p>
+        ${
+          invoice.hostedUrl
+            ? `<p style="margin:18px 0;"><a href="${escapeHtml(invoice.hostedUrl)}" style="display:inline-block;padding:11px 20px;background:${BRAND};color:#F5EFE7;text-decoration:none;border-radius:6px;font-size:15px;">Öppna fakturan</a></p>`
+            : ''
+        }
+        ${lineTable(order.items, order.currency)}
+        ${totalsTable(order)}
+        ${addressBlock(order.shippingAddress, order.customerName)}
+        <p style="margin:18px 0 0;color:#8A8A8A;font-size:13px;">
+          Ordernummer: <strong style="color:${INK};">#${order.id}</strong>${
+            invoice.number ? ` · Fakturanummer: <strong style="color:${INK};">${escapeHtml(invoice.number)}</strong>` : ''
+          }
+        </p>`,
+    }),
+  };
+}
+
+/**
  * Inloggningslänk. Länken går till en sida som kräver ett aktivt klick på en
  * knapp innan sessionen faktiskt löses in — se lib/magicLink.ts för varför:
  * e-postsäkerhetsfilter (Microsoft Defender med flera) hämtar länkar i mejl

@@ -12,6 +12,10 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState<'confirmation' | 'shipment' | null>(null);
   const [resent, setResent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Ordern sparades förr helt tyst: knappen såg likadan ut före och efter, och
+  // en oförändrad status gav inget synligt kvitto alls.
+  const [saved, setSaved] = useState<string | null>(null);
   // Vad som faktiskt går att leverera nu. Samma räkning som spärren i
   // createFulfillment gör, men här för att slippa visa rutan alls.
   const canFulfill = ['paid', 'partially_refunded'].includes(order.paymentStatus)
@@ -62,17 +66,31 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
       <form className="col-span-full grid grid-cols-[1fr_2fr_auto] items-end gap-4 max-[700px]:grid-cols-1" onSubmit={async event => {
         event.preventDefault();
         const values = formValues(event.currentTarget);
+        setSaving(true);
+        setError(null);
+        setSaved(null);
         const response = await fetch(`/api/admin/orders/${order.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: values.status, notes: values.notes }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) setError(data.error ?? 'Kunde inte uppdatera ordern.');
-        else router.refresh();
+        setSaving(false);
+        if (!response.ok) return setError(data.error ?? 'Kunde inte uppdatera ordern.');
+        setSaved(new Date().toLocaleTimeString('sv-SE'));
+        router.refresh();
       }}>
         <Select label="Orderstatus" name="status" required options={['pending', 'paid', 'on_hold', 'cancelled', 'closed']} defaultValue={order.status} />
         <Field label="Intern ordernotering" name="notes" defaultValue={order.notes} />
-        <Button type="submit">Uppdatera order</Button>
+        <Button type="submit" disabled={saving}>
+          {saving ? 'Sparar…' : 'Uppdatera order'}
+        </Button>
+        {saved && (
+          <div className="col-span-full">
+            <Notice tone="ok" title="Ordern uppdaterad">
+              Status och notering sparades {saved}.
+            </Notice>
+          </div>
+        )}
       </form>
       <form className="grid gap-4" onSubmit={event => {
         const values = formValues(event.currentTarget);

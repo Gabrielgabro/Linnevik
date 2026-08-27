@@ -8,8 +8,8 @@ import {
   TableShell,
   Td,
   Th,
-  Tr,
 } from '@/components/admin/ui';
+import ClickableTableRow from '@/components/admin/ui/ClickableTableRow';
 import { accentFor } from '../nav';
 import { listRecentOrders } from '@/lib/ordersDb';
 import { formatMinor } from '@/lib/money';
@@ -115,15 +115,14 @@ export default async function OrdersPage() {
           </thead>
           <tbody>
             {orders.map(order => (
-              <Tr key={order.id}>
+              <ClickableTableRow
+                key={order.id}
+                href={`/admin/orders/${order.id}`}
+                label={`Öppna order #${order.id}`}
+              >
                 <Td numeric>
                   <span className="inline-flex items-center gap-2">
-                    <Link
-                      href={`/admin/orders/${order.id}`}
-                      className="text-brand-text hover:underline"
-                    >
-                      #{order.id}
-                    </Link>
+                    <span className="text-brand-text">#{order.id}</span>
                     {order.testMode && <Tag color="var(--adm-warn)">TEST</Tag>}
                     {ATTENTION[order.status] && (
                       <Tag color={ATTENTION[order.status].color}>
@@ -145,7 +144,7 @@ export default async function OrdersPage() {
                 <Td numeric align="right" className="text-ink-3">
                   {order.createdAt.toLocaleDateString('sv-SE')}
                 </Td>
-              </Tr>
+              </ClickableTableRow>
             ))}
           </tbody>
         </TableShell>

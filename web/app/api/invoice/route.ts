@@ -19,9 +19,11 @@ import { ownedCommerceEnabled } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
 import { getTranslations } from '@/lib/i18n';
+import { sendInvoiceCreatedNotice } from '@/lib/orderEmails';
 import { claimDiscountCapacity, DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout, usableStripeCustomerId } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
+import { swedishOrganizationNumber } from '@/lib/companyRegistration';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 import {
   INVOICE_COUNTRY,
@@ -164,7 +166,34 @@ type InvoiceLine = {
   unitAmountMinor: number;
   quantity: number;
   variantId: number;
+  stripeProductId?: string | null;
 };
+
+/**
+ * Ett pris för en fakturarad.
+ *
+ * Stripe vägrar ta emot `amount` och `quantity` på samma fakturarad — och med
+ * bara `amount` skrevs 18 täcken ut som "1 st à 4 320,00 kr", vilket är rätt
+ * summa på en rad ingen ekonomiavdelning kan stämma av. Ett pris bär styckpris
+ * och antal var för sig, och då står 18 × 240,00 kr på fakturan.
+ *
+ * Produkten återanvänds när varan finns i Stripe; annars skapas den med raden,
+ * precis som kortkassan gör för samma katalog.
+ */
+async function priceForLine(line: InvoiceLine, orderId: number): Promise<string> {
+  const price = await getStripe().prices.create(
+    {
+      currency: line.currency,
+      unit_amount: line.unitAmountMinor,
+      tax_behavior: 'exclusive',
+      ...(line.stripeProductId
+        ? { product: line.stripeProductId }
+        : { product_data: { name: line.title, tax_code: GOODS_TAX_CODE } }),
+    },
+    { idempotencyKey: `linnevik_invoice_price_${orderId}_${line.variantId}` }
+  );
+  return price.id;
+}
 
 /**
  * Register the buyer's VAT number as a Stripe tax ID on the customer.
@@ -211,9 +240,9 @@ async function finishInvoice(input: {
   const itemTaxRates = input.taxMode.kind === 'explicit' ? [input.taxMode.taxRateId] : undefined;
   for (const line of input.lines) {
     await getStripe().invoiceItems.create({
-      customer: input.customerId, invoice: input.invoiceId, currency: line.currency, description: line.title,
-      amount: line.unitAmountMinor * line.quantity,
-      tax_behavior: 'exclusive', tax_code: GOODS_TAX_CODE, ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
+      customer: input.customerId, invoice: input.invoiceId, description: line.title,
+      pricing: { price: await priceForLine(line, input.orderId) }, quantity: line.quantity,
+      ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
     }, { idempotencyKey: `linnevik_invoice_item_${input.orderId}_${line.variantId}` });
   }
   if (input.shipping.amountMinor > 0) {
@@ -223,11 +252,21 @@ async function finishInvoice(input: {
       tax_behavior: 'exclusive', tax_code: SHIPPING_TAX_CODE, ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
     }, { idempotencyKey: `linnevik_invoice_shipping_${input.orderId}` });
   }
-  return getStripe().invoices.sendInvoice(
+  const sent = await getStripe().invoices.sendInvoice(
     input.invoiceId,
     {},
     { idempotencyKey: `linnevik_invoice_send_${input.orderId}` }
   );
+  // Vårt eget fakturamejl. Stripes utskick styrs av en inställning på kontot
+  // och är inte vårt brev till kunden; utan det här fick köparen ingenting
+  // från oss förrän fakturan betalats, alltså upp till 30 dagar senare.
+  // `sendInvoiceCreatedNotice` sväljer sina fel: fakturan är redan skickad.
+  await sendInvoiceCreatedNotice(sent.id, {
+    hostedUrl: sent.hosted_invoice_url ?? null,
+    number: sent.number ?? null,
+    dueDate: sent.due_date ? new Date(sent.due_date * 1000) : null,
+  });
+  return sent;
 }
 
 export async function POST(request: NextRequest) {
@@ -413,6 +452,7 @@ export async function POST(request: NextRequest) {
     });
 
     const couponId = discount ? await ensureStripeCoupon(discount) : null;
+    const orgNumber = swedishOrganizationNumber(profile.organizationNumber);
     const invoice = await getStripe().invoices.create({
       customer: customerId,
       currency: priced[0].currency,
@@ -421,12 +461,15 @@ export async function POST(request: NextRequest) {
       auto_advance: false,
       ...(taxMode.kind === 'automatic' ? { automatic_tax: { enabled: true } } : {}),
       ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
-      // Organisationsnumret står kvar här även när det också gick in som ett
-      // riktigt tax_id: fältet syns oavsett hur Stripe väljer att rendera
-      // momsregistreringen. Ordernumret är referensen kundens ekonomiavdelning
-      // uppger när de hör av sig.
+      // Numret står kvar här även när det också gick in som ett riktigt tax_id:
+      // fältet syns oavsett hur Stripe väljer att rendera momsregistreringen.
+      // Det vi lagrar är momsnumret, och rubriken säger nu det — organisations-
+      // numret skrivs ut som egen rad när det går att härleda, eftersom det är
+      // två skilda uppgifter på en svensk faktura. Ordernumret är referensen
+      // kundens ekonomiavdelning uppger när de hör av sig.
       custom_fields: [
-        { name: 'Organisationsnummer', value: profile.organizationNumber },
+        ...(orgNumber ? [{ name: 'Organisationsnummer', value: orgNumber }] : []),
+        { name: 'Momsreg.nr', value: profile.organizationNumber },
         { name: 'Ordernummer', value: String(orderId) },
       ],
       // Betalningsvillkoren är desamma som köpvillkoren på sajten (§4), och
