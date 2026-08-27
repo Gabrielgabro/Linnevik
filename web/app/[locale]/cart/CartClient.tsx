@@ -7,13 +7,30 @@ import CheckoutButton from '@/components/CheckoutButton';
 import InvoiceCheckoutButton from '@/components/InvoiceCheckoutButton';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { useState } from 'react';
+import { quantityControls } from '@/lib/cartQuantity';
 
-export default function CartClient({ invoiceEligible = false }: { invoiceEligible?: boolean }) {
+export type InvoicePrefill = {
+    companyName: string;
+    line1: string;
+    line2: string;
+    city: string;
+    postalCode: string;
+};
+
+export default function CartClient({
+    invoiceEligible = false,
+    invoicePrefill,
+}: {
+    invoiceEligible?: boolean;
+    invoicePrefill?: InvoicePrefill;
+}) {
     const { t } = useTranslation();
-    const { cart, isLoading, updateItem, removeItem } = useCart();
+    const { cart, isLoading, pendingLineIds, error, clearError, updateItem, removeItem } = useCart();
     const [discountCode, setDiscountCode] = useState('');
 
-    if (isLoading) {
+    // Only block the whole page on the very first load. Quantity/remove changes
+    // update the cart in place without unmounting the list.
+    if (isLoading && !cart) {
         return (
             <div className="min-h-screen pt-32 pb-16">
                 <div className="max-w-4xl mx-auto px-6">
@@ -48,16 +65,39 @@ export default function CartClient({ invoiceEligible = false }: { invoiceEligibl
             <div className="max-w-4xl mx-auto px-6">
                 <h1 className="text-3xl font-semibold text-primary mb-8">{t.cart.title}</h1>
 
+                {error && (
+                    <div
+                        role="alert"
+                        className="mb-6 flex items-start justify-between gap-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+                    >
+                        <span>{error}</span>
+                        <button
+                            type="button"
+                            onClick={clearError}
+                            aria-label={t.cart.item.dismissError}
+                            className="shrink-0 font-medium hover:underline"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+
                 <div className="space-y-6">
                     {lines.map(({ node: line }) => {
                         const product = line.merchandise.product;
                         const price = parseFloat(line.merchandise.price.amount);
                         const currency = line.merchandise.price.currencyCode;
                         const lineTotal = (price * line.quantity).toFixed(2);
+                        const linePending = pendingLineIds.includes(line.id);
+                        // Antalet måste följa samma trappa som servern validerar
+                        // mot, annars nekas varje klick.
+                        const { next, canDecrease, canIncrease, floor, step, ceiling } =
+                            quantityControls(line);
 
                         return (
                             <div
                                 key={line.id}
+                                aria-busy={linePending}
                                 className="flex gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
                             >
                                 {/* Product Image */}
@@ -95,13 +135,27 @@ export default function CartClient({ invoiceEligible = false }: { invoiceEligibl
                                     <p className="text-sm text-secondary mt-2">
                                         {price.toFixed(2)} {currency} {t.cart.item.priceExVatSuffix}
                                     </p>
+                                    {/* Förklarar varför +/− stannar där de gör. */}
+                                    {(floor > 1 || step > 1) && (
+                                        <p className="text-xs text-secondary mt-1">
+                                            {floor > 1 && t.cart.item.minQuantity.replace('{quantity}', String(floor))}
+                                            {floor > 1 && step > 1 && ' · '}
+                                            {step > 1 && t.cart.item.stepQuantity.replace('{step}', String(step))}
+                                        </p>
+                                    )}
+                                    {ceiling !== null && !canIncrease && (
+                                        <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                                            {t.cart.item.maxStock.replace('{quantity}', String(ceiling))}
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Quantity Controls */}
                                 <div className="flex items-center gap-3">
                                     <button
-                                        onClick={() => updateItem(line.id, Math.max(1, line.quantity - 1))}
-                                        className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center"
+                                        onClick={() => updateItem(line.id, next.down)}
+                                        disabled={linePending || !canDecrease}
+                                        className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center disabled:opacity-40"
                                         aria-label={t.cart.item.decreaseQuantityAria}
                                     >
                                         −
@@ -110,8 +164,9 @@ export default function CartClient({ invoiceEligible = false }: { invoiceEligibl
                                         {line.quantity}
                                     </span>
                                     <button
-                                        onClick={() => updateItem(line.id, line.quantity + 1)}
-                                        className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center"
+                                        onClick={() => updateItem(line.id, next.up)}
+                                        disabled={linePending || !canIncrease}
+                                        className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center disabled:opacity-40"
                                         aria-label={t.cart.item.increaseQuantityAria}
                                     >
                                         +
@@ -125,7 +180,8 @@ export default function CartClient({ invoiceEligible = false }: { invoiceEligibl
                                     </p>
                                     <button
                                         onClick={() => removeItem(line.id)}
-                                        className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                        disabled={linePending}
+                                        className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-40"
                                     >
                                         {t.cart.item.remove}
                                     </button>
@@ -190,6 +246,7 @@ export default function CartClient({ invoiceEligible = false }: { invoiceEligibl
                         cartId={cart?.id}
                         discountCode={discountCode}
                         eligible={invoiceEligible}
+                        initialProfile={invoicePrefill}
                         label={t.cart.summary.invoiceSubmit}
                         description={t.cart.summary.invoiceDescription}
                         openLabel={t.cart.summary.invoiceOpen}

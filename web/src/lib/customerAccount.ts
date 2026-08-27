@@ -4,6 +4,8 @@ import { getDb } from '@/lib/db';
 import { orders, orderItems } from '@/lib/db/schema';
 import { readCustomerSessionValue, CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
 
+type CustomerAddress = Record<string, string | null>;
+
 type CurrentCustomer = {
     id: string;
     source: 'owned';
@@ -11,6 +13,8 @@ type CurrentCustomer = {
     firstName: string | null;
     lastName: string | null;
     vatNumber?: string;
+    company: string | null;
+    billingAddress: CustomerAddress | null;
 };
 
 /**
@@ -24,10 +28,18 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
     try {
         const db = getDb();
         const result = await db.execute(sql`
-            select email, first_name, last_name, tax_id from customers where id = ${customerId} limit 1
+            select email, first_name, last_name, tax_id, company, default_billing_address
+            from customers where id = ${customerId} limit 1
         `);
         const row = result.rows[0] as
-            | { email: string; first_name: string | null; last_name: string | null; tax_id: string | null }
+            | {
+                  email: string;
+                  first_name: string | null;
+                  last_name: string | null;
+                  tax_id: string | null;
+                  company: string | null;
+                  default_billing_address: CustomerAddress | null;
+              }
             | undefined;
         if (!row) return null;
 
@@ -38,6 +50,8 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
             firstName: row.first_name,
             lastName: row.last_name,
             vatNumber: row.tax_id || undefined,
+            company: row.company,
+            billingAddress: row.default_billing_address,
         };
     } catch (error) {
         console.error('[customerAccount] Failed to load magic-link customer', error);

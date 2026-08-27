@@ -699,7 +699,11 @@
       "priceExVatSuffix": "ex. moms",
       "decreaseQuantityAria": "Minska antal",
       "increaseQuantityAria": "Öka antal",
-      "remove": "Ta bort"
+      "remove": "Ta bort",
+      "dismissError": "Stäng meddelandet",
+      "minQuantity": "Minsta antal: {quantity}",
+      "stepQuantity": "Beställs i steg om {step}",
+      "maxStock": "Endast {quantity} i lager"
     },
     "summary": {
       "subtotalExVat": "Totalt ex. moms",

@@ -699,7 +699,11 @@
       "priceExVatSuffix": "excl. VAT",
       "decreaseQuantityAria": "Decrease quantity",
       "increaseQuantityAria": "Increase quantity",
-      "remove": "Remove"
+      "remove": "Remove",
+      "dismissError": "Dismiss message",
+      "minQuantity": "Minimum quantity: {quantity}",
+      "stepQuantity": "Ordered in steps of {step}",
+      "maxStock": "Only {quantity} in stock"
     },
     "summary": {
       "subtotalExVat": "Subtotal excl. VAT",

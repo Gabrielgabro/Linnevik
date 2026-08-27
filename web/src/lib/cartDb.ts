@@ -32,6 +32,13 @@ type CartLineRow = {
   imageUrl: string | null;
   imageAlt: string | null;
   stripeProductId: string | null;
+  // Beställningsreglerna följer med varje rad så att korgen kan stega antalet
+  // på samma sätt som `assertOrderable` kräver. Utan dem stegar korgens +/−
+  // med 1 och servern nekar varje ändring på en vara med annat minsta antal.
+  minimumOrderQuantity: number;
+  orderIncrement: number;
+  /** `null` när lagret inte följs — då finns inget tak. */
+  availableQuantity: number | null;
 };
 
 export type OwnedCart = {
@@ -106,6 +113,10 @@ export async function getOwnedCart(id: string): Promise<OwnedCart | null> {
       imageAlt: productImages.altText,
       stripeProductId: products.stripeProductId,
       tags: products.tags,
+      minimumOrderQuantity: productVariants.minimumOrderQuantity,
+      orderIncrement: productVariants.orderIncrement,
+      inventoryTracked: productVariants.inventoryTracked,
+      availableQuantity: sql<number>`${productVariants.inventoryQuantity} - ${productVariants.inventoryReserved}`,
     })
     .from(cartItems)
     .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
@@ -147,6 +158,9 @@ export async function getOwnedCart(id: string): Promise<OwnedCart | null> {
       imageUrl: row.imageUrl,
       imageAlt: row.imageAlt,
       stripeProductId: row.stripeProductId,
+      minimumOrderQuantity: row.minimumOrderQuantity,
+      orderIncrement: row.orderIncrement,
+      availableQuantity: row.inventoryTracked ? Number(row.availableQuantity) : null,
       lineAmountMinor: unitAmountMinor * row.quantity,
     };
   });
@@ -203,9 +217,23 @@ async function requireVariant(variantId: number, quantity: number) {
   return variant;
 }
 
-export async function setOwnedCartItem(cartId: string, variantId: number, quantity: number) {
+/**
+ * `add` lägger antalet till det som redan ligger i korgen — det är vad
+ * "Lägg i varukorg" betyder när kunden återvänder till en produktsida.
+ * `set` skriver över, för de anrop som redan vet det slutliga antalet.
+ * Summan valideras mot beställningsreglerna innan den skrivs, så en påfyllnad
+ * aldrig kan lämna raden på ett antal servern inte hade accepterat direkt.
+ */
+export async function setOwnedCartItem(
+  cartId: string,
+  variantId: number,
+  quantity: number,
+  mode: 'add' | 'set' = 'set'
+) {
   const cart = await requireEditableCart(cartId);
-  await requireVariant(variantId, quantity);
+  const existing = cart.lines.find(line => line.variantId === variantId);
+  const targetQuantity = mode === 'add' ? (existing?.quantity ?? 0) + quantity : quantity;
+  await requireVariant(variantId, targetQuantity);
   const result = await getDb().execute(sql`
     with eligible as (
       select id from carts
@@ -214,9 +242,9 @@ export async function setOwnedCartItem(cartId: string, variantId: number, quanti
       for update
     ), upserted as (
       insert into cart_items (cart_id, variant_id, quantity)
-      select id, ${variantId}, ${quantity} from eligible
+      select id, ${variantId}, ${targetQuantity} from eligible
       on conflict (cart_id, variant_id) do update
-        set quantity = excluded.quantity, updated_at = now()
+        set quantity = ${targetQuantity}, updated_at = now()
       returning id
     ), bumped as (
       update carts set version = version + 1, updated_at = now(), expires_at = ${expiresAt()}

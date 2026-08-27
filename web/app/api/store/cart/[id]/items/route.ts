@@ -18,8 +18,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const quantity = positiveInteger(body.quantity, 'quantity');
 
     const variantId = positiveInteger(body.variantId, 'variantId');
+    // POST /items betyder "lägg till"; `set` finns kvar för anrop som redan
+    // känner det slutliga antalet.
+    const mode = body.mode === 'set' ? 'set' : 'add';
 
-    const cart = await setOwnedCartItem(id, variantId, quantity);
+    const cart = await setOwnedCartItem(id, variantId, quantity, mode);
     return NextResponse.json({ cart }, { status: 201 });
   } catch (error) {
     return cartApiError(error);

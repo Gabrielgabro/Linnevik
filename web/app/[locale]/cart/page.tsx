@@ -25,5 +25,17 @@ export default async function CartPage() {
     // Invoicing is offered only to signed-in company accounts; the API enforces
     // this too. This just decides whether to render the form or a sign-in link.
     const customer = await getCurrentCustomerFromCookies();
-    return <CartClient invoiceEligible={Boolean(customer?.email)} />;
+    const address = customer?.billingAddress ?? null;
+    return (
+        <CartClient
+            invoiceEligible={Boolean(customer?.email)}
+            invoicePrefill={{
+                companyName: customer?.company ?? '',
+                line1: address?.line1 ?? '',
+                line2: address?.line2 ?? '',
+                city: address?.city ?? '',
+                postalCode: address?.postal_code ?? '',
+            }}
+        />
+    );
 }

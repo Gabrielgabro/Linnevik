@@ -6,6 +6,14 @@ import { LocaleLink } from '@/components/LocaleLink';
 type Props = {
   cartId?: string;
   discountCode?: string;
+  /** Company name and address from the signed-in account, used to pre-fill the form. */
+  initialProfile?: {
+    companyName?: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postalCode?: string;
+  };
   /** True only for a signed-in company account. Guests pay by card. */
   eligible: boolean;
   label: string;
@@ -32,7 +40,11 @@ export default function InvoiceCheckoutButton(props: Props) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState({
-    companyName: '', line1: '', line2: '', city: '', postalCode: '',
+    companyName: props.initialProfile?.companyName ?? '',
+    line1: props.initialProfile?.line1 ?? '',
+    line2: props.initialProfile?.line2 ?? '',
+    city: props.initialProfile?.city ?? '',
+    postalCode: props.initialProfile?.postalCode ?? '',
   });
 
   function change(field: keyof typeof profile, value: string) {
