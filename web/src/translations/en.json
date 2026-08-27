@@ -312,8 +312,7 @@
       "lastNameInvalid": "Last name must be between 1 and 100 characters.",
       "invalidCompanyNumber": "Enter a valid Swedish company number or EU VAT number.",
       "generic": "Account creation failed. Please try again.",
-      "rateLimited": "Too many registration attempts. Wait a while and try again.",
-      "emailTaken": "An account with this email already exists. Please log in instead."
+      "rateLimited": "Too many registration attempts. Wait a while and try again."
     },
     "metadata": {
       "title": "Create Account | Linnevik",
@@ -726,7 +725,25 @@
       "invoiceAddress": "Billing and delivery address",
       "invoiceAddressLine2": "Address line 2 (optional)",
       "invoicePostalCode": "Postal code",
-      "invoiceCity": "City"
+      "invoiceCity": "City",
+      "checkoutErrors": {
+        "NOT_CONFIGURED": "Checkout is unavailable right now. Please try again later.",
+        "INVALID_REQUEST": "Something went wrong with your cart. Please reload the page.",
+        "RATE_LIMITED": "Too many attempts. Please wait a moment and try again.",
+        "CART_NOT_FOUND": "Your cart could not be found. Please reload the page.",
+        "CART_REPRICED": "Prices changed while checkout was open. Please try again.",
+        "ACCOUNT_INACTIVE": "This account cannot check out. Please contact us.",
+        "STRIPE_UNAVAILABLE": "Checkout is temporarily unavailable. Please try again.",
+        "CHECKOUT_FAILED": "Checkout could not be opened. Please try again.",
+        "DISCOUNT_INVALID": "That discount code is not valid.",
+        "DISCOUNT_NOT_STARTED": "That discount code is not active yet.",
+        "DISCOUNT_EXPIRED": "That discount code has expired.",
+        "DISCOUNT_CURRENCY": "That discount code cannot be used for this order.",
+        "DISCOUNT_MINIMUM": "Your order does not reach the minimum for that discount code.",
+        "DISCOUNT_LIMIT_REACHED": "That discount code has been fully used.",
+        "DISCOUNT_CUSTOMER_LIMIT_REACHED": "You have already used that discount code.",
+        "DISCOUNT_SIGN_IN_REQUIRED": "Sign in with your company account to use that discount code."
+      }
     }
   },
   "search": {

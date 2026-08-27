@@ -17,6 +17,9 @@ function hasValidLuhnCheckDigit(value: string): boolean {
 export function normalizeCompanyRegistrationNumber(input: unknown): string {
   if (typeof input !== 'string') return '';
   let value = input.replace(/[^a-z0-9]/gi, '').toUpperCase();
+  // A bare ten-digit Swedish organisation number is the same registration as
+  // its VAT form; `01` is the sequence number all but a handful of companies
+  // carry. A buyer who has another one types the full VAT number instead.
   if (/^\d{10}$/.test(value)) value = `SE${value}01`;
   // Greece's ISO country code is GR, but its EU VAT prefix is EL.
   if (value.startsWith('GR')) value = `EL${value.slice(2)}`;
@@ -31,9 +34,11 @@ export function isValidCompanyRegistrationNumber(value: string): boolean {
   if (!/^[A-Z]{2}[A-Z0-9]{2,12}$/.test(value)) return false;
   if (!EU_VAT_COUNTRY_CODES.has(value.slice(0, 2))) return false;
   if (value.startsWith('SE')) {
-    return /^SE\d{12}$/.test(value)
-      && value.endsWith('01')
-      && hasValidLuhnCheckDigit(value.slice(2, 12));
+    // SE + a Luhn-checked ten-digit organisation number + a two-digit sequence
+    // number. The sequence is `01` for a single registration, but a VAT group
+    // or a branch registration legitimately carries `02`, `03`, and so on —
+    // requiring `01` locked those companies out of registering at all.
+    return /^SE\d{12}$/.test(value) && hasValidLuhnCheckDigit(value.slice(2, 12));
   }
   return true;
 }

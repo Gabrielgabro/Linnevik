@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { LocaleLink } from '@/components/LocaleLink';
+import { messageForCode } from '@/components/CheckoutButton';
 
 type Props = {
   cartId?: string;
@@ -18,6 +19,8 @@ type Props = {
   eligible: boolean;
   /** Prevent checkout from snapshotting the cart while a mutation is in flight. */
   disabled?: boolean;
+  /** Buyer-facing wording per API error code. See `messageForCode`. */
+  errorMessages: Record<string, string>;
   label: string;
   description: string;
   openLabel: string;
@@ -73,10 +76,16 @@ export default function InvoiceCheckoutButton(props: Props) {
         }),
       });
       const data = await response.json();
-      if (!response.ok || !data.redirectUrl) throw new Error(data.error ?? props.errorLabel);
+      if (!response.ok || !data.redirectUrl) {
+        console.error('[Invoice]', data.code, data.error);
+        setError(messageForCode(data, props.errorMessages, props.errorLabel));
+        setIsPending(false);
+        return;
+      }
       window.location.href = data.redirectUrl;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : props.errorLabel);
+      console.error('[Invoice]', caught);
+      setError(props.errorLabel);
       setIsPending(false);
     }
   }

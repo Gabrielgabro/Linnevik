@@ -7,6 +7,10 @@ import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/lang
 import { getDb } from '@/lib/db';
 import { customers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import {
+    isValidCompanyRegistrationNumber,
+    normalizeCompanyRegistrationNumber,
+} from '@/lib/companyRegistration';
 
 export type VatState = {
     status: 'idle' | 'success' | 'error';
@@ -15,8 +19,6 @@ export type VatState = {
     vatNumber?: string;
     vatProvided?: boolean;
 };
-
-const EU_COMPANY_REGEX = /^[A-Z]{2}[A-Z0-9]{2,12}$/;
 
 async function getActionTranslations(): Promise<Translations> {
     const cookieStore = await cookies();
@@ -56,11 +58,15 @@ export async function saveVatStatus(_: VatState, formData: FormData): Promise<Va
         };
     }
 
+    // Must use exactly the same rules as registration and invoice checkout.
+    // While this page had its own looser regex it would happily save a number
+    // that invoice checkout then rejected with "update your account first" —
+    // and this is the only form that can update it, so the buyer was stuck.
     const rawVat = formData.get('vatNumber')?.toString() ?? '';
-    const normalizedVat = rawVat.replace(/\s+/g, '').toUpperCase();
+    const normalizedVat = normalizeCompanyRegistrationNumber(rawVat);
     const hasVat = normalizedVat.length > 0;
 
-    if (hasVat && !EU_COMPANY_REGEX.test(normalizedVat)) {
+    if (hasVat && !isValidCompanyRegistrationNumber(normalizedVat)) {
         return {
             status: 'error',
             message: t.vatStatus.invalidFormat,

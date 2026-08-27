@@ -17,6 +17,7 @@ type CurrentCustomer = {
     billingAddress: CustomerAddress | null;
     customerNo: string | null;
     stripeCustomerId: string | null;
+    status: string;
 };
 
 /**
@@ -31,7 +32,7 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
         const db = getDb();
         const result = await db.execute(sql`
             select email, first_name, last_name, tax_id, company, default_billing_address,
-                   customer_no, stripe_customer_id
+                   customer_no, stripe_customer_id, status
             from customers where id = ${customerId} limit 1
         `);
         const row = result.rows[0] as
@@ -44,6 +45,7 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
                   default_billing_address: CustomerAddress | null;
                   customer_no: string | null;
                   stripe_customer_id: string | null;
+                  status: string;
               }
             | undefined;
         if (!row) return null;
@@ -59,6 +61,7 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
             billingAddress: row.default_billing_address,
             customerNo: row.customer_no,
             stripeCustomerId: row.stripe_customer_id,
+            status: row.status,
         };
     } catch (error) {
         console.error('[customerAccount] Failed to load magic-link customer', error);

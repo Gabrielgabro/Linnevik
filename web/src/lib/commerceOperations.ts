@@ -5,7 +5,6 @@ import {
   clients,
   customers,
   discountCodes,
-  discountRedemptions,
   shippingRules,
   type CustomerRow,
   type ClientRow,
@@ -26,9 +25,23 @@ export type AppliedDiscount = {
   stripeCouponId: string | null;
 };
 
-/** Expected buyer-facing rejection, rather than an operational checkout fault. */
+export type DiscountRejection =
+  | 'INVALID'
+  | 'NOT_STARTED'
+  | 'EXPIRED'
+  | 'CURRENCY'
+  | 'MINIMUM'
+  | 'LIMIT_REACHED'
+  | 'CUSTOMER_LIMIT_REACHED'
+  | 'SIGN_IN_REQUIRED';
+
+/**
+ * Expected buyer-facing rejection, rather than an operational checkout fault.
+ * The reason travels as a code so the cart can say it in the buyer's language;
+ * the message is the English fallback and the log line.
+ */
 export class DiscountError extends Error {
-  constructor(message: string) {
+  constructor(message: string, public readonly reason: DiscountRejection = 'INVALID') {
     super(message);
     this.name = 'DiscountError';
   }
@@ -47,35 +60,35 @@ export async function resolveDiscount(input: {
     .from(discountCodes)
     .where(sql`upper(${discountCodes.code}) = ${code}`)
     .limit(1);
-  if (!row || !row.active) throw new DiscountError('Discount code is invalid or inactive.');
+  if (!row || !row.active) throw new DiscountError('Discount code is invalid or inactive.', 'INVALID');
   const now = new Date();
-  if (row.startsAt && row.startsAt > now) throw new DiscountError('Discount code is not active yet.');
-  if (row.endsAt && row.endsAt <= now) throw new DiscountError('Discount code has expired.');
+  if (row.startsAt && row.startsAt > now) throw new DiscountError('Discount code is not active yet.', 'NOT_STARTED');
+  if (row.endsAt && row.endsAt <= now) throw new DiscountError('Discount code has expired.', 'EXPIRED');
   if (row.currency.toLowerCase() !== input.currency.toLowerCase()) {
-    throw new DiscountError('Discount code does not support this currency.');
+    throw new DiscountError('Discount code does not support this currency.', 'CURRENCY');
   }
   if (input.subtotalMinor < row.minimumSubtotalMinor) {
-    throw new DiscountError('Order does not meet the discount minimum.');
+    throw new DiscountError('Order does not meet the discount minimum.', 'MINIMUM');
   }
+  // A cheap up-front rejection so an unusable code is reported while the buyer
+  // is still looking at the cart. It is *not* the enforcement point: both
+  // limits are settled again in `claimDiscountCapacity` once the order that
+  // claims the code exists and can be ordered against its competitors.
   if (row.usageLimit !== null) {
-    const [{ count }] = await getDb()
-      .select({ count: sql<number>`count(*)::int` })
-      .from(discountRedemptions)
-      .where(eq(discountRedemptions.discountCodeId, row.id));
-    if (count >= row.usageLimit) throw new DiscountError('Discount code usage limit has been reached.');
+    const claimed = await countDiscountClaims(row.id, null);
+    if (claimed >= row.usageLimit) throw new DiscountError('Discount code usage limit has been reached.', 'LIMIT_REACHED');
   }
-  if (row.usageLimitPerCustomer !== null && input.email) {
-    const [{ count }] = await getDb()
-      .select({ count: sql<number>`count(*)::int` })
-      .from(discountRedemptions)
-      .where(
-        and(
-          eq(discountRedemptions.discountCodeId, row.id),
-          sql`lower(${discountRedemptions.email}) = ${input.email.trim().toLowerCase()}`
-        )
-      );
-    if (count >= row.usageLimitPerCustomer) {
-      throw new DiscountError('Discount code usage limit for this customer has been reached.');
+  if (row.usageLimitPerCustomer !== null) {
+    // Enforcing a per-customer cap requires knowing the customer. Card
+    // checkout only learns the e-mail from Stripe *after* payment, so for an
+    // anonymous buyer this limit was silently skipped and the code became
+    // unlimited. Fail closed and ask them to sign in instead.
+    if (!input.email) {
+      throw new DiscountError('Sign in to use this discount code.', 'SIGN_IN_REQUIRED');
+    }
+    const claimed = await countDiscountClaims(row.id, input.email);
+    if (claimed >= row.usageLimitPerCustomer) {
+      throw new DiscountError('Discount code usage limit for this customer has been reached.', 'CUSTOMER_LIMIT_REACHED');
     }
   }
   return {
@@ -87,6 +100,134 @@ export async function resolveDiscount(input: {
     freeShipping: row.kind === 'free_shipping',
     stripeCouponId: row.stripeCouponId,
   };
+}
+
+/**
+ * How many times a code is spoken for: redemptions already recorded by the
+ * webhook, plus orders that hold the code and may still be paid. A pending
+ * order counts because its buyer is standing at Stripe with that price.
+ */
+async function countDiscountClaims(
+  discountCodeId: number,
+  email: string | null,
+  excludeOrderId?: number
+): Promise<number> {
+  const normalized = email?.trim().toLowerCase() ?? null;
+  const result = await getDb().execute(sql`
+    select count(*)::int as count from (
+      select r.order_id as id
+      from discount_redemptions r
+      where r.discount_code_id = ${discountCodeId}
+        and (${normalized}::text is null or lower(r.email) = ${normalized})
+      union
+      select o.id
+      from orders o
+      where o.discount_code_id = ${discountCodeId}
+        and o.payment_status = 'pending'
+        and o.status = 'pending'
+        and (${normalized}::text is null or lower(o.email) = ${normalized})
+    ) claims
+    where ${excludeOrderId ?? null}::int is null or claims.id <> ${excludeOrderId ?? null}
+  `);
+  return Number((result.rows[0] as { count: number } | undefined)?.count ?? 0);
+}
+
+/**
+ * Settle a limited discount code against everyone else claiming it.
+ *
+ * The pre-check in `resolveDiscount` runs before the claiming order exists, so
+ * any number of concurrent checkouts read the same pre-redemption count and
+ * all pass it — a "first 50 customers" code went out to as many buyers as
+ * happened to start checkout in the same window. Re-counting here, after the
+ * order row exists, makes every claim visible to every rival. Ties break on
+ * order id: a claim is good if fewer than `limit` *older* claims exist, so of
+ * two simultaneous claimants exactly one wins rather than both aborting.
+ */
+export async function claimDiscountCapacity(input: {
+  orderId: number;
+  discountCodeId: number;
+  email: string | null;
+}): Promise<void> {
+  const [row] = await getDb()
+    .select({
+      usageLimit: discountCodes.usageLimit,
+      usageLimitPerCustomer: discountCodes.usageLimitPerCustomer,
+    })
+    .from(discountCodes)
+    .where(eq(discountCodes.id, input.discountCodeId))
+    .limit(1);
+  if (!row) throw new DiscountError('Discount code is invalid or inactive.');
+
+  if (row.usageLimit !== null) {
+    const earlier = await countEarlierDiscountClaims(input.discountCodeId, null, input.orderId);
+    if (earlier >= row.usageLimit) {
+      throw new DiscountError('Discount code usage limit has been reached.', 'LIMIT_REACHED');
+    }
+  }
+  if (row.usageLimitPerCustomer !== null) {
+    if (!input.email) throw new DiscountError('Sign in to use this discount code.', 'SIGN_IN_REQUIRED');
+    const earlier = await countEarlierDiscountClaims(
+      input.discountCodeId,
+      input.email,
+      input.orderId
+    );
+    if (earlier >= row.usageLimitPerCustomer) {
+      throw new DiscountError('Discount code usage limit for this customer has been reached.', 'CUSTOMER_LIMIT_REACHED');
+    }
+  }
+}
+
+/** Claims that outrank `orderId`. See `claimDiscountCapacity`. */
+async function countEarlierDiscountClaims(
+  discountCodeId: number,
+  email: string | null,
+  orderId: number
+): Promise<number> {
+  const normalized = email?.trim().toLowerCase() ?? null;
+  const result = await getDb().execute(sql`
+    select count(*)::int as count from (
+      select r.order_id as id
+      from discount_redemptions r
+      where r.discount_code_id = ${discountCodeId}
+        and (${normalized}::text is null or lower(r.email) = ${normalized})
+      union
+      select o.id
+      from orders o
+      where o.discount_code_id = ${discountCodeId}
+        and o.payment_status = 'pending'
+        and o.status = 'pending'
+        and (${normalized}::text is null or lower(o.email) = ${normalized})
+    ) claims
+    where claims.id < ${orderId}
+  `);
+  return Number((result.rows[0] as { count: number } | undefined)?.count ?? 0);
+}
+
+/**
+ * A stored Stripe customer id can outlive the customer it points at: deleted
+ * from the Stripe dashboard, or written while the app ran on a test key and
+ * read back under a live one. Handing a dead id to Checkout fails with a
+ * non-retryable error, which would lock that account out of paying at all —
+ * so verify it first, and forget it once it is gone.
+ */
+export async function usableStripeCustomerId(input: {
+  customerId: number;
+  stripeCustomerId: string | null;
+}): Promise<string | null> {
+  if (!input.stripeCustomerId) return null;
+  try {
+    const customer = await getStripe().customers.retrieve(input.stripeCustomerId);
+    if (!('deleted' in customer) || !customer.deleted) return input.stripeCustomerId;
+  } catch (error) {
+    // Only a definite "it isn't there" clears the link. A transient Stripe
+    // fault must not quietly detach a buyer from their payment history.
+    if ((error as { code?: unknown }).code !== 'resource_missing') throw error;
+  }
+  await getDb()
+    .update(customers)
+    .set({ stripeCustomerId: null, updatedAt: new Date() })
+    .where(eq(customers.id, input.customerId));
+  return null;
 }
 
 export async function resolveShipping(input: {

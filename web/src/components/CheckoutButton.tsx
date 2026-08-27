@@ -6,6 +6,27 @@
 
 import { useState } from 'react';
 
+/**
+ * Turn an API failure into something the buyer can read *in their language*.
+ *
+ * The response carries a stable `code`; the `error` string alongside it is for
+ * the log, not the page. Rendering it directly showed English sentences to
+ * Swedish buyers and Swedish ones to English buyers depending on which layer
+ * had raised the error.
+ */
+export function messageForCode(
+    data: { code?: unknown; error?: unknown },
+    messages: Record<string, string>,
+    fallback: string
+): string {
+    if (typeof data.code === 'string' && messages[data.code]) return messages[data.code];
+    // Cart-rule rejections have no fixed wording: they name the SKU and what
+    // is wrong with it, which is worth more to the buyer than a generic line.
+    // They are Swedish-only for now — the rule library builds the sentence.
+    if (typeof data.error === 'string' && data.error) return data.error;
+    return fallback;
+}
+
 type Props = {
     cartId?: string;
     label: string;
@@ -13,6 +34,7 @@ type Props = {
     errorLabel: string;
     discountCode?: string;
     disabled?: boolean;
+    errorMessages: Record<string, string>;
 };
 
 export default function CheckoutButton({
@@ -22,6 +44,7 @@ export default function CheckoutButton({
     errorLabel,
     discountCode,
     disabled = false,
+    errorMessages,
 }: Props) {
     const [isPending, setIsPending] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -45,10 +68,12 @@ export default function CheckoutButton({
                 return;
             }
 
-            throw new Error(data.error ?? 'Checkout failed.');
+            console.error('[Checkout]', data.code, data.error);
+            setError(messageForCode(data, errorMessages, errorLabel));
+            setIsPending(false);
         } catch (error) {
             console.error('[Checkout]', error);
-            setError(error instanceof Error ? error.message : errorLabel);
+            setError(errorLabel);
             setIsPending(false);
         }
     }

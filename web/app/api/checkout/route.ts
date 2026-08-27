@@ -34,7 +34,16 @@ import {
 } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
-import { DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping } from '@/lib/commerceOperations';
+import {
+  claimDiscountCapacity,
+  DiscountError,
+  ensureStripeCoupon,
+  resolveDiscount,
+  resolveShipping,
+  usableStripeCustomerId,
+} from '@/lib/commerceOperations';
+import { normalizeDiscountCode } from '@/lib/commerceRules';
+import type { OrderWithItems } from '@/lib/ordersDb';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
 import { parseCheckoutInput } from '@/lib/checkoutInput';
@@ -55,46 +64,95 @@ const CHECKOUT_RATE_PER_IP = 20;
 const CHECKOUT_RATE_PER_CART = 8;
 const CHECKOUT_RATE_WINDOW_SECONDS = 60 * 60;
 
+type PricedLine = {
+  variantId: number;
+  quantity: number;
+  unitAmountMinor: number;
+};
+
+/** Every error the client can translate carries one of these. */
+function fail(code: string, error: string, status: number, headers?: Record<string, string>) {
+  return NextResponse.json({ error, code }, { status, ...(headers ? { headers } : {}) });
+}
+
+/**
+ * Whether a Stripe request replayed under an existing idempotency key would
+ * carry byte-identical parameters. Stripe rejects a key reused with different
+ * parameters, so a resumed attempt is only safe while the catalogue, the
+ * discount and the VAT mode all still agree with what the order froze.
+ */
+function orderStillMatchesQuote(
+  order: OrderWithItems,
+  quote: {
+    lines: PricedLine[];
+    currency: string;
+    discountCode: string | null;
+    discountMinor: number;
+    shippingMinor: number;
+    vatMode: string;
+  }
+): boolean {
+  if (order.currency !== quote.currency) return false;
+  if (order.discountCode !== quote.discountCode) return false;
+  if (order.discountMinor !== quote.discountMinor) return false;
+  if (order.shippingMinor !== quote.shippingMinor) return false;
+  if (order.vatMode !== quote.vatMode) return false;
+  if (order.items.length !== quote.lines.length) return false;
+  const frozen = new Map(order.items.map(item => [item.variantId, item]));
+  return quote.lines.every(line => {
+    const item = frozen.get(line.variantId);
+    return Boolean(
+      item && item.quantity === line.quantity && item.unitAmountMinor === line.unitAmountMinor
+    );
+  });
+}
+
+/**
+ * Retire an attempt so the buyer can start a clean one. A Stripe session that
+ * is still open has to be expired first: `abandonPendingOrder` releases the
+ * stock this attempt reserved, and a live session with no reservation behind
+ * it is a sale we cannot fulfil.
+ */
+async function retireAttempt(order: OrderWithItems, reason: string): Promise<void> {
+  if (order.stripeSessionId.startsWith('cs_')) {
+    try {
+      const session = await getStripe().checkout.sessions.retrieve(order.stripeSessionId);
+      if (session.status === 'open') await getStripe().checkout.sessions.expire(order.stripeSessionId);
+    } catch (error) {
+      console.error('[Checkout] Could not expire the superseded session:', error);
+      throw error;
+    }
+  }
+  await abandonPendingOrder(order.id, reason);
+}
+
 export async function POST(request: NextRequest) {
   if (!ownedCommerceEnabled() || !stripeConfigured()) {
-    return NextResponse.json({ error: 'Checkout is not configured.' }, { status: 503 });
+    return fail('NOT_CONFIGURED', 'Checkout is not configured.', 503);
   }
 
   let ownedCartId: string;
-  let discountCode: string | null;
+  let requestedDiscountCode: string | null;
   let email: string | null;
   try {
     const parsed = parseCheckoutInput(await request.json());
     ownedCartId = parsed.cartId;
-    discountCode = parsed.discountCode;
+    requestedDiscountCode = normalizeDiscountCode(parsed.discountCode ?? '') || null;
     email = parsed.email;
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Invalid request.' },
-      { status: 400 }
-    );
+    return fail('INVALID_REQUEST', error instanceof Error ? error.message : 'Invalid request.', 400);
   }
 
-  const [ipLimit, cartLimit] = await Promise.all([
-    checkRateLimit({
-      scope: 'checkout',
-      identity: clientIp(request.headers),
-      limit: CHECKOUT_RATE_PER_IP,
-      windowSeconds: CHECKOUT_RATE_WINDOW_SECONDS,
-    }),
-    checkRateLimit({
-      scope: 'checkout_cart',
-      identity: ownedCartId,
-      limit: CHECKOUT_RATE_PER_CART,
-      windowSeconds: CHECKOUT_RATE_WINDOW_SECONDS,
-    }),
-  ]);
-  if (!ipLimit.allowed || !cartLimit.allowed) {
-    const retryAfter = Math.max(ipLimit.retryAfterSeconds, cartLimit.retryAfterSeconds);
-    return NextResponse.json(
-      { error: 'Too many checkout attempts. Try again later.' },
-      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
-    );
+  const ipLimit = await checkRateLimit({
+    scope: 'checkout',
+    identity: clientIp(request.headers),
+    limit: CHECKOUT_RATE_PER_IP,
+    windowSeconds: CHECKOUT_RATE_WINDOW_SECONDS,
+  });
+  if (!ipLimit.allowed) {
+    return fail('RATE_LIMITED', 'Too many checkout attempts. Try again later.', 429, {
+      'Retry-After': String(ipLimit.retryAfterSeconds),
+    });
   }
 
   let pendingOrderId: number | null = null;
@@ -116,28 +174,78 @@ export async function POST(request: NextRequest) {
 
     const locale = await getServerLanguage();
     const account = await getCurrentCustomerFromCookies();
+    if (account && account.status !== 'active') {
+      // The invoice route already refuses a deactivated account. Card checkout
+      // let one through and stamped the order with its identity anyway.
+      return fail('ACCOUNT_INACTIVE', 'This account cannot check out. Contact us.', 403);
+    }
     // Only an authenticated account may select an existing Stripe Customer or
     // CRM customer number. A request body is not proof of either identity.
     const checkoutEmail = account?.email.trim().toLowerCase() || email;
     const customerNo = account?.customerNo ?? null;
     const currentCart = await getOwnedCart(ownedCartId);
     if (!currentCart) {
-      return NextResponse.json({ error: 'Cart not found.' }, { status: 404 });
+      return fail('CART_NOT_FOUND', 'Cart not found.', 404);
     }
 
-    // Ett dubbelklick efter att den första förfrågan hunnit låsa korgen ska
-    // återanvända samma Stripe-session, inte ge ett fel eller en extra order.
-    if (currentCart.status === 'checkout_started') {
-      const existing = await getOrderByCartVersion(ownedCartId, currentCart.version);
-      if (existing?.stripeSessionId.startsWith('cs_')) {
-        const session = await getStripe().checkout.sessions.retrieve(existing.stripeSessionId);
-        if (session.status === 'open' && session.url) {
-          return NextResponse.json({ url: session.url, sessionId: session.id, reused: true });
+    // Keyed on the cart *version*, not the cart. A cart id never rotates, so a
+    // buyer who edits the cart or changes a discount code between attempts used
+    // to spend the same eight tokens and could lock themselves out for an hour
+    // with no way to reset. A version only repeats for a genuine retry loop.
+    const cartLimit = await checkRateLimit({
+      scope: 'checkout_cart',
+      identity: `${ownedCartId}:${currentCart.version}`,
+      limit: CHECKOUT_RATE_PER_CART,
+      windowSeconds: CHECKOUT_RATE_WINDOW_SECONDS,
+    });
+    if (!cartLimit.allowed) {
+      return fail('RATE_LIMITED', 'Too many checkout attempts. Try again later.', 429, {
+        'Retry-After': String(cartLimit.retryAfterSeconds),
+      });
+    }
+
+    // An earlier attempt at this exact cart version may have left an order
+    // behind: a double click that already has a Stripe session, or an attempt
+    // interrupted between creating the order and hearing back from Stripe.
+    // `orders_cart_version_key` allows only one, so it is resumed or retired —
+    // never worked around.
+    let resumed: OrderWithItems | null = await getOrderByCartVersion(
+      ownedCartId,
+      currentCart.version
+    );
+    if (
+      resumed &&
+      (resumed.status !== 'pending' ||
+        resumed.paymentStatus !== 'pending' ||
+        resumed.paymentMethod !== 'checkout')
+    ) {
+      resumed = null;
+    }
+
+    if (resumed) {
+      // The discount code is the one input the buyer can still change while
+      // the cart is frozen, and it is the reason a resumed session must not be
+      // handed back blindly: they would pay the old, undiscounted price.
+      const sameInputs = resumed.discountCode === requestedDiscountCode;
+      if (resumed.stripeSessionId.startsWith('cs_')) {
+        if (sameInputs) {
+          const session = await getStripe().checkout.sessions.retrieve(resumed.stripeSessionId);
+          if (session.status === 'open' && session.url) {
+            return NextResponse.json({ url: session.url, sessionId: session.id, reused: true });
+          }
         }
+        await retireAttempt(
+          resumed,
+          sameInputs ? 'Checkout session no longer open' : 'Superseded by new checkout inputs'
+        );
+        resumed = null;
+      } else if (!sameInputs) {
+        await retireAttempt(resumed, 'Superseded by new checkout inputs');
+        resumed = null;
       }
-      return NextResponse.json({ error: 'Checkout has already started.' }, { status: 409 });
     }
 
+    // `retireAttempt` reopens the cart at a new version, so re-read it.
     const ownedCart = await validateOwnedCartForCheckout(ownedCartId);
     const priced = ownedCart.lines.map(line => ({
       variantId: line.variantId,
@@ -153,7 +261,7 @@ export async function POST(request: NextRequest) {
       0
     );
     const discount = await resolveDiscount({
-      code: discountCode,
+      code: requestedDiscountCode,
       subtotalMinor,
       currency: priced[0].currency,
       email: checkoutEmail,
@@ -171,36 +279,75 @@ export async function POST(request: NextRequest) {
     // inte bara hur mycket den blev.
     const taxMode = await checkoutTaxMode();
     const lineTaxRates = taxMode.kind === 'explicit' ? [taxMode.taxRateId] : undefined;
-    const orderId = await createPendingOrder(
-      priced,
-      locale,
-      { id: ownedCart.id, version: ownedCart.version },
-      {
-        customerNo,
-        discount: discount
-          ? { id: discount.id, code: discount.code, amountMinor: discount.amountMinor }
-          : null,
-        shipping: { id: shipping.id, name: shipping.name, amountMinor: shipping.amountMinor },
-        vat: { mode: taxMode.kind, bps: vatBps(taxMode.percent), rateId: taxMode.kind === 'explicit' ? taxMode.taxRateId : null },
+    const quote = {
+      lines: priced,
+      currency: priced[0].currency,
+      discountCode: discount?.code ?? null,
+      discountMinor: discount?.amountMinor ?? 0,
+      shippingMinor: shipping.amountMinor,
+      vatMode: taxMode.kind,
+    };
+
+    let order: OrderWithItems;
+    if (resumed) {
+      // The interrupted attempt's order and stock reservation are still good,
+      // and Stripe may already hold the session its idempotency key names. It
+      // can only be replayed with byte-identical parameters, so if the
+      // catalogue moved underneath it, retire it and let the buyer re-quote.
+      if (!orderStillMatchesQuote(resumed, quote)) {
+        await retireAttempt(resumed, 'Cart repriced since the interrupted attempt');
+        return fail('CART_REPRICED', 'Prices changed while checkout was open. Try again.', 409);
       }
-    );
-    pendingOrderId = orderId;
+      order = resumed;
+      pendingOrderId = order.id;
+    } else {
+      const orderId = await createPendingOrder(
+        priced,
+        locale,
+        { id: ownedCart.id, version: ownedCart.version },
+        {
+          customerNo,
+          discount: discount
+            ? { id: discount.id, code: discount.code, amountMinor: discount.amountMinor }
+            : null,
+          shipping: { id: shipping.id, name: shipping.name, amountMinor: shipping.amountMinor },
+          vat: { mode: taxMode.kind, bps: vatBps(taxMode.percent), rateId: taxMode.kind === 'explicit' ? taxMode.taxRateId : null },
+        }
+      );
+      pendingOrderId = orderId;
+      const created = await getOrderByCartVersion(ownedCart.id, ownedCart.version);
+      if (!created) throw new Error('The pending order disappeared before checkout could open.');
+      order = created;
+    }
+
+    // A limited code is only truly claimed once the order holding it exists.
+    if (discount) {
+      await claimDiscountCapacity({
+        orderId: order.id,
+        discountCodeId: discount.id,
+        email: checkoutEmail,
+      });
+    }
 
     // Fail-closed stock policy: every tracked line is reserved before Stripe
     // can collect payment. Stripe and the reservation share the same expiry.
-    const checkoutExpiresAt = new Date(
-      Date.now() + checkoutReservationMinutes() * 60 * 1000
-    );
-    const reserved = await reserveOrderStockStrict(
-      orderId,
-      'checkout',
-      checkoutExpiresAt
-    );
-    if (!reserved) {
-      await abandonPendingOrder(orderId, 'Insufficient stock before checkout');
-      pendingOrderId = null;
-      throw new CartError('Lagret ändrades. Kontrollera korgen och försök igen.', 409);
+    //
+    // Derived from the order row rather than the clock so that a resumed
+    // attempt rebuilds the *same* `expires_at` it first sent — a wall-clock
+    // value would differ by a second or two and Stripe would reject the
+    // replayed idempotency key outright.
+    const checkoutExpiresAtSeconds =
+      Math.floor(order.createdAt.getTime() / 1000) + checkoutReservationMinutes() * 60;
+    const checkoutExpiresAt = new Date(checkoutExpiresAtSeconds * 1000);
+    if (!resumed) {
+      const reserved = await reserveOrderStockStrict(order.id, 'checkout', checkoutExpiresAt);
+      if (!reserved) {
+        await abandonPendingOrder(order.id, 'Insufficient stock before checkout');
+        pendingOrderId = null;
+        throw new CartError('Lagret ändrades. Kontrollera korgen och försök igen.', 409);
+      }
     }
+    const orderId = order.id;
 
     // Priserna på sajten är exklusive moms, så momsen läggs på här. Stripe Tax
     // sköter det när den svenska registreringen är bekräftad *och* finns på
@@ -275,6 +422,15 @@ export async function POST(request: NextRequest) {
       allowedCountries: [...ALLOWED_SHIPPING_COUNTRIES],
     });
 
+    // Verified rather than trusted: a dead id here is a hard Stripe error that
+    // would lock this account out of card checkout permanently.
+    const stripeCustomerId = account
+      ? await usableStripeCustomerId({
+          customerId: Number(account.id),
+          stripeCustomerId: account.stripeCustomerId,
+        })
+      : null;
+
     const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
       // Slås bara på efter en uttrycklig bekräftelse att den svenska
@@ -283,10 +439,10 @@ export async function POST(request: NextRequest) {
       integration_identifier: stripeIntegrationIdentifier(),
       locale: locale === 'en' ? 'en' : 'sv',
       currency: priced[0].currency,
-      expires_at: Math.floor(checkoutExpiresAt.getTime() / 1000),
-      ...(account?.stripeCustomerId
+      expires_at: checkoutExpiresAtSeconds,
+      ...(stripeCustomerId
         ? {
-            customer: account.stripeCustomerId,
+            customer: stripeCustomerId,
             customer_update: {
               address: 'auto' as const,
               name: 'auto' as const,
@@ -329,7 +485,10 @@ export async function POST(request: NextRequest) {
       },
       success_url: getSiteUrl(`${locale}/checkout/klar?session_id={CHECKOUT_SESSION_ID}`),
       cancel_url: getSiteUrl(`${locale}/cart`),
-    }, { idempotencyKey: `linnevik_cart_${ownedCart.id}_${ownedCart.version}` });
+      // Keyed on the order, which is stable for as long as the attempt is: a
+      // resumed attempt replays this exact request, and a superseded one was
+      // retired and carries a fresh id.
+    }, { idempotencyKey: `linnevik_order_${orderId}` });
     stripeSessionCreated = true;
 
     await attachSession(orderId, session.id);
@@ -354,20 +513,20 @@ export async function POST(request: NextRequest) {
     // Fel i vår egen momsuppsättning. Hellre en stängd kassa än en order utan
     // moms — och 503 så att det syns som ett driftfel, inte ett kundfel.
     if (error instanceof VatConfigurationError) {
-      return NextResponse.json({ error: 'Checkout is not configured.' }, { status: 503 });
+      return fail('NOT_CONFIGURED', 'Checkout is not configured.', 503);
     }
     if (error instanceof CartError) {
-      return NextResponse.json({ error: message }, { status: error.status });
+      return fail('CART_INVALID', message, error.status);
     }
     if (error instanceof CartRuleError) {
-      return NextResponse.json({ error: message, code: error.code }, { status: 409 });
+      return fail(error.code, message, 409);
     }
     if (error instanceof DiscountError) {
-      return NextResponse.json({ error: message, code: 'DISCOUNT_REJECTED' }, { status: 409 });
+      return fail(`DISCOUNT_${error.reason}`, message, 409);
     }
     if (ambiguousStripeFailure) {
-      return NextResponse.json({ error: 'Checkout is temporarily unavailable. Try again.' }, { status: 503 });
+      return fail('STRIPE_UNAVAILABLE', 'Checkout is temporarily unavailable. Try again.', 503);
     }
-    return NextResponse.json({ error: 'Checkout failed.' }, { status: 500 });
+    return fail('CHECKOUT_FAILED', 'Checkout failed.', 500);
   }
 }

@@ -312,8 +312,7 @@
       "lastNameInvalid": "Efternamn måste vara mellan 1 och 100 tecken.",
       "invalidCompanyNumber": "Ange ett giltigt svenskt organisationsnummer eller EU-momsnummer.",
       "generic": "Kontoskapandet misslyckades. Försök igen.",
-      "rateLimited": "För många registreringsförsök. Vänta en stund och försök igen.",
-      "emailTaken": "Ett konto med den här e-posten finns redan. Logga in istället."
+      "rateLimited": "För många registreringsförsök. Vänta en stund och försök igen."
     },
     "metadata": {
       "title": "Skapa konto | Linnevik",
@@ -726,7 +725,25 @@
       "invoiceAddress": "Faktura- och leveransadress",
       "invoiceAddressLine2": "Adressrad 2 (valfritt)",
       "invoicePostalCode": "Postnummer",
-      "invoiceCity": "Ort"
+      "invoiceCity": "Ort",
+      "checkoutErrors": {
+        "NOT_CONFIGURED": "Kassan är inte tillgänglig just nu. Försök igen senare.",
+        "INVALID_REQUEST": "Något gick fel med din korg. Ladda om sidan.",
+        "RATE_LIMITED": "För många försök. Vänta en stund och försök igen.",
+        "CART_NOT_FOUND": "Din korg kunde inte hittas. Ladda om sidan.",
+        "CART_REPRICED": "Priserna ändrades medan kassan var öppen. Försök igen.",
+        "ACCOUNT_INACTIVE": "Det här kontot kan inte handla. Kontakta oss.",
+        "STRIPE_UNAVAILABLE": "Kassan är tillfälligt otillgänglig. Försök igen.",
+        "CHECKOUT_FAILED": "Kassan kunde inte öppnas. Försök igen.",
+        "DISCOUNT_INVALID": "Rabattkoden är inte giltig.",
+        "DISCOUNT_NOT_STARTED": "Rabattkoden är inte aktiv ännu.",
+        "DISCOUNT_EXPIRED": "Rabattkoden har gått ut.",
+        "DISCOUNT_CURRENCY": "Rabattkoden kan inte användas för den här ordern.",
+        "DISCOUNT_MINIMUM": "Din order når inte upp till rabattkodens minimibelopp.",
+        "DISCOUNT_LIMIT_REACHED": "Rabattkoden är slutanvänd.",
+        "DISCOUNT_CUSTOMER_LIMIT_REACHED": "Du har redan använt den rabattkoden.",
+        "DISCOUNT_SIGN_IN_REQUIRED": "Logga in med ditt företagskonto för att använda rabattkoden."
+      }
     }
   },
   "search": {

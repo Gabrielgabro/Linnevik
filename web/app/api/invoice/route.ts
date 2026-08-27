@@ -18,7 +18,7 @@ import { CartError, getOwnedCart, markOwnedCartCheckoutStarted, validateOwnedCar
 import { ownedCommerceEnabled } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
-import { DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout } from '@/lib/commerceOperations';
+import { claimDiscountCapacity, DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout, usableStripeCustomerId } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
@@ -120,6 +120,51 @@ function resolveProfile(body: InvoiceBody, account: NonNullable<InvoiceAccount>)
   return { email, organizationNumber, companyName, address };
 }
 
+type InvoiceLine = {
+  title: string;
+  currency: string;
+  unitAmountMinor: number;
+  quantity: number;
+  variantId: number;
+};
+
+/**
+ * Add the items to a draft invoice and send it.
+ *
+ * Split out so an attempt interrupted anywhere in here can be replayed by the
+ * next request rather than dead-ending on "checkout has already started".
+ * Every call is keyed on the order id, so a replay adds nothing twice.
+ */
+async function finishInvoice(input: {
+  invoiceId: string;
+  orderId: number;
+  customerId: string;
+  lines: InvoiceLine[];
+  shipping: { name: string; currency: string; amountMinor: number };
+  taxMode: Awaited<ReturnType<typeof checkoutTaxMode>>;
+}) {
+  const itemTaxRates = input.taxMode.kind === 'explicit' ? [input.taxMode.taxRateId] : undefined;
+  for (const line of input.lines) {
+    await getStripe().invoiceItems.create({
+      customer: input.customerId, invoice: input.invoiceId, currency: line.currency, description: line.title,
+      amount: line.unitAmountMinor * line.quantity,
+      tax_behavior: 'exclusive', tax_code: GOODS_TAX_CODE, ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
+    }, { idempotencyKey: `linnevik_invoice_item_${input.orderId}_${line.variantId}` });
+  }
+  if (input.shipping.amountMinor > 0) {
+    await getStripe().invoiceItems.create({
+      customer: input.customerId, invoice: input.invoiceId, currency: input.shipping.currency,
+      description: input.shipping.name, amount: input.shipping.amountMinor,
+      tax_behavior: 'exclusive', tax_code: SHIPPING_TAX_CODE, ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
+    }, { idempotencyKey: `linnevik_invoice_shipping_${input.orderId}` });
+  }
+  return getStripe().invoices.sendInvoice(
+    input.invoiceId,
+    {},
+    { idempotencyKey: `linnevik_invoice_send_${input.orderId}` }
+  );
+}
+
 export async function POST(request: NextRequest) {
   if (!ownedCommerceEnabled() || !stripeConfigured()) {
     return NextResponse.json({ error: 'Invoice checkout is not configured.' }, { status: 503 });
@@ -193,6 +238,37 @@ export async function POST(request: NextRequest) {
         if (invoice.hosted_invoice_url) {
           return NextResponse.json({ redirectUrl: invoice.hosted_invoice_url, invoiceId: invoice.id, reused: true });
         }
+        // A draft has no hosted URL yet: the previous attempt was interrupted
+        // between creating the invoice and sending it. Finish that invoice —
+        // every remaining call is keyed on the order id and replays cleanly.
+        // Answering 409 here left the buyer with a frozen cart and reserved
+        // stock until the daily reconciliation swept the draft away.
+        if (invoice.status === 'draft' && existing.status === 'pending') {
+          const finished = await finishInvoice({
+            invoiceId: invoice.id,
+            orderId: existing.id,
+            customerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? '',
+            lines: existing.items.map(item => ({
+              title: item.title,
+              currency: existing.currency,
+              unitAmountMinor: item.unitAmountMinor,
+              quantity: item.quantity,
+              variantId: item.variantId ?? 0,
+            })),
+            shipping: {
+              name: existing.shippingMethod ?? 'Frakt',
+              currency: existing.currency,
+              amountMinor: existing.shippingMinor,
+            },
+            taxMode: await checkoutTaxMode(),
+          });
+          invoiceSent = true;
+          return NextResponse.json({
+            redirectUrl: getSiteUrl(`${await getServerLanguage()}/checkout/klar?session_id=${finished.id}`),
+            invoiceId: finished.id,
+            reused: true,
+          });
+        }
       }
       return NextResponse.json({ error: 'Checkout has already started.' }, { status: 409 });
     }
@@ -226,6 +302,11 @@ export async function POST(request: NextRequest) {
     });
     pendingOrderId = orderId;
 
+    // A limited code is only truly claimed once the order holding it exists.
+    if (discount) {
+      await claimDiscountCapacity({ orderId, discountCodeId: discount.id, email: profile.email });
+    }
+
     const expiresAt = new Date(Date.now() + INVOICE_DUE_DAYS * 24 * 60 * 60 * 1000);
     if (!(await reserveOrderStockStrict(orderId, 'invoice', expiresAt))) {
       await abandonPendingOrder(orderId, 'Insufficient stock before invoice');
@@ -234,12 +315,19 @@ export async function POST(request: NextRequest) {
     }
 
     const customerId = await (async () => {
-      if (account.stripeCustomerId) {
-        await getStripe().customers.update(account.stripeCustomerId, {
+      // Verified, not trusted: the stored id may name a customer deleted in
+      // Stripe or created under a different key, and `customers.update` on a
+      // dead id is a hard error that would block invoicing for this account.
+      const existing = await usableStripeCustomerId({
+        customerId: account.id,
+        stripeCustomerId: account.stripeCustomerId,
+      });
+      if (existing) {
+        await getStripe().customers.update(existing, {
           email: profile.email, name: profile.companyName, address: profile.address,
           metadata: { linnevik_org_no: profile.organizationNumber },
         });
-        return account.stripeCustomerId;
+        return existing;
       }
       const customer = await getStripe().customers.create({
         email: profile.email, name: profile.companyName, address: profile.address,
@@ -278,26 +366,14 @@ export async function POST(request: NextRequest) {
     await attachSession(orderId, invoice.id);
     await markOwnedCartCheckoutStarted(ownedCart.id, ownedCart.version);
 
-    const itemTaxRates = taxMode.kind === 'explicit' ? [taxMode.taxRateId] : undefined;
-    for (const line of priced) {
-      await getStripe().invoiceItems.create({
-        customer: customerId, invoice: invoice.id, currency: line.currency, description: line.title,
-        amount: line.unitAmountMinor * line.quantity,
-        tax_behavior: 'exclusive', tax_code: GOODS_TAX_CODE, ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
-      }, { idempotencyKey: `linnevik_invoice_item_${orderId}_${line.variantId}` });
-    }
-    if (shipping.amountMinor > 0) {
-      await getStripe().invoiceItems.create({
-        customer: customerId, invoice: invoice.id, currency: shipping.currency, description: shipping.name,
-        amount: shipping.amountMinor,
-        tax_behavior: 'exclusive', tax_code: SHIPPING_TAX_CODE, ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
-      }, { idempotencyKey: `linnevik_invoice_shipping_${orderId}` });
-    }
-    const sent = await getStripe().invoices.sendInvoice(
-      invoice.id,
-      {},
-      { idempotencyKey: `linnevik_invoice_send_${orderId}` }
-    );
+    const sent = await finishInvoice({
+      invoiceId: invoice.id,
+      orderId,
+      customerId,
+      lines: priced,
+      shipping: { name: shipping.name, currency: shipping.currency, amountMinor: shipping.amountMinor },
+      taxMode,
+    });
     invoiceSent = true;
     return NextResponse.json({
       redirectUrl: getSiteUrl(`${locale}/checkout/klar?session_id=${sent.id}`),
@@ -323,7 +399,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof VatConfigurationError) return NextResponse.json({ error: 'Invoice checkout is not configured.' }, { status: 503 });
     if (error instanceof CartError) return NextResponse.json({ error: message }, { status: error.status });
     if (error instanceof CartRuleError) return NextResponse.json({ error: message, code: error.code }, { status: 409 });
-    if (error instanceof DiscountError) return NextResponse.json({ error: message, code: 'DISCOUNT_REJECTED' }, { status: 409 });
+    if (error instanceof DiscountError) return NextResponse.json({ error: message, code: `DISCOUNT_${error.reason}` }, { status: 409 });
     if (ambiguousStripeFailure) return NextResponse.json({ error: 'Invoice checkout is temporarily unavailable. Try again.' }, { status: 503 });
     return NextResponse.json({ error: 'Invoice checkout failed.' }, { status: 500 });
   }

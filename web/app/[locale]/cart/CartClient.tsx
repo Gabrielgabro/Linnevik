@@ -242,6 +242,7 @@ export default function CartClient({
                         errorLabel={t.cart.summary.checkoutError}
                         discountCode={discountCode}
                         disabled={isLoading || pendingLineIds.length > 0}
+                        errorMessages={t.cart.summary.checkoutErrors}
                     />
 
                     <InvoiceCheckoutButton
@@ -249,6 +250,7 @@ export default function CartClient({
                         discountCode={discountCode}
                         eligible={invoiceEligible}
                         disabled={isLoading || pendingLineIds.length > 0}
+                        errorMessages={t.cart.summary.checkoutErrors}
                         initialProfile={invoicePrefill}
                         label={t.cart.summary.invoiceSubmit}
                         description={t.cart.summary.invoiceDescription}

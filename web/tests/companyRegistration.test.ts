@@ -11,9 +11,16 @@ describe('company registration numbers', () => {
     expect(isValidCompanyRegistrationNumber(normalized)).toBe(true);
   });
 
-  it('rejects Swedish numbers with a bad checksum or VAT suffix', () => {
+  it('rejects Swedish numbers with a bad checksum or a wrong length', () => {
     expect(isValidCompanyRegistrationNumber('SE556016068101')).toBe(false);
-    expect(isValidCompanyRegistrationNumber('SE556016068002')).toBe(false);
+    expect(isValidCompanyRegistrationNumber('SE5560160680')).toBe(false);
+    expect(isValidCompanyRegistrationNumber('SE55601606800101')).toBe(false);
+  });
+
+  it('accepts a VAT group or branch sequence number other than 01', () => {
+    // Only `01` used to pass, which locked every group registration out.
+    expect(isValidCompanyRegistrationNumber('SE556016068002')).toBe(true);
+    expect(isValidCompanyRegistrationNumber('SE556016068017')).toBe(true);
   });
 
   it('accepts supported EU prefixes and normalizes the Greek prefix', () => {

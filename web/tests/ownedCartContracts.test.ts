@@ -31,7 +31,28 @@ describe('owned checkout persistence contracts', () => {
 
   it('derives existing customer identity from the authenticated account', () => {
     expect(checkout).toContain('getCurrentCustomerFromCookies()');
-    expect(checkout).toContain('customer: account.stripeCustomerId');
+    expect(checkout).toContain('customer: stripeCustomerId');
     expect(checkout).toContain('const customerNo = account?.customerNo ?? null');
+    // A stored Stripe customer id is verified, never trusted: a dead one is a
+    // hard error that would lock the account out of card checkout for good.
+    expect(checkout).toContain('usableStripeCustomerId({');
+    expect(checkout).toContain("account.status !== 'active'");
+  });
+
+  it('resumes or retires an interrupted attempt instead of duplicating it', () => {
+    // `orders_cart_version_key` allows one order per cart version, so a retry
+    // after an ambiguous Stripe failure has to find the order it left behind.
+    expect(checkout).toContain('getOrderByCartVersion(');
+    expect(checkout).toContain('orderStillMatchesQuote(resumed, quote)');
+    expect(checkout).toContain('retireAttempt(');
+    expect(checkout).toContain('checkout.sessions.expire(');
+    // A replayed idempotency key needs byte-identical parameters, so the
+    // session expiry comes off the order row and not the wall clock.
+    expect(checkout).toContain('Math.floor(order.createdAt.getTime() / 1000)');
+    expect(checkout).toContain('idempotencyKey: `linnevik_order_${orderId}`');
+  });
+
+  it('does not hand back a session priced without a newly entered code', () => {
+    expect(checkout).toContain('const sameInputs = resumed.discountCode === requestedDiscountCode');
   });
 });
