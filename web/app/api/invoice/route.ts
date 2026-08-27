@@ -223,6 +223,32 @@ async function ensureStripeTaxId(customerId: string, organizationNumber: string)
 }
 
 /**
+ * Vilket språk Stripe ska rendera fakturan på.
+ *
+ * Stripe lokaliserar faktura-PDF:en, fakturamejlet och kvittot efter kundens
+ * `preferred_locales` — inte efter vilket språk sajten stod på när ordern
+ * lades. Listan är en prioritetsordning, så en svensk kund får svenska först
+ * och engelska som andrahandsval om Stripe någon gång saknar en översättning.
+ *
+ * Språket följer faktureringslandet och inte sajtens språkval: en svensk
+ * ekonomiavdelning ska ha sin faktura på svenska även när beställaren råkade
+ * surfa på den engelska versionen av butiken.
+ */
+function invoiceLocales(address: PostalAddress): string[] {
+  return address.country === INVOICE_COUNTRY ? ['sv', 'en'] : ['en'];
+}
+
+/**
+ * Fakturans egen not, det enda löptext-utrymmet Stripe ger oss ovanför
+ * raderna. PDF:en i övrigt är Stripes mall och inte vår HTML — det vi kan säga
+ * till kunden på själva fakturan står här och i foten.
+ */
+const INVOICE_MEMO: Record<string, string> = {
+  sv: 'Tack för din beställning hos Linnevik. Varorna är reserverade för dig och skickas enligt överenskommelse.',
+  en: 'Thank you for your order with Linnevik. The goods are reserved for you and ship as agreed.',
+};
+
+/**
  * Add the items to a draft invoice and send it.
  *
  * Split out so an attempt interrupted anywhere in here can be replayed by the
@@ -378,7 +404,6 @@ export async function POST(request: NextRequest) {
     }
 
     const locale = await getServerLanguage();
-    const t = getTranslations(locale);
     const ownedCart = await validateOwnedCartForCheckout(cartId);
     const priced = ownedCart.lines.map(line => ({
       variantId: line.variantId,
@@ -427,15 +452,18 @@ export async function POST(request: NextRequest) {
         customerId: account.id,
         stripeCustomerId: account.stripeCustomerId,
       });
+      const preferredLocales = invoiceLocales(profile.address);
       if (existing) {
         await getStripe().customers.update(existing, {
           email: profile.email, name: profile.companyName, address: stripeAddress(profile.address),
+          preferred_locales: preferredLocales,
           metadata: { linnevik_org_no: profile.organizationNumber },
         });
         return existing;
       }
       const customer = await getStripe().customers.create({
         email: profile.email, name: profile.companyName, address: stripeAddress(profile.address),
+        preferred_locales: preferredLocales,
         metadata: { linnevik_org_no: profile.organizationNumber },
       }, { idempotencyKey: `linnevik_invoice_customer_${profile.email}` });
       return customer.id;
@@ -453,12 +481,21 @@ export async function POST(request: NextRequest) {
 
     const couponId = discount ? await ensureStripeCoupon(discount) : null;
     const orgNumber = swedishOrganizationNumber(profile.organizationNumber);
+    // Fakturans språk, inte sajtens: texten på fakturan ska följa samma språk
+    // som Stripe renderar resten av PDF:en på, annars får en svensk kund som
+    // råkat surfa på engelska en svensk faktura med engelska villkor i foten.
+    const invoiceLocale = invoiceLocales(profile.address)[0];
+    const t = getTranslations(invoiceLocale);
     const invoice = await getStripe().invoices.create({
       customer: customerId,
       currency: priced[0].currency,
       collection_method: 'send_invoice',
       days_until_due: INVOICE_DUE_DAYS,
       auto_advance: false,
+      description: INVOICE_MEMO[invoiceLocale] ?? INVOICE_MEMO.sv,
+      // Stripe defaultar till US Letter för allt utom japansk lokal. En svensk
+      // leverantörsfaktura ska vara A4 — den arkiveras och skrivs ut.
+      rendering: { pdf: { page_size: 'a4' } },
       ...(taxMode.kind === 'automatic' ? { automatic_tax: { enabled: true } } : {}),
       ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
       // Numret står kvar här även när det också gick in som ett riktigt tax_id:

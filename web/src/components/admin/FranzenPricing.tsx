@@ -364,6 +364,8 @@ function VariantBlock({
   price,
   onPrice,
   members,
+  applyingBid,
+  onApplyBid,
   showTip,
   hideTip,
 }: {
@@ -371,6 +373,9 @@ function VariantBlock({
   price: number;
   onPrice: (next: number) => void;
   members: Member[];
+  /** `sku:användare` för det bud som just nu skrivs till katalogen. */
+  applyingBid: string | null;
+  onApplyBid: (variant: VariantPricingVariant, memberUser: string, priceSek: number) => void;
   showTip: (
     e: React.MouseEvent | React.FocusEvent,
     next: { title: string; rows: string[]; note: string }
@@ -527,28 +532,50 @@ function VariantBlock({
       {members.map(m => {
         const bid = m.prices[variant.sku];
         if (typeof bid !== 'number') return null;
+        const busy = applyingBid === `${variant.sku}:${m.user}`;
         return (
-          <Bar
-            key={m.user}
-            label={`${m.user}s förslag`}
-            value={bid}
-            varName={m.varName}
-            max={max}
-            decimals={decimals}
-            showTip={showTip}
-            hideTip={hideTip}
-            tip={{
-              title: `${m.user}s förslag`,
-              rows: [
-                `${sek(bid, decimals)} kr/st`,
-                cost === null
-                  ? 'Ingen känd inköpskostnad att räkna marginal på'
-                  : `${sek(marginPct(bid, cost) ?? 0, 0)} % marginal mot ${sek(cost, decimals)} kr inköp`,
-                m.label ? `«${m.label}»` : `Sparat ${fmtWhen(m.updatedAt ?? m.createdAt)}`,
-              ],
-              note: 'Läs in hela förslaget med «Använd» i panelen ovanför.',
-            }}
-          />
+          <div key={m.user} className="flex items-center gap-2">
+            <div className="flex-1">
+              <Bar
+                label={`${m.user}s förslag`}
+                value={bid}
+                varName={m.varName}
+                max={max}
+                decimals={decimals}
+                showTip={showTip}
+                hideTip={hideTip}
+                tip={{
+                  title: `${m.user}s förslag`,
+                  rows: [
+                    `${sek(bid, decimals)} kr/st`,
+                    cost === null
+                      ? 'Ingen känd inköpskostnad att räkna marginal på'
+                      : `${sek(marginPct(bid, cost) ?? 0, 0)} % marginal mot ${sek(cost, decimals)} kr inköp`,
+                    m.label ? `«${m.label}»` : `Sparat ${fmtWhen(m.updatedAt ?? m.createdAt)}`,
+                  ],
+                  note:
+                    'Läs in hela förslaget med «Använd» i panelen ovanför, eller sätt bara den ' +
+                    'här varianten med «Sätt».',
+                }}
+              />
+            </div>
+            {/* Till skillnad från «Använd» (som bara flyttar reglaget) skriver
+                den här knappen budet till katalogen för just den varianten. */}
+            <button
+              type="button"
+              onClick={() => onApplyBid(variant, m.user, bid)}
+              disabled={busy || bid === baseline}
+              className="shrink-0 rounded-sm border px-1.5 py-px font-mono text-[9.5px] uppercase tracking-[0.06em] disabled:opacity-40"
+              style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink-2)' }}
+              title={
+                bid === baseline
+                  ? `${m.user}s förslag är redan variantens pris.`
+                  : `Sätt ${optionLabel(variant)} till ${sek(bid, decimals)} kr — ${m.user}s förslag`
+              }
+            >
+              {busy ? 'Sätter…' : 'Sätt'}
+            </button>
+          </div>
         );
       })}
 
@@ -607,6 +634,7 @@ export default function FranzenPricing({
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [applyingBid, setApplyingBid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const members: Member[] = suggestions
@@ -698,6 +726,45 @@ export default function FranzenPricing({
       setError(err instanceof Error ? err.message : 'Kunde inte sätta priserna.');
     } finally {
       setApplying(false);
+    }
+  };
+
+  /**
+   * Skriver en enskild persons bud för en variant rakt till katalogen. Samma
+   * knapp som i prisbilden för egna produkter, men per variant i stället för
+   * per produkt — Franzén-sortimentet prissätts storlek för storlek.
+   */
+  const applyMemberPrice = async (
+    variant: VariantPricingVariant,
+    memberUser: string,
+    priceSek: number
+  ) => {
+    const ok = window.confirm(
+      `Sätt priset för ${optionLabel(variant)} (${variant.sku}) till ${sek(priceSek, 2)} kr ` +
+        `(${memberUser}s förslag)?\n\n` +
+        `Nuvarande pris: ${sek(liveOf(variant), 2)} kr. Det här ändrar priset kunden ser.`
+    );
+    if (!ok) return;
+
+    setApplyingBid(`${variant.sku}:${memberUser}`);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/variants/${variant.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceMinor: Math.round(priceSek * 100) }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `Kunde inte sätta priset för ${variant.sku}.`);
+      }
+      // Reglaget ska stämma med det pris som nu faktiskt gäller.
+      setPrices(prev => ({ ...prev, [variant.sku]: priceSek }));
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Kunde inte sätta priset för ${variant.sku}.`);
+    } finally {
+      setApplyingBid(null);
     }
   };
 
@@ -926,6 +993,8 @@ export default function FranzenPricing({
               price={priceOf(variant)}
               onPrice={next => setPrices(prev => ({ ...prev, [variant.sku]: Math.max(0, next) }))}
               members={visibleMembers}
+              applyingBid={applyingBid}
+              onApplyBid={applyMemberPrice}
               showTip={showTip}
               hideTip={hideTip}
             />
