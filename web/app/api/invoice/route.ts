@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { getStripe, stripeConfigured } from '@/lib/stripe';
+import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
 import { getDb } from '@/lib/db';
 import { customers } from '@/lib/db/schema';
 import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
@@ -18,10 +18,14 @@ import { CartError, getOwnedCart, markOwnedCartCheckoutStarted, validateOwnedCar
 import { ownedCommerceEnabled } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
-import { ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout } from '@/lib/commerceOperations';
+import { DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
+import {
+  isValidCompanyRegistrationNumber,
+  normalizeCompanyRegistrationNumber,
+} from '@/lib/companyRegistration';
 
 export const runtime = 'nodejs';
 
@@ -63,16 +67,6 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function normalizeOrganizationNumber(value: unknown): string {
-  return text(value).replace(/[^a-z0-9]/gi, '').toUpperCase();
-}
-
-function validOrganizationNumber(value: string): boolean {
-  // Registered accounts use an EU VAT/org number. Guests may use the normal
-  // ten-digit Swedish organisation number as well.
-  return /^[A-Z]{2}[A-Z0-9]{2,12}$/.test(value) || /^\d{10}$/.test(value);
-}
-
 function readAddress(input: AddressInput | undefined): Record<string, string | null> | null {
   const line1 = text(input?.line1);
   const city = text(input?.city);
@@ -110,13 +104,13 @@ async function loadInvoiceAccount() {
 function resolveProfile(body: InvoiceBody, account: NonNullable<InvoiceAccount>): InvoiceProfile {
   const supplied = body.profile;
   const email = text(account.email).toLowerCase();
-  const organizationNumber = normalizeOrganizationNumber(account.taxId);
+  const organizationNumber = normalizeCompanyRegistrationNumber(account.taxId);
   const companyName = text(supplied?.companyName) || text(account.company);
   const storedAddress = account.defaultBillingAddress as Record<string, string | null> | null | undefined;
   const address = readAddress(supplied?.address) ?? storedAddress ?? null;
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new CartError('Ditt företagskonto saknar en giltig e-postadress.', 400);
-  if (!validOrganizationNumber(organizationNumber)) {
+  if (!isValidCompanyRegistrationNumber(organizationNumber)) {
     throw new CartError('Ditt företagskonto saknar ett giltigt organisationsnummer. Uppdatera kontot först.', 400);
   }
   if (!companyName) throw new CartError('Företagsnamn krävs för faktura.', 400);
@@ -290,16 +284,20 @@ export async function POST(request: NextRequest) {
         customer: customerId, invoice: invoice.id, currency: line.currency, description: line.title,
         amount: line.unitAmountMinor * line.quantity,
         tax_behavior: 'exclusive', tax_code: GOODS_TAX_CODE, ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
-      });
+      }, { idempotencyKey: `linnevik_invoice_item_${orderId}_${line.variantId}` });
     }
     if (shipping.amountMinor > 0) {
       await getStripe().invoiceItems.create({
         customer: customerId, invoice: invoice.id, currency: shipping.currency, description: shipping.name,
         amount: shipping.amountMinor,
         tax_behavior: 'exclusive', tax_code: SHIPPING_TAX_CODE, ...(itemTaxRates ? { tax_rates: itemTaxRates } : {}),
-      });
+      }, { idempotencyKey: `linnevik_invoice_shipping_${orderId}` });
     }
-    const sent = await getStripe().invoices.sendInvoice(invoice.id);
+    const sent = await getStripe().invoices.sendInvoice(
+      invoice.id,
+      {},
+      { idempotencyKey: `linnevik_invoice_send_${orderId}` }
+    );
     invoiceSent = true;
     return NextResponse.json({
       redirectUrl: getSiteUrl(`${locale}/checkout/klar?session_id=${sent.id}`),
@@ -307,12 +305,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[Invoice] Failed to create invoice:', error);
-    if (stripeInvoiceId && !invoiceSent) {
+    const ambiguousStripeFailure = stripeFailureIsAmbiguous(error);
+    // A lost response can mean Stripe created/sent the invoice already. Keep
+    // the order and stock bound; retry/reconciliation can recover it. Deleting
+    // locally and releasing stock here could leave a live receivable behind.
+    if (stripeInvoiceId && !invoiceSent && !ambiguousStripeFailure) {
       await getStripe().invoices.del(stripeInvoiceId).catch(deleteError => {
         console.error('[Invoice] Failed to delete unfinished invoice:', deleteError);
       });
     }
-    if (pendingOrderId && !invoiceSent) {
+    if (pendingOrderId && !invoiceSent && !ambiguousStripeFailure) {
       await abandonPendingOrder(pendingOrderId, 'Invoice creation failed').catch(cleanupError => {
         console.error('[Invoice] Failed to release pending reservation:', cleanupError);
       });
@@ -321,6 +323,8 @@ export async function POST(request: NextRequest) {
     if (error instanceof VatConfigurationError) return NextResponse.json({ error: 'Invoice checkout is not configured.' }, { status: 503 });
     if (error instanceof CartError) return NextResponse.json({ error: message }, { status: error.status });
     if (error instanceof CartRuleError) return NextResponse.json({ error: message, code: error.code }, { status: 409 });
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (error instanceof DiscountError) return NextResponse.json({ error: message, code: 'DISCOUNT_REJECTED' }, { status: 409 });
+    if (ambiguousStripeFailure) return NextResponse.json({ error: 'Invoice checkout is temporarily unavailable. Try again.' }, { status: 503 });
+    return NextResponse.json({ error: 'Invoice checkout failed.' }, { status: 500 });
   }
 }

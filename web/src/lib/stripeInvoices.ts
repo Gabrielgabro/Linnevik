@@ -139,6 +139,15 @@ export async function reconcileRecentStripeInvoices(): Promise<{
         await failStripeInvoice(invoice);
         continue;
       }
+      // A draft left by an interrupted construction never becomes payable and
+      // used to reserve stock forever. By the time the daily backstop sees it,
+      // no checkout request can still be assembling it: delete the draft and
+      // fail the local order so the reservation and cart are released.
+      if (invoice.status === 'draft') {
+        await getStripe().invoices.del(invoice.id);
+        await failStripeInvoice(invoice);
+        continue;
+      }
       if (invoice.status === 'open' && invoice.due_date && invoice.due_date <= Math.floor(Date.now() / 1000)) {
         invoice = await getStripe().invoices.voidInvoice(invoice.id);
         await failStripeInvoice(invoice);

@@ -9,7 +9,7 @@ import { LocaleLink } from '@/components/LocaleLink';
 const initialState: RegisterState = { status: 'idle' };
 
 export default function CreateAccountClient() {
-    const [state, formAction] = useActionState(handleRegister, initialState);
+    const [state, formAction, isPending] = useActionState(handleRegister, initialState);
     const formKey = state.fields ? JSON.stringify(state.fields) : 'initial';
     const { t } = useTranslation();
 
@@ -81,7 +81,8 @@ export default function CreateAccountClient() {
                                 type="text"
                                 autoComplete="organization"
                                 required
-                                pattern="[A-Za-z]{2}[A-Za-z0-9]{2,12}"
+                                pattern="[A-Za-z0-9 .-]{4,24}"
+                                maxLength={24}
                                 className="w-full rounded-lg border border-light bg-white dark:bg-[#111827] px-4 py-2.5 text-primary outline-none transition focus:border-[#0B3D2E] dark:focus:border-[#145C45] focus:ring-2 focus:ring-[#0B3D2E]/20 dark:focus:ring-[#145C45]/30"
                                 placeholder={t.register.companyPlaceholder}
                                 title={t.register.companyHelper}
@@ -115,8 +116,9 @@ export default function CreateAccountClient() {
                                 type="submit"
                                 variant="primary"
                                 className="w-full text-center"
+                                disabled={isPending}
                             >
-                                {t.register.submit}
+                                {isPending ? t.register.submitting : t.register.submit}
                             </Button>
                             <LocaleLink
                                 href="/login"

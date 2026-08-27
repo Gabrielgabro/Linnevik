@@ -230,6 +230,7 @@ export default function CartClient({
                             value={discountCode}
                             onChange={event => setDiscountCode(event.target.value)}
                             autoComplete="off"
+                            maxLength={80}
                             className="mt-2 w-full rounded border border-gray-300 bg-transparent px-3 py-2 uppercase dark:border-gray-600"
                         />
                     </label>
@@ -240,12 +241,14 @@ export default function CartClient({
                         pendingLabel={t.cart.summary.checkoutPending}
                         errorLabel={t.cart.summary.checkoutError}
                         discountCode={discountCode}
+                        disabled={isLoading || pendingLineIds.length > 0}
                     />
 
                     <InvoiceCheckoutButton
                         cartId={cart?.id}
                         discountCode={discountCode}
                         eligible={invoiceEligible}
+                        disabled={isLoading || pendingLineIds.length > 0}
                         initialProfile={invoicePrefill}
                         label={t.cart.summary.invoiceSubmit}
                         description={t.cart.summary.invoiceDescription}

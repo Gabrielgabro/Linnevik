@@ -22,6 +22,20 @@ export function stripeTestMode(): boolean {
   return !key || key.includes('_test_');
 }
 
+/**
+ * A connection loss or Stripe 5xx can happen after Stripe accepted a create
+ * request but before this process received the response. Callers must keep
+ * idempotency state/reservations in that case and retry the same request.
+ */
+export function stripeFailureIsAmbiguous(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { type?: unknown; statusCode?: unknown };
+  if (candidate.type === 'StripeConnectionError') return true;
+  return candidate.type === 'StripeAPIError'
+    && typeof candidate.statusCode === 'number'
+    && candidate.statusCode >= 500;
+}
+
 export function getStripe(): Stripe {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY is not set.');

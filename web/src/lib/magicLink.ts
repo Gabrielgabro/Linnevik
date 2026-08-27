@@ -35,6 +35,7 @@ import { sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { mailConfigured, sendEmail } from '@/lib/mailer';
 import { magicLinkEmail } from '@/lib/emailTemplates';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 const TOKEN_TTL_MINUTES = 15;
 const REPLAY_WINDOW_MINUTES = 2;
@@ -71,25 +72,6 @@ function generateToken(): string {
   return randomBytes(32).toString('base64url');
 }
 
-async function withinRateLimit(email: string, ip: string | null): Promise<boolean> {
-  const db = getDb();
-  const [emailCount, ipCount] = await Promise.all([
-    db.execute(sql`
-      select count(*)::int as n from customer_login_tokens
-      where email = ${email} and created_at > now() - make_interval(mins => ${RATE_LIMIT_WINDOW_MINUTES})
-    `),
-    ip
-      ? db.execute(sql`
-          select count(*)::int as n from customer_login_tokens
-          where requested_ip = ${ip} and created_at > now() - make_interval(mins => ${RATE_LIMIT_WINDOW_MINUTES})
-        `)
-      : Promise.resolve({ rows: [{ n: 0 }] } as { rows: Array<{ n: number }> }),
-  ]);
-  const byEmail = Number((emailCount.rows[0] as { n: number } | undefined)?.n ?? 0);
-  const byIp = Number((ipCount.rows[0] as { n: number } | undefined)?.n ?? 0);
-  return byEmail < MAX_PER_EMAIL_WINDOW && byIp < MAX_PER_IP_WINDOW;
-}
-
 /**
  * Begär en inloggningslänk. Svarar alltid likadant till anroparen oavsett
  * utfall — se api/auth/magic-link/route.ts — så att svaret aldrig avslöjar om
@@ -105,14 +87,32 @@ export async function requestMagicLink(input: {
   locale: string;
   ip: string | null;
   userAgent: string | null;
-}): Promise<void> {
+}): Promise<boolean> {
   const email = normalizeEmail(input.email);
-  if (!isPlausibleEmail(email)) return;
+  if (!isPlausibleEmail(email)) return false;
 
   try {
-    if (!(await withinRateLimit(email, input.ip))) {
+    // Atomic buckets prevent a burst of parallel requests from all observing
+    // the same pre-insert token count and slipping through together.
+    const [emailLimit, ipLimit] = await Promise.all([
+      checkRateLimit({
+        scope: 'magic_link_email',
+        identity: email,
+        limit: MAX_PER_EMAIL_WINDOW,
+        windowSeconds: RATE_LIMIT_WINDOW_MINUTES * 60,
+      }),
+      input.ip
+        ? checkRateLimit({
+            scope: 'magic_link_ip',
+            identity: input.ip,
+            limit: MAX_PER_IP_WINDOW,
+            windowSeconds: RATE_LIMIT_WINDOW_MINUTES * 60,
+          })
+        : Promise.resolve({ allowed: true, remaining: MAX_PER_IP_WINDOW, retryAfterSeconds: 0 }),
+    ]);
+    if (!emailLimit.allowed || !ipLimit.allowed) {
       console.warn('[magicLink] Ratbegränsad förfrågan för', email);
-      return;
+      return false;
     }
 
     const db = getDb();
@@ -122,7 +122,7 @@ export async function requestMagicLink(input: {
     const row = customer.rows[0] as { id: number } | undefined;
     if (!row) {
       // Ingen kund med den adressen. Svarar tyst — se funktionskommentaren.
-      return;
+      return false;
     }
 
     const rawToken = generateToken();
@@ -137,7 +137,7 @@ export async function requestMagicLink(input: {
 
     if (!mailConfigured()) {
       console.warn('[magicLink] SMTP är inte konfigurerat — ingen länk skickad till', email);
-      return;
+      return false;
     }
 
     const url = `${SITE}/${input.locale}/login/verify?token=${encodeURIComponent(rawToken)}`;
@@ -146,10 +146,12 @@ export async function requestMagicLink(input: {
     if (!result.success) {
       console.error('[magicLink] Kunde inte skicka länken till', email, result.error);
     }
+    return result.success;
   } catch (error) {
     // Precis som orderEmails.ts: anropet får aldrig fälla den som väntar på
     // det generiska svaret. Felet stannar i loggen.
     console.error('[magicLink] requestMagicLink misslyckades:', error);
+    return false;
   }
 }
 

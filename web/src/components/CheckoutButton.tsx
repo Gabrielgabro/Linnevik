@@ -12,6 +12,7 @@ type Props = {
     pendingLabel: string;
     errorLabel: string;
     discountCode?: string;
+    disabled?: boolean;
 };
 
 export default function CheckoutButton({
@@ -20,15 +21,16 @@ export default function CheckoutButton({
     pendingLabel,
     errorLabel,
     discountCode,
+    disabled = false,
 }: Props) {
     const [isPending, setIsPending] = useState(false);
-    const [hasError, setHasError] = useState(false);
-    const hasContent = Boolean(cartId);
+    const [error, setError] = useState<string | null>(null);
+    const hasContent = Boolean(cartId) && !disabled;
 
     async function startCheckout() {
         if (isPending || !hasContent) return;
         setIsPending(true);
-        setHasError(false);
+        setError(null);
 
         try {
             const response = await fetch('/api/checkout', {
@@ -46,7 +48,7 @@ export default function CheckoutButton({
             throw new Error(data.error ?? 'Checkout failed.');
         } catch (error) {
             console.error('[Checkout]', error);
-            setHasError(true);
+            setError(error instanceof Error ? error.message : errorLabel);
             setIsPending(false);
         }
     }
@@ -61,9 +63,9 @@ export default function CheckoutButton({
             >
                 {isPending ? pendingLabel : label}
             </button>
-            {hasError && (
+            {error && (
                 <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
-                    {errorLabel}
+                    {error}
                 </p>
             )}
         </div>

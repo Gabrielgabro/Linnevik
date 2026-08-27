@@ -26,5 +26,12 @@ describe('owned checkout persistence contracts', () => {
     expect(checkout).toContain('idempotencyKey:');
     expect(checkout).not.toMatch(/body\.(amount|price|unitAmount)/);
     expect(checkout).not.toContain('body.lines');
+    expect(checkout).not.toContain('body.customerNo');
+  });
+
+  it('derives existing customer identity from the authenticated account', () => {
+    expect(checkout).toContain('getCurrentCustomerFromCookies()');
+    expect(checkout).toContain('customer: account.stripeCustomerId');
+    expect(checkout).toContain('const customerNo = account?.customerNo ?? null');
   });
 });

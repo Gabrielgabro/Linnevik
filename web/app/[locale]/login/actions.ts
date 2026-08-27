@@ -6,13 +6,16 @@ import { registerCustomer } from '@/lib/commerceOperations';
 import { requestMagicLink } from '@/lib/magicLink';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
-
-function clientIp(headerList: Awaited<ReturnType<typeof headers>>): string | null {
-    const forwarded = headerList.get('x-forwarded-for');
-    return forwarded?.split(',')[0]?.trim() || null;
-}
+import { checkRateLimit, clientIp } from '@/lib/rateLimit';
+import {
+    isValidCompanyRegistrationNumber,
+    normalizeCompanyRegistrationNumber,
+} from '@/lib/companyRegistration';
 
 const COOKIE_NAME = 'shopify_customer_token';
+const REGISTER_RATE_PER_IP = 10;
+const REGISTER_RATE_PER_EMAIL = 5;
+const REGISTER_RATE_WINDOW_SECONDS = 60 * 60;
 
 async function getActionTranslations(): Promise<Translations> {
     const cookieStore = await cookies();
@@ -41,12 +44,12 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     const cookieStore = await cookies();
     const locale = cookieStore.get('NEXT_LOCALE')?.value;
 
-    const email = formData.get('email')?.toString().trim() ?? '';
+    const email = formData.get('email')?.toString().trim().toLowerCase() ?? '';
     const firstName = formData.get('firstName')?.toString().trim() || undefined;
     const lastName = formData.get('lastName')?.toString().trim() || undefined;
-    const companyRegistrationRaw = formData.get('companyRegistrationNumber')?.toString() ?? '';
-    const companyRegistrationNumber = companyRegistrationRaw.replace(/\s+/g, '').toUpperCase();
-    const EU_COMPANY_REGEX = /^[A-Z]{2}[A-Z0-9]{2,12}$/;
+    const companyRegistrationNumber = normalizeCompanyRegistrationNumber(
+        formData.get('companyRegistrationNumber')
+    );
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const fields: RegisterFields = { email, firstName, lastName, companyRegistrationNumber };
@@ -96,7 +99,7 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     }
 
     // Validation: company registration number format
-    if (!EU_COMPANY_REGEX.test(companyRegistrationNumber)) {
+    if (!isValidCompanyRegistrationNumber(companyRegistrationNumber)) {
         return {
             status: 'error',
             message: t.register.errors.invalidCompanyNumber,
@@ -104,9 +107,26 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
         };
     }
 
-    try {
-        console.log('[register] Creating customer for:', email);
+    const headerList = await headers();
+    const [ipLimit, emailLimit] = await Promise.all([
+        checkRateLimit({
+            scope: 'register',
+            identity: clientIp(headerList),
+            limit: REGISTER_RATE_PER_IP,
+            windowSeconds: REGISTER_RATE_WINDOW_SECONDS,
+        }),
+        checkRateLimit({
+            scope: 'register_email',
+            identity: email,
+            limit: REGISTER_RATE_PER_EMAIL,
+            windowSeconds: REGISTER_RATE_WINDOW_SECONDS,
+        }),
+    ]);
+    if (!ipLimit.allowed || !emailLimit.allowed) {
+        return { status: 'error', message: t.register.errors.rateLimited, fields };
+    }
 
+    try {
         // Kunden skapas direkt i Postgres — det finns inget Shopify-konto att
         // skapa längre. Org-numret sparas i tax_id i stället för en Shopify-
         // metafield, så att kunddata äger ett enda system.
@@ -117,38 +137,34 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
             taxId: companyRegistrationNumber,
         });
 
-        if (result.status === 'exists') {
-            return {
-                status: 'error',
-                message: t.register.errors.emailTaken,
-                fields,
-            };
+        if (result.status === 'created') {
+            console.log('[register] Customer created successfully:', result.id);
         }
-
-        console.log('[register] Customer created successfully:', result.id);
 
         // Skicka en inloggningslänk i stället för Shopifys lösenords-
         // aktiveringsmejl — det är den ersättande mekanismen enligt planen.
         // Får aldrig fälla registreringen: kontot finns redan, och kunden kan
         // alltid begära en ny länk från /login om mejlet uteblir.
+        let linkSent = false;
         try {
-            const headerList = await headers();
-            await requestMagicLink({
+            linkSent = await requestMagicLink({
                 email,
                 locale: locale && isSupportedLanguage(locale) ? locale : DEFAULT_LANGUAGE,
                 ip: clientIp(headerList),
                 userAgent: headerList.get('user-agent'),
             });
-            console.log('[register] Login link sent successfully');
         } catch (emailError) {
             console.error('[register] Failed to send login link', emailError);
         }
 
+        // Existing and newly created addresses get the same response. Besides
+        // avoiding account enumeration, this gives an existing buyer a fresh
+        // login link instead of making registration a dead end.
         console.log('[register] Registration complete.');
 
         return {
             status: 'success',
-            message: t.register.success,
+            message: linkSent ? t.register.success : t.register.emailDeliveryFailed,
             fields,
         };
     } catch (error) {

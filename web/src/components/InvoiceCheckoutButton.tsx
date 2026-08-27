@@ -16,6 +16,8 @@ type Props = {
   };
   /** True only for a signed-in company account. Guests pay by card. */
   eligible: boolean;
+  /** Prevent checkout from snapshotting the cart while a mutation is in flight. */
+  disabled?: boolean;
   label: string;
   description: string;
   openLabel: string;
@@ -52,7 +54,7 @@ export default function InvoiceCheckoutButton(props: Props) {
   }
 
   async function createInvoice() {
-    if (!props.cartId || isPending) return;
+    if (!props.cartId || props.disabled || isPending) return;
     setIsPending(true);
     setError(null);
     try {
@@ -95,7 +97,7 @@ export default function InvoiceCheckoutButton(props: Props) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          disabled={!props.cartId}
+          disabled={!props.cartId || props.disabled}
           className="block w-full rounded-full border border-accent px-6 py-3 text-center font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-60"
         >
           {props.openLabel}
@@ -125,7 +127,7 @@ export default function InvoiceCheckoutButton(props: Props) {
               <input value={profile.city} onChange={event => change('city', event.target.value)} autoComplete="address-level2" className="mt-1 w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-600" />
             </label>
           </div>
-          <button type="button" onClick={createInvoice} disabled={isPending || !props.cartId} className="block w-full rounded-full bg-accent px-6 py-3 text-center font-semibold text-color-accent-primary transition-colors hover:bg-accent/90 disabled:opacity-60">
+          <button type="button" onClick={createInvoice} disabled={isPending || !props.cartId || props.disabled} className="block w-full rounded-full bg-accent px-6 py-3 text-center font-semibold text-color-accent-primary transition-colors hover:bg-accent/90 disabled:opacity-60">
             {isPending ? props.pendingLabel : props.label}
           </button>
           {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}

@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getStripe, stripeConfigured } from '@/lib/stripe';
+import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
 import {
   assertEveryAmountIsTaxed,
   checkoutTaxMode,
@@ -34,9 +34,12 @@ import {
 } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
-import { ensureStripeCoupon, resolveDiscount, resolveShipping } from '@/lib/commerceOperations';
+import { DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
+import { parseCheckoutInput } from '@/lib/checkoutInput';
+import { checkRateLimit, clientIp } from '@/lib/rateLimit';
+import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
 
 export const runtime = 'nodejs';
 
@@ -48,12 +51,9 @@ export const runtime = 'nodejs';
  */
 const ALLOWED_SHIPPING_COUNTRIES = ['SE'] as const satisfies readonly ['SE'];
 
-type CheckoutBody = {
-  cartId?: unknown;
-  customerNo?: unknown;
-  discountCode?: unknown;
-  email?: unknown;
-};
+const CHECKOUT_RATE_PER_IP = 20;
+const CHECKOUT_RATE_PER_CART = 8;
+const CHECKOUT_RATE_WINDOW_SECONDS = 60 * 60;
 
 export async function POST(request: NextRequest) {
   if (!ownedCommerceEnabled() || !stripeConfigured()) {
@@ -61,20 +61,39 @@ export async function POST(request: NextRequest) {
   }
 
   let ownedCartId: string;
-  let customerNo: string | null = null;
-  let discountCode: string | null = null;
-  let email: string | null = null;
+  let discountCode: string | null;
+  let email: string | null;
   try {
-    const body = (await request.json()) as CheckoutBody;
-    ownedCartId = typeof body.cartId === 'string' ? body.cartId.trim() : '';
-    if (!/^[0-9a-f-]{36}$/i.test(ownedCartId)) throw new Error('A valid cartId is required.');
-    customerNo = typeof body.customerNo === 'string' ? body.customerNo : null;
-    discountCode = typeof body.discountCode === 'string' ? body.discountCode : null;
-    email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : null;
+    const parsed = parseCheckoutInput(await request.json());
+    ownedCartId = parsed.cartId;
+    discountCode = parsed.discountCode;
+    email = parsed.email;
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Invalid request.' },
       { status: 400 }
+    );
+  }
+
+  const [ipLimit, cartLimit] = await Promise.all([
+    checkRateLimit({
+      scope: 'checkout',
+      identity: clientIp(request.headers),
+      limit: CHECKOUT_RATE_PER_IP,
+      windowSeconds: CHECKOUT_RATE_WINDOW_SECONDS,
+    }),
+    checkRateLimit({
+      scope: 'checkout_cart',
+      identity: ownedCartId,
+      limit: CHECKOUT_RATE_PER_CART,
+      windowSeconds: CHECKOUT_RATE_WINDOW_SECONDS,
+    }),
+  ]);
+  if (!ipLimit.allowed || !cartLimit.allowed) {
+    const retryAfter = Math.max(ipLimit.retryAfterSeconds, cartLimit.retryAfterSeconds);
+    return NextResponse.json(
+      { error: 'Too many checkout attempts. Try again later.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
     );
   }
 
@@ -96,6 +115,11 @@ export async function POST(request: NextRequest) {
     }
 
     const locale = await getServerLanguage();
+    const account = await getCurrentCustomerFromCookies();
+    // Only an authenticated account may select an existing Stripe Customer or
+    // CRM customer number. A request body is not proof of either identity.
+    const checkoutEmail = account?.email.trim().toLowerCase() || email;
+    const customerNo = account?.customerNo ?? null;
     const currentCart = await getOwnedCart(ownedCartId);
     if (!currentCart) {
       return NextResponse.json({ error: 'Cart not found.' }, { status: 404 });
@@ -132,7 +156,7 @@ export async function POST(request: NextRequest) {
       code: discountCode,
       subtotalMinor,
       currency: priced[0].currency,
-      email,
+      email: checkoutEmail,
     });
     const shipping = await resolveShipping({
       subtotalMinor,
@@ -260,8 +284,19 @@ export async function POST(request: NextRequest) {
       locale: locale === 'en' ? 'en' : 'sv',
       currency: priced[0].currency,
       expires_at: Math.floor(checkoutExpiresAt.getTime() / 1000),
-      customer_creation: 'always',
-      ...(email ? { customer_email: email } : {}),
+      ...(account?.stripeCustomerId
+        ? {
+            customer: account.stripeCustomerId,
+            customer_update: {
+              address: 'auto' as const,
+              name: 'auto' as const,
+              shipping: 'auto' as const,
+            },
+          }
+        : {
+            customer_creation: 'always' as const,
+            ...(checkoutEmail ? { customer_email: checkoutEmail } : {}),
+          }),
       line_items: lineItems,
       ...(stripeCouponId ? { discounts: [{ coupon: stripeCouponId }] } : {}),
       ...(shippingOptions.length ? { shipping_options: shippingOptions } : {}),
@@ -302,10 +337,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (error) {
     console.error('[Checkout] Failed to create session:', error);
+    const ambiguousStripeFailure = stripeFailureIsAmbiguous(error);
     // A session that exists must keep its reservation: the customer may
     // already have received its URL and metadata reconciliation can repair the
-    // missing link. Before a session exists, release immediately.
-    if (pendingOrderId && !stripeSessionCreated) {
+    // missing link. A connection/5xx failure is also ambiguous: Stripe may
+    // have created the idempotent Session before the response was lost, so a
+    // retry must keep the same order version and reservation.
+    if (pendingOrderId && !stripeSessionCreated && !ambiguousStripeFailure) {
       try {
         await abandonPendingOrder(pendingOrderId, 'Checkout session creation failed');
       } catch (cleanupError) {
@@ -324,6 +362,12 @@ export async function POST(request: NextRequest) {
     if (error instanceof CartRuleError) {
       return NextResponse.json({ error: message, code: error.code }, { status: 409 });
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (error instanceof DiscountError) {
+      return NextResponse.json({ error: message, code: 'DISCOUNT_REJECTED' }, { status: 409 });
+    }
+    if (ambiguousStripeFailure) {
+      return NextResponse.json({ error: 'Checkout is temporarily unavailable. Try again.' }, { status: 503 });
+    }
+    return NextResponse.json({ error: 'Checkout failed.' }, { status: 500 });
   }
 }

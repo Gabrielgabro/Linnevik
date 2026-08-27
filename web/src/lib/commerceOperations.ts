@@ -26,6 +26,14 @@ export type AppliedDiscount = {
   stripeCouponId: string | null;
 };
 
+/** Expected buyer-facing rejection, rather than an operational checkout fault. */
+export class DiscountError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DiscountError';
+  }
+}
+
 export async function resolveDiscount(input: {
   code?: string | null;
   subtotalMinor: number;
@@ -39,22 +47,22 @@ export async function resolveDiscount(input: {
     .from(discountCodes)
     .where(sql`upper(${discountCodes.code}) = ${code}`)
     .limit(1);
-  if (!row || !row.active) throw new Error('Discount code is invalid or inactive.');
+  if (!row || !row.active) throw new DiscountError('Discount code is invalid or inactive.');
   const now = new Date();
-  if (row.startsAt && row.startsAt > now) throw new Error('Discount code is not active yet.');
-  if (row.endsAt && row.endsAt <= now) throw new Error('Discount code has expired.');
+  if (row.startsAt && row.startsAt > now) throw new DiscountError('Discount code is not active yet.');
+  if (row.endsAt && row.endsAt <= now) throw new DiscountError('Discount code has expired.');
   if (row.currency.toLowerCase() !== input.currency.toLowerCase()) {
-    throw new Error('Discount code does not support this currency.');
+    throw new DiscountError('Discount code does not support this currency.');
   }
   if (input.subtotalMinor < row.minimumSubtotalMinor) {
-    throw new Error('Order does not meet the discount minimum.');
+    throw new DiscountError('Order does not meet the discount minimum.');
   }
   if (row.usageLimit !== null) {
     const [{ count }] = await getDb()
       .select({ count: sql<number>`count(*)::int` })
       .from(discountRedemptions)
       .where(eq(discountRedemptions.discountCodeId, row.id));
-    if (count >= row.usageLimit) throw new Error('Discount code usage limit has been reached.');
+    if (count >= row.usageLimit) throw new DiscountError('Discount code usage limit has been reached.');
   }
   if (row.usageLimitPerCustomer !== null && input.email) {
     const [{ count }] = await getDb()
@@ -67,7 +75,7 @@ export async function resolveDiscount(input: {
         )
       );
     if (count >= row.usageLimitPerCustomer) {
-      throw new Error('Discount code usage limit for this customer has been reached.');
+      throw new DiscountError('Discount code usage limit for this customer has been reached.');
     }
   }
   return {
@@ -199,7 +207,7 @@ export type RegisterCustomerResult =
  * det finns ett enda ägande system för kunddata.
  *
  * Misslyckas tyst mot dubbletter (unique-indexet på lower(email)) i stället
- * för att kasta, så att anroparen kan ge ett vanligt "kontot finns redan"-fel.
+ * för att kasta. Anroparen ger samma neutrala svar för nya och befintliga konton.
  */
 export async function registerCustomer(input: {
   email: string;
@@ -208,6 +216,13 @@ export async function registerCustomer(input: {
   taxId?: string | null;
 }): Promise<RegisterCustomerResult> {
   const email = input.email.trim().toLowerCase();
+  const [existing] = await getDb()
+    .select({ id: customers.id })
+    .from(customers)
+    .where(sql`lower(${customers.email}) = ${email}`)
+    .limit(1);
+  if (existing) return { status: 'exists' };
+
   const client = await ensureClientForCommerceCustomer({
     email,
     firstName: input.firstName,
@@ -378,26 +393,27 @@ async function ensureClientForCommerceCustomer(
 
   if (!client) throw new Error('Kunde inte koppla webbkontot till kundregistret.');
 
-  const [existingContact] = await db
-    .select({ id: clientContacts.id })
-    .from(clientContacts)
-    .where(
-      and(
-        eq(clientContacts.clientId, client.id),
-        sql`lower(${clientContacts.email}) = ${email}`
-      )
+  // There is no case-insensitive unique constraint on contacts. Serialize the
+  // existence check and insert for this exact company/address so two parallel
+  // registrations cannot create duplicate CRM contacts.
+  const contactLockKey = `client-contact:${client.id}:${email}`;
+  await db.execute(sql`
+    with contact_lock as materialized (
+      select pg_advisory_xact_lock(hashtextextended(${contactLockKey}, 0))
     )
-    .limit(1);
-  if (!existingContact) {
-    await db.insert(clientContacts).values({
-      clientId: client.id,
-      firstName: input.firstName?.trim() || email.split('@')[0],
-      lastName: input.lastName?.trim() || null,
-      email,
-      phone: input.phone?.trim() || null,
-      status: input.status === 'active' ? 'Vunnen' : 'Ej kontaktad',
-    });
-  }
+    insert into client_contacts (
+      client_id, first_name, last_name, email, phone, status
+    )
+    select
+      ${client.id}, ${input.firstName?.trim() || email.split('@')[0]},
+      ${input.lastName?.trim() || null}, ${email}, ${input.phone?.trim() || null},
+      ${input.status === 'active' ? 'Vunnen' : 'Ej kontaktad'}
+    from contact_lock
+    where not exists (
+      select 1 from client_contacts
+      where client_id = ${client.id} and lower(email) = ${email}
+    )
+  `);
 
   return client;
 }

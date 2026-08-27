@@ -24,8 +24,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const locale = body.locale === 'en' ? 'en' : 'sv';
-    const customerNo = typeof body.customerNo === 'string' ? body.customerNo.slice(0, 80) : null;
-    const cart = await createOwnedCart({ locale, currency: 'sek', customerNo });
+    // Customer identity is never accepted from a public request. If account-
+    // specific pricing is introduced, derive it from the signed session.
+    const cart = await createOwnedCart({ locale, currency: 'sek' });
     return NextResponse.json({ cart }, { status: 201 });
   } catch (error) {
     return cartApiError(error);

@@ -15,6 +15,8 @@ describe('Stripe invoice checkout contracts', () => {
     expect(invoiceRoute).toContain('days_until_due: INVOICE_DUE_DAYS');
     expect(invoiceRoute).toContain('reserveOrderStockStrict(orderId, \'invoice\', expiresAt)');
     expect(invoiceRoute).not.toMatch(/body\.(amount|price|unitAmount)/);
+    expect(invoiceRoute).toContain('linnevik_invoice_item_');
+    expect(invoiceRoute).toContain('linnevik_invoice_send_');
   });
 
   it('only lets a signed-in, active company account raise an invoice', () => {
@@ -23,9 +25,9 @@ describe('Stripe invoice checkout contracts', () => {
     expect(invoiceRoute).toContain("status: 401");
     expect(invoiceRoute).toContain("account.status !== 'active'");
     // The organisation number and e-mail are taken from the account, never the request.
-    expect(invoiceRoute).toContain('normalizeOrganizationNumber(account.taxId)');
+    expect(invoiceRoute).toContain('normalizeCompanyRegistrationNumber(account.taxId)');
     expect(invoiceRoute).not.toMatch(/supplied\?\.(email|organizationNumber)/);
-    expect(invoiceRoute).toContain('validOrganizationNumber(organizationNumber)');
+    expect(invoiceRoute).toContain('isValidCompanyRegistrationNumber(organizationNumber)');
   });
 
   it('rate-limits invoice creation per IP and per account', () => {
@@ -41,6 +43,8 @@ describe('Stripe invoice checkout contracts', () => {
     expect(webhook).toContain("case 'invoice.marked_uncollectible':");
     expect(invoices).toContain('invoices.voidInvoice(invoice.id)');
     expect(inventory).toContain("o.payment_method <> 'invoice'");
+    expect(invoices).toContain("invoice.status === 'draft'");
+    expect(invoices).toContain('invoices.del(invoice.id)');
   });
 
   it('keeps an admin cancel and the Stripe invoice in sync', () => {
