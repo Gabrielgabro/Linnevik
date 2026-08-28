@@ -18,6 +18,36 @@ describe('company registration numbers', () => {
     expect(isValidCompanyRegistrationNumber('SE55601606800101')).toBe(false);
   });
 
+  it('collapses every written form of one company onto a single key', () => {
+    // Nyckeln till hela kontoträdet. Alla varianter nedan står på samma
+    // företag, och två av dem avvisades förut som ogiltiga.
+    for (const written of [
+      '556016-0680',
+      '5560160680',
+      '556016 0680',
+      'SE5560160680',
+      'SE556016-0680',
+      'se556016-0680',
+      'SE 556016-0680 01',
+      'SE556016068001',
+    ]) {
+      expect(normalizeCompanyRegistrationNumber(written)).toBe('SE556016068001');
+    }
+  });
+
+  it('rejects a twelve-digit number written without a country prefix', () => {
+    // "16" + organisationsnummer är Bolagsverkets och SIE-filernas form, men
+    // den går inte att skilja från ett momsnummer utan SE: var tionde sådan
+    // sträng är giltig som båda. En gissning som slår fel lägger företaget
+    // under en egen förälder, så den formen avvisas i stället.
+    expect(isValidCompanyRegistrationNumber(normalizeCompanyRegistrationNumber('16556016-0680'))).toBe(
+      false
+    );
+    expect(isValidCompanyRegistrationNumber(normalizeCompanyRegistrationNumber('165560160680'))).toBe(
+      false
+    );
+  });
+
   it('accepts a VAT group or branch sequence number other than 01', () => {
     // Only `01` used to pass, which locked every group registration out.
     expect(isValidCompanyRegistrationNumber('SE556016068002')).toBe(true);

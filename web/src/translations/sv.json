@@ -427,6 +427,19 @@
       "in_progress": "Behandlas",
       "sent": "Skickad",
       "declined": "Avböjd"
+    },
+    "delete": {
+      "heading": "Ta bort konto",
+      "body": "Ditt inloggningskonto tas bort. Företaget står kvar hos oss med kundnummer, avtalade priser och orderhistorik — dina kollegor påverkas inte, och du kan registrera dig igen på samma organisationsnummer.",
+      "button": "Ta bort mitt konto",
+      "confirmQuestion": "Ta bort kontot för {email}? Det går inte att ångra.",
+      "confirm": "Ja, ta bort kontot",
+      "cancel": "Avbryt",
+      "working": "Tar bort …",
+      "errors": {
+        "notLoggedIn": "Du är inte inloggad. Logga in via kontosidan först.",
+        "failed": "Kunde inte ta bort kontot just nu. Försök igen."
+      }
     }
   },
   "activation": {

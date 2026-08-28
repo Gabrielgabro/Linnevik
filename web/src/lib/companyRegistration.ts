@@ -21,6 +21,18 @@ export function normalizeCompanyRegistrationNumber(input: unknown): string {
   // its VAT form; `01` is the sequence number all but a handful of companies
   // carry. A buyer who has another one types the full VAT number instead.
   if (/^\d{10}$/.test(value)) value = `SE${value}01`;
+  // Samma sak en rad ned för den form som faktiskt står på svenska brevhuvuden
+  // och webbplatser: "SE556481-3318", momsprefixet utan löpnumret. Den skrevs
+  // förut igenom orörd och föll sedan på formatkontrollen, så en kund fick
+  // veta att hens eget momsnummer var ogiltigt.
+  else if (/^SE\d{10}$/.test(value)) value = `${value}01`;
+  // Tolv siffror utan prefix lämnas som de är, och faller på kontrollen nedan.
+  // De går att läsa på två sätt — "16" + organisationsnummer, som Bolagsverket
+  // och SIE-filer skriver det, eller momsnumret utan SE. Var tionde
+  // sekelprefixad post är ett giltigt momsnummer i den andra tolkningen, och
+  // en gissning som slår fel lägger företaget under fel nyckel. Organisations-
+  // numret är hela kontoträdets nyckel; ett felmeddelande är billigare än en
+  // dubblett.
   // Greece's ISO country code is GR, but its EU VAT prefix is EL.
   if (value.startsWith('GR')) value = `EL${value.slice(2)}`;
   return value;

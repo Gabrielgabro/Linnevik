@@ -1,7 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 
-type Variant = 'primary' | 'secondary';
+type Variant = 'primary' | 'secondary' | 'danger';
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -24,6 +24,12 @@ export default function Button({
   const styles: Record<Variant, string> = {
     primary: 'bg-accent-primary text-white',
     secondary: 'bg-overlay border border-light text-primary hover-surface',
+    // Destructive: same quiet surface as secondary, but red border and label so
+    // an irreversible action never looks like an ordinary one. Färgen sätts av
+    // klasserna, inte av computedStyle nedan — en inline-färg vinner över dem
+    // och kan inte byta ton i mörkt läge.
+    danger:
+      'bg-overlay border border-red-300 text-red-700 hover-surface dark:border-red-900/60 dark:text-red-400',
   };
 
   // Prefer text color tokens if present; fall back to safe defaults

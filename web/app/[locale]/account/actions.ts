@@ -1,6 +1,8 @@
 'use server';
 
 import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
+import { CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
+import { deletePortalAccount } from '@/lib/clientsDb';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { cookies } from 'next/headers';
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
@@ -153,4 +155,52 @@ export async function loadCompanyDetails(): Promise<CompanyProfileState> {
         console.error('[account] Failed to load company profile', error);
         return { status: 'error', message: t.account.company.errors.loadFailed };
     }
+}
+
+export type DeleteAccountState = {
+    status: 'idle' | 'deleted' | 'error';
+    message?: string;
+};
+
+/**
+ * Tar bort representantens eget konto.
+ *
+ * Bara webbkontot försvinner. Organisationen står kvar i kundregistret även
+ * när det var företagets enda representant som gick — företagsposten bär
+ * kundnummer, avtalade priser och orderhistorik, och nästa kollega som
+ * registrerar sig på samma organisationsnummer ska landa i den befintliga
+ * posten i stället för att öppna en andra. Ordrarna står kvar av samma skäl
+ * (se deleteClientsWithAccounts); inloggningslänkarna följer med kontot ut,
+ * så en länk som redan ligger i en inkorg slutar fungera direkt.
+ *
+ * Samma väg som admins radering av ett enskilt webbkonto tar, så att de två
+ * inte kan hinna glida isär.
+ */
+export async function deleteOwnAccount(
+    _: DeleteAccountState,
+    _formData: FormData
+): Promise<DeleteAccountState> {
+    const t = await getActionTranslations();
+    const customer = await getCurrentCustomerFromCookies();
+
+    if (!customer || customer.source !== 'owned') {
+        return { status: 'error', message: t.account.delete.errors.notLoggedIn };
+    }
+
+    try {
+        const removed = await deletePortalAccount(Number(customer.id));
+        if (!removed) {
+            return { status: 'error', message: t.account.delete.errors.failed };
+        }
+    } catch (error) {
+        console.error('[account] Failed to delete account', error);
+        return { status: 'error', message: t.account.delete.errors.failed };
+    }
+
+    // Sessionen städas här och inte av klienten: kontot är borta, och en kvar-
+    // liggande kaka pekar på ett id som inte finns.
+    const cookieStore = await cookies();
+    cookieStore.delete(CUSTOMER_SESSION_COOKIE);
+
+    return { status: 'deleted' };
 }

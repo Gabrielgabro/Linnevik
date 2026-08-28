@@ -1,10 +1,16 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
 import { logout } from '../login/actions';
-import { saveCompanyDetails, type CompanyFields, type CompanyProfileState } from './actions';
+import {
+    deleteOwnAccount,
+    saveCompanyDetails,
+    type CompanyFields,
+    type CompanyProfileState,
+    type DeleteAccountState,
+} from './actions';
 import type { CustomerOrder, CustomerOrderStatus } from '@/lib/customerAccount';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
@@ -80,6 +86,14 @@ export default function AccountClient({
     // monteras det om så att de normaliserade värdena syns.
     const companyFormKey = companyState.status === 'success' ? JSON.stringify(company) : 'editing';
 
+    const [deleteState, deleteAccount, isDeleting] = useActionState<DeleteAccountState, FormData>(
+        deleteOwnAccount,
+        { status: 'idle' }
+    );
+    // Bekräftelsesteget ligger i klienten: en radering som inte går att ångra
+    // ska kosta två klick, inte ett.
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+
     const displayName = [initialFirstName, initialLastName].filter(Boolean).join(' ') || t.account.fallbackName;
     const greeting = t.account.greeting.replace('{name}', displayName);
     const isLoggedIn = Boolean(initialEmail);
@@ -89,6 +103,14 @@ export default function AccountClient({
         router.push(`/${locale}/login`);
         router.refresh();
     };
+
+    // Servern har redan rensat sessionskakan när kontot är borta. Sidan kan
+    // inte visa ett konto som inte finns, så vy och cache byts ut direkt.
+    useEffect(() => {
+        if (deleteState.status !== 'deleted') return;
+        router.push(`/${locale}/login`);
+        router.refresh();
+    }, [deleteState.status, router, locale]);
 
     const formatOrderCount = (count: number) =>
         t.account.ordersCount.replace('{count}', count.toString());
@@ -422,6 +444,63 @@ export default function AccountClient({
                                 );
                             })}
                         </div>
+                    </div>
+                )}
+
+                {/* Ta bort konto. Bara inloggningen försvinner — företaget står
+                    kvar i kundregistret, se deleteOwnAccount. */}
+                {isLoggedIn && (
+                    <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-white dark:bg-[#1f2937] p-8 shadow-sm">
+                        <h2 className="text-2xl font-semibold text-primary">{t.account.delete.heading}</h2>
+                        <p className="mt-2 max-w-2xl text-secondary">{t.account.delete.body}</p>
+
+                        {deleteState.status === 'error' && deleteState.message && (
+                            <p
+                                role="alert"
+                                className="mt-4 rounded-lg bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400"
+                            >
+                                {deleteState.message}
+                            </p>
+                        )}
+
+                        {confirmingDelete ? (
+                            <form action={deleteAccount} className="mt-6 space-y-4">
+                                <p className="font-medium text-primary">
+                                    {t.account.delete.confirmQuestion.replace(
+                                        '{email}',
+                                        initialEmail ?? ''
+                                    )}
+                                </p>
+                                <div className="flex flex-wrap gap-3">
+                                    <Button
+                                        type="submit"
+                                        variant="danger"
+                                        disabled={isDeleting}
+                                    >
+                                        {isDeleting
+                                            ? t.account.delete.working
+                                            : t.account.delete.confirm}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        disabled={isDeleting}
+                                        onClick={() => setConfirmingDelete(false)}
+                                    >
+                                        {t.account.delete.cancel}
+                                    </Button>
+                                </div>
+                            </form>
+                        ) : (
+                            <Button
+                                type="button"
+                                variant="danger"
+                                className="mt-6"
+                                onClick={() => setConfirmingDelete(true)}
+                            >
+                                {t.account.delete.button}
+                            </Button>
+                        )}
                     </div>
                 )}
             </div>

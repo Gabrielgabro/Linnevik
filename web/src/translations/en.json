@@ -427,6 +427,19 @@
       "in_progress": "In progress",
       "sent": "Sent",
       "declined": "Declined"
+    },
+    "delete": {
+      "heading": "Delete account",
+      "body": "Your login is removed. The company stays with us — customer number, agreed prices and order history are kept, your colleagues are unaffected, and you can register again with the same company registration number.",
+      "button": "Delete my account",
+      "confirmQuestion": "Delete the account for {email}? This cannot be undone.",
+      "confirm": "Yes, delete my account",
+      "cancel": "Cancel",
+      "working": "Deleting …",
+      "errors": {
+        "notLoggedIn": "You are not signed in. Sign in from the account page first.",
+        "failed": "Could not delete the account right now. Please try again."
+      }
     }
   },
   "activation": {
