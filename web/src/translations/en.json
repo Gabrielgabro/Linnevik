@@ -330,7 +330,8 @@
       "invalidCompanyName": "Enter the company name (2–120 characters).",
       "invalidAddress": "Enter a complete billing address with street, postal code and city.",
       "generic": "Account creation failed. Please try again.",
-      "rateLimited": "Too many registration attempts. Wait a while and try again."
+      "rateLimited": "Too many registration attempts. Wait a while and try again.",
+      "companyNameIsPerson": "The invoice is issued to the company, not to a person. Enter the company name — you are listed as the invoice reference."
     },
     "metadata": {
       "title": "Create Account | Linnevik",
@@ -797,7 +798,7 @@
         "STOCK_CHANGED": "Stock changed while you were checking out. Please review your cart and try again.",
         "PROFILE_EMAIL_MISSING": "Your company account has no valid e-mail address.",
         "PROFILE_ORG_NUMBER_MISSING": "Your company account has no valid organisation number. Update it under My account first.",
-        "PROFILE_COMPANY_MISSING": "A company name is required for invoicing. Fill it in above or under My account.",
+        "PROFILE_COMPANY_MISSING": "The invoice is issued to the company, not to you personally. Fill in the company name above or under My account — you remain the invoice reference.",
         "PROFILE_ADDRESS_MISSING": "A complete billing address is required. Fill in street, postcode and city above or under My account.",
         "PROFILE_COUNTRY_UNSUPPORTED": "We can currently only invoice Swedish addresses.",
         "DISCOUNT_INVALID": "That discount code is not valid.",

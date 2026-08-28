@@ -57,7 +57,14 @@ export function normalizeCompanyName(input: unknown): string {
 }
 
 export function isValidCompanyName(name: string): boolean {
-  return name.length >= COMPANY_NAME_MIN && name.length <= COMPANY_NAME_MAX;
+  if (name.length < COMPANY_NAME_MIN || name.length > COMPANY_NAME_MAX) return false;
+  // En svensk faktura ställs ut på ett företag, inte på en person, och namnet
+  // här är det som hamnar i fakturans mottagarblock. Mejladressen är den
+  // platshållare ett webbkonto får när det skapas i kassan utan firmanamn (se
+  // fillClientProfileGaps) — går den igenom hit ställs fakturan ut på en
+  // inkorg. Kontaktpersonen hör hemma i "Er referens".
+  if (/@/.test(name)) return false;
+  return true;
 }
 
 /** ISO-3166-1 alpha-2, versaler. Tom sträng betyder "gick inte att tyda". */

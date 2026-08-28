@@ -23,7 +23,7 @@ import { sendInvoiceCreatedNotice } from '@/lib/orderEmails';
 import { claimDiscountCapacity, DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout, usableStripeCustomerId } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
-import { swedishOrganizationNumber } from '@/lib/companyRegistration';
+import { isSwedishSoleTrader, swedishOrganizationNumber } from '@/lib/companyRegistration';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 import {
   INVOICE_COUNTRY,
@@ -58,7 +58,8 @@ const PROFILE_GAP_MESSAGES: Record<CompanyProfileGap, string> = {
   email: 'Ditt företagskonto saknar en giltig e-postadress.',
   organizationNumber:
     'Ditt företagskonto saknar ett giltigt organisationsnummer. Uppdatera uppgifterna på Mitt konto först.',
-  companyName: 'Företagsnamn krävs för faktura. Fyll i det på Mitt konto eller i formuläret ovan.',
+  companyName:
+    'Fakturan ställs ut på företaget, inte på en person. Fyll i firmanamnet på Mitt konto eller i formuläret ovan; kontaktpersonen står som "Er referens".',
   address:
     'En fullständig faktureringsadress krävs. Fyll i gatuadress, postnummer och ort på Mitt konto eller i formuläret ovan.',
   country: 'Vi kan för närvarande bara fakturera svenska adresser.',
@@ -195,6 +196,12 @@ async function loadInvoiceAccount(): Promise<InvoiceAccountData | null> {
  */
 const REFERENCE_MAX = 140;
 
+/** Samma namn så när som på versaler och mellanslag. */
+function sameName(a: string, b: string): boolean {
+  const key = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+  return key(a) !== '' && key(a) === key(b);
+}
+
 function invoiceReference(body: InvoiceBody, account: InvoiceAccountData): string | null {
   const reference = text(body.profile?.reference) || account.contactName;
   const purchaseOrder = text(body.profile?.purchaseOrder);
@@ -217,10 +224,28 @@ function invoiceReference(body: InvoiceBody, account: InvoiceAccountData): strin
  */
 function resolveProfile(body: InvoiceBody, account: InvoiceAccountData): InvoiceProfile {
   const supplied = body.profile;
+  const companyName = text(supplied?.companyName) || account.companyName;
+  // Mottagaren är organisationen — noden org-numret pekar ut — och människan
+  // står som "Er referens" längre ned. Ett webbkonto som skapades i kassan utan
+  // firmanamn fick beställarens eget namn som kundnamn (fillClientProfileGaps),
+  // och ställs fakturan ut på det får köparens ekonomiavdelning en faktura
+  // adresserad till en anställd. En enskild firma undantas: den heter faktiskt
+  // sin innehavare, och då är personnamnet rätt mottagare.
+  if (
+    companyName &&
+    sameName(companyName, account.contactName) &&
+    !isSwedishSoleTrader(account.organizationNumber)
+  ) {
+    throw new InvoiceError(
+      PROFILE_GAP_CODES.companyName,
+      PROFILE_GAP_MESSAGES.companyName,
+      400
+    );
+  }
   const resolved = resolveCompanyProfile({
     email: account.email,
     organizationNumber: account.organizationNumber,
-    companyName: text(supplied?.companyName) || account.companyName,
+    companyName,
     address: normalizeAddress(supplied?.address) ?? account.address,
   });
   if (!resolved.ok) {

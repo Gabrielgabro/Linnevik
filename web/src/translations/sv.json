@@ -330,7 +330,8 @@
       "invalidCompanyName": "Ange företagets namn (2–120 tecken).",
       "invalidAddress": "Ange en fullständig faktureringsadress med gatuadress, postnummer och ort.",
       "generic": "Kontoskapandet misslyckades. Försök igen.",
-      "rateLimited": "För många registreringsförsök. Vänta en stund och försök igen."
+      "rateLimited": "För många registreringsförsök. Vänta en stund och försök igen.",
+      "companyNameIsPerson": "Fakturan ställs ut på företaget, inte på en person. Ange firmanamnet — du står som kontaktperson (\"Er referens\") på fakturan."
     },
     "metadata": {
       "title": "Skapa konto | Linnevik",
@@ -797,7 +798,7 @@
         "STOCK_CHANGED": "Lagret ändrades medan du var i kassan. Kontrollera korgen och försök igen.",
         "PROFILE_EMAIL_MISSING": "Ditt företagskonto saknar en giltig e-postadress.",
         "PROFILE_ORG_NUMBER_MISSING": "Ditt företagskonto saknar ett giltigt organisationsnummer. Uppdatera uppgifterna på Mitt konto först.",
-        "PROFILE_COMPANY_MISSING": "Företagsnamn krävs för faktura. Fyll i det ovan eller på Mitt konto.",
+        "PROFILE_COMPANY_MISSING": "Fakturan ställs ut på företaget, inte på dig som person. Fyll i firmanamnet ovan eller på Mitt konto — du står kvar som \"Er referens\".",
         "PROFILE_ADDRESS_MISSING": "En fullständig faktureringsadress krävs. Fyll i gatuadress, postnummer och ort ovan eller på Mitt konto.",
         "PROFILE_COUNTRY_UNSUPPORTED": "Vi kan för närvarande bara fakturera svenska adresser.",
         "DISCOUNT_INVALID": "Rabattkoden är inte giltig.",

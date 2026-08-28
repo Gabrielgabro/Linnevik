@@ -8,6 +8,7 @@ import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { getServerLanguage } from '@/lib/language';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 import {
+    isSwedishSoleTrader,
     isValidCompanyRegistrationNumber,
     normalizeCompanyRegistrationNumber,
 } from '@/lib/companyRegistration';
@@ -162,6 +163,21 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
         return {
             status: 'error',
             message: t.register.errors.invalidCompanyName,
+            fields,
+        };
+    }
+
+    // Fakturan ställs ut på företaget och kontaktpersonen står som "Er
+    // referens" — de två får alltså inte vara samma namn. Fångas här och inte
+    // först i kassan, där kunden har en korg och fakturarutten hade avvisat
+    // registreringen ändå. Enskild firma undantas: den heter sin innehavare.
+    if (
+        companyName.toLowerCase() === `${firstName} ${lastName}`.toLowerCase() &&
+        !isSwedishSoleTrader(companyRegistrationNumber)
+    ) {
+        return {
+            status: 'error',
+            message: t.register.errors.companyNameIsPerson,
             fields,
         };
     }

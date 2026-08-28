@@ -56,6 +56,22 @@ export function isValidCompanyRegistrationNumber(value: string): boolean {
 }
 
 /**
+ * Sant för en svensk enskild firma, alltså en registrering vars tio siffror är
+ * ett personnummer och inte ett organisationsnummer.
+ *
+ * Tredje siffran skiljer dem åt: i ett organisationsnummer är den alltid minst
+ * 2, i ett personnummer är den den första månadssiffran och därmed 0 eller 1.
+ *
+ * Skillnaden syns på fakturan. En enskild firma heter sin innehavare, så där
+ * *ska* mottagarblocket bära ett personnamn — för alla andra är ett personnamn
+ * i det blocket ett tecken på att firmanamnet aldrig fylldes i.
+ */
+export function isSwedishSoleTrader(registrationNumber: string): boolean {
+  if (!/^SE\d{12}$/.test(registrationNumber)) return false;
+  return Number(registrationNumber[4]) < 2;
+}
+
+/**
  * Organisationsnumret som står bakom ett svenskt momsregistreringsnummer,
  * skrivet på den form Bolagsverket och en svensk faktura använder: 556481-3318.
  *

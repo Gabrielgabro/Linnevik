@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  isSwedishSoleTrader,
   isValidCompanyRegistrationNumber,
   normalizeCompanyRegistrationNumber,
 } from '@/lib/companyRegistration';
+import { isValidCompanyName } from '@/lib/companyProfile';
 
 /**
  * Kontoträdet enligt architecture/client_account_workflow.md: organisationen
@@ -120,5 +122,52 @@ describe('§1.4 admin raderar på båda nivåerna', () => {
   it('tar med representanterna när hela organisationen raderas', () => {
     expect(adminClientRoute).toContain('deleteClientsWithAccounts([id])');
     expect(clientsDb).toContain('db.delete(customers).where(inArray(customers.clientId, ids))');
+  });
+});
+
+describe('fakturan ställs ut på organisationen, personen är referens', () => {
+  const invoiceRoute = readFileSync(resolve('app/api/invoice/route.ts'), 'utf8');
+  const companyProfile = readFileSync(resolve('src/lib/companyProfile.ts'), 'utf8');
+
+  it('hämtar mottagarnamn och adress ur företagsposten, inte ur webbkontot', () => {
+    // client är föräldern, customer är lövet. Webbkontots egna kolumner är
+    // reserv för poster som ännu inte har någon företagspost.
+    expect(invoiceRoute).toContain('companyName: client?.name ?? customer.company');
+    expect(invoiceRoute).toContain('organizationNumber: client?.orgNumber ?? customer.taxId');
+  });
+
+  it('skriver ut kontaktpersonen som "Er referens"', () => {
+    expect(invoiceRoute).toContain("{ name: 'Er referens', value: reference }");
+    expect(invoiceRoute).toContain('text(body.profile?.reference) || account.contactName');
+  });
+
+  it('vägrar ställa ut fakturan på en mejladress', () => {
+    expect(isValidCompanyName('order@linnevik.se')).toBe(false);
+    expect(isValidCompanyName('Linnevik AB')).toBe(true);
+    expect(companyProfile).toContain('if (/@/.test(name)) return false;');
+  });
+
+  it('vägrar ställa ut fakturan på beställarens eget namn', () => {
+    expect(invoiceRoute).toContain('sameName(companyName, account.contactName)');
+    expect(invoiceRoute).toContain('PROFILE_GAP_CODES.companyName');
+  });
+
+  it('undantar enskild firma, som faktiskt heter sin innehavare', () => {
+    expect(isSwedishSoleTrader(normalizeCompanyRegistrationNumber('811218-9876'))).toBe(true);
+    expect(isSwedishSoleTrader(normalizeCompanyRegistrationNumber('556016-0680'))).toBe(false);
+    expect(invoiceRoute).toContain('!isSwedishSoleTrader(account.organizationNumber)');
+  });
+
+  it('skickar fakturamejlet till företagets brevlåda när den är ifylld', () => {
+    const orderEmails = readFileSync(resolve('src/lib/orderEmails.ts'), 'utf8');
+    expect(invoiceRoute).toContain('notifyEmail: account.invoiceEmail');
+    expect(orderEmails).toContain("const recipient = invoiceEmail?.trim() || order?.email;");
+  });
+});
+
+describe('registreringen fångar personnamn som firmanamn direkt', () => {
+  it('avvisar ett firmanamn som är beställarens eget namn', () => {
+    expect(registerActions).toContain('companyNameIsPerson');
+    expect(registerActions).toContain('!isSwedishSoleTrader(companyRegistrationNumber)');
   });
 });
