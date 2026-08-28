@@ -164,6 +164,34 @@ export const competitorProducts: CompetitorProduct[] = [
         // ett extra öga på nästa gång boten går förbi den här sidan.
         caveat: 'Närmast identisk fyllning som vår. Ordinarie konsumentpris.',
       },
+      // Gåsdunsreferenserna, insamlade 2026-08-28. Se det längre resonemanget
+      // vid variantCompetitors längst ned i filen för urvalskriterier och för
+      // vilka kandidater som valdes bort. De ligger här på produktnivå för att
+      // synas i konkurrentgraferna, inte bara i variantprisbilden.
+      {
+        vendor: 'Engmo Dun',
+        product: 'Astrid Duntäcke varmt 650 g',
+        spec: '100 % vitt europeiskt gåsdun klass 1, bomullscambric/twill 280–310 TC',
+        size: '150 × 210',
+        priceSek: 2949 / 1.25,
+        channel: 'b2c',
+        basis: 'b2c',
+        url: 'https://www.sova.se/tacken/duntacken/engmo-dun-astrid-duntacke/PROD0214.html',
+        caveat:
+          'Exakt vår fyllnadsvikt (650 g). Högre dunandel än vår 90/10, men lägre TC. Ordinarie 2 949 kr, 2 359 kr vid kontrollen; stor spridning mellan handlare (Sleepo 4 199 kr).',
+      },
+      {
+        vendor: 'Mille Notti',
+        product: 'Natura Duntäcke medium 500 g',
+        spec: '90 % gåsdun / 10 % gåsfjäder, europeiskt klass 1, bomullscambric 280 TC',
+        size: '150 × 210',
+        priceSek: 4500 / 1.25,
+        channel: 'b2c',
+        basis: 'b2c',
+        url: 'https://www.mille-notti.com/sv/p/natura-duntacke-vit',
+        caveat:
+          'Samma dunandel och fågelart som vår, men lättare fyllning (500 g mot vår 650 g) och lägre TC. Samma pris för alla storlekar och värmegrader hos Mille Notti.',
+      },
     ],
   },
   {
@@ -444,6 +472,32 @@ export const competitorProducts: CompetitorProduct[] = [
         url: TINGSTAD_BADD,
         caveat: 'Marknadens golv i dunsegmentet, men mindre format.',
         watch: { fetchUrl: TINGSTAD_BADD, parser: 'tingstad-analytics', key: 'BB37010302' },
+      },
+      // Gåsdunsreferenser, insamlade 2026-08-28 — se variantCompetitors längst
+      // ned i filen. Engmo Duns Astrid är den enda kudden på svensk marknad med
+      // utskriven gåsdunsandel i exakt vår storlek.
+      {
+        vendor: 'Engmo Dun',
+        product: 'Astrid dunkudde mjuk/hög 450 g',
+        spec: '90 % vitt europeiskt gåsdun / 10 % småfjäder, klass 1 EN12934, bomullscambric/twill 280–310 TC',
+        size: '50 × 70',
+        priceSek: 2049 / 1.25,
+        channel: 'b2c',
+        basis: 'b2c',
+        url: 'https://www.sova.se/kuddar/dunkuddar/engmo-dun-astrid-dunkudde-mjuk-hog/PROD2158.html',
+        caveat:
+          'Tyngsta 90 %-gåsdunskudden på marknaden — ändå bara 450 g mot vår 650 g. Ordinarie 2 049 kr; 1 639 kr vid kontrollen.',
+      },
+      {
+        vendor: 'Engmo Dun',
+        product: 'Astrid dunkudde mjuk/låg 350 g',
+        spec: '90 % vitt europeiskt gåsdun / 10 % småfjäder, klass 1 EN12934, bomullscambric/twill 280–310 TC',
+        size: '50 × 70',
+        priceSek: 1799 / 1.25,
+        channel: 'b2c',
+        basis: 'b2c',
+        url: 'https://www.sova.se/kuddar/dunkuddar/engmo-dun-astrid-dunkudde-mjuk-lag/PROD2159.html',
+        caveat: 'Samma kudde i lägre utförande. Ordinarie 1 799 kr; 1 439 kr vid kontrollen.',
       },
     ],
   },
@@ -1009,6 +1063,78 @@ export const variantCompetitors: Record<string, VariantCompetitor[]> = {
 // Samma skäl som ovan: marknaden prisar inte and- och gåsdun olika, så
 // gåsdun-varianten pekar på exakt samma jämförelse som anddun-varianten
 // i stället för att dubblera datan (och riskera att den glider isär).
+// Gäller Jakob (60/40) rakt av: de gåsdunsreferenser vi hittade är alla 90/10
+// och skulle jämföra Jakob mot en dubbelt så hög dunandel — inte en ärlig rad.
 variantCompetitors['TAC-JAK-150200-GAS'] = variantCompetitors['TAC-JAK-150200-AND'];
 variantCompetitors['TAC-JAK-220200-GAS'] = variantCompetitors['TAC-JAK-220200-AND'];
-variantCompetitors['TAC-SEB-220200-GAS'] = variantCompetitors['TAC-SEB-220200-AND'];
+
+/*
+ * Gåsdunsreferenser, insamlade 2026-08-28.
+ *
+ * Till skillnad från B2B-fältet — där ingen leverantör särredovisar and mot gås
+ * — finns det en svensk B2C-marknad för uttalad 90/10 *gåsdun*. Den är
+ * renodlad premium och riktar sig inte mot hotell, men den är det närmaste en
+ * kund kommer vår gåsvariant och hör därför hemma i prisbilden som grå
+ * B2C-referens (`channel: 'b2c'`, se CHANNEL i VariantPricing.tsx).
+ *
+ * Ingen av raderna är `primary` — referenslinjen ska fortsatt vara den B2B-
+ * konkurrent vi faktiskt prissätter mot, inte ett konsumentpris i ett annat
+ * segment.
+ *
+ * Urvalet är gjort på två kriterier samtidigt: uttalad *gåsdun* med utskriven
+ * dunandel, och en fyllnadsvikt nära vår egen. Våra vikter enligt beställnings-
+ * specen (prisanalysen 2026-07-22): Sebastian 650 g i 150×200 och 1 000 g i
+ * 220×200; Sigrid 650 g i 50×70 och 1 050 g i 60×90.
+ *
+ * Två uteslutna kandidater, båda medvetet:
+ *   • Hemtex Wilma och Alvin — deras sidor deklarerar fyllningen som andel av
+ *     produktens totalvikt och den datan är trasig (Alvin angav "0,8 % dun"),
+ *     så 90/10 gick bara att läsa ur brödtexten. Inte granskningsbart.
+ *   • Dunolins ekologiska gåsduntäcke (2 835 / 3 810 kr) — anger bara "ren
+ *     gåsdun klass 1" utan dunprocent.
+ *
+ * Norsk Dun 90 % gås (Sleepo, 8 299 kr för 476 g i 150×210) är också utelämnad:
+ * rätt dunandel, men 750 CUIN och ett pris nästan 6× vårt gör den till en annan
+ * produktklass — den skulle bara sträcka skalan utan att säga något.
+ */
+const MILLE_NOTTI_NATURA = 'https://www.mille-notti.com/sv/p/natura-duntacke-vit';
+const ENGMO_ASTRID_TACKE = 'https://www.sova.se/tacken/duntacken/engmo-dun-astrid-duntacke/PROD0214.html';
+
+// TAC-SEB-150200-GAS och KUD-SIG-GAS-5070 får ingen egen post: gåsraderna
+// ligger numera på produktnivå i `competitorProducts` ovan, i exakt de
+// storlekarna (150×210 respektive 50×70), och uppslaget i VariantPricing
+// faller tillbaka dit av sig självt. En egen post här skulle dubblera dem.
+
+variantCompetitors['TAC-SEB-220200-GAS'] = [
+  ...variantCompetitors['TAC-SEB-220200-AND'],
+  {
+    vendor: 'Mille Notti',
+    product: 'Natura Duntäcke varm 1 000 g',
+    size: '220 × 220',
+    priceSek: 4500 / 1.25,
+    channel: 'b2c',
+    basis: 'b2c',
+    url: MILLE_NOTTI_NATURA,
+    match: 'approx',
+    caveat:
+      'Exakt vår fyllnadsvikt (1 000 g) i den varma värmegraden — samma dunandel 90/10 gåsdun, europeiskt klass 1, bomullscambric 280 TC mot vårt 400 TC. Storleken är 20 cm längre än vår (se SIZE_EQUIVALENCE). Priset är detsamma för alla storlekar och värmegrader hos Mille Notti.',
+  },
+  {
+    vendor: 'Engmo Dun',
+    product: 'Astrid Duntäcke varmt 1 000 g',
+    size: '220 × 220',
+    priceSek: 2949 / 1.25,
+    channel: 'b2c',
+    basis: 'b2c',
+    url: ENGMO_ASTRID_TACKE,
+    match: 'approx',
+    caveat:
+      'Exakt vår fyllnadsvikt (1 000 g). 100 % vitt europeiskt gåsdun klass 1 — högre dunandel än vår 90/10 — bomullscambric/twill 280–310 TC mot vårt 400 TC. Storleken är 20 cm längre än vår. Ordinarie 2 949 kr, 2 359 kr vid kontrollen.',
+  },
+];
+
+// KUD-SIG-GAS-6090 saknas fortsatt medvetet, av samma skäl som anddunvarianten
+// ovan: marknadens dunkuddar tar slut vid 50×90 även i gåsdun — Engmo Duns
+// Astrid går till 50×90, inte 60×90 — så det finns ingen ärlig rad att visa.
+// Vikten gör saken värre, inte bättre: vår 60×90 är 1 050 g, och den tyngsta
+// gåsdunskudden på marknaden är Astrids 600 g, som dessutom är 60/40.
