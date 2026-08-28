@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import clsx from 'clsx';
 import { cookies } from 'next/headers';
 import CompetitorCharts from '@/components/admin/CompetitorCharts';
 import CostCharts from '@/components/admin/CostCharts';
@@ -22,6 +23,48 @@ const dutyTotal = products.reduce((sum, p) => sum + p.dutyPerPcs * p.qty, 0);
 const landedTotal = shipment.landedTotalSek;
 const goodsTotal = landedTotal - freightTotal - dutyTotal;
 
+/**
+ * Sidan bar förut två helt olika ärenden i en enda rulle: vad sändningen
+ * kostade, och vad produkterna ska säljas för. Underlaget slås upp när man
+ * kontrollerar en kalkyl, prissättningen när man ska sätta ett pris — sällan
+ * samtidigt. Vyn ligger i URL:en (`?vy=priser`) och inte i ett React-tillstånd,
+ * så att en länk till prissättningen öppnar prissättningen och en omladdning
+ * inte kastar tillbaka en till kostnaderna.
+ */
+type View = 'kostnad' | 'priser';
+
+const VIEWS: { id: View; label: string; hint: string }[] = [
+  { id: 'kostnad', label: 'Kostnadsunderlag', hint: 'Sändningen, landad kostnad per produkt' },
+  { id: 'priser', label: 'Prissättning & marknad', hint: 'Konkurrentpriser och våra priser' },
+];
+
+function ViewTabs({ current }: { current: View }) {
+  return (
+    <nav aria-label="Vy" className="flex flex-wrap gap-2">
+      {VIEWS.map(view => {
+        const active = view.id === current;
+        return (
+          <Link
+            key={view.id}
+            href={view.id === 'kostnad' ? '/admin' : `/admin?vy=${view.id}`}
+            aria-current={active ? 'page' : undefined}
+            title={view.hint}
+            className={clsx(
+              'inline-flex items-center rounded-full border px-4 py-[7px] text-[13px] leading-[1.5] transition-colors',
+              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-text',
+              active
+                ? 'border-brand bg-brand font-medium text-brand-fg'
+                : 'border-rule bg-surface text-ink-2 hover:border-ink-3 hover:text-ink'
+            )}
+          >
+            {view.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-[3px]">
@@ -31,24 +74,62 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default async function AdminPricingPage() {
-  const user = await readSessionValue((await cookies()).get(ADMIN_COOKIE)?.value);
-  // Reglagets blå startläge ska visa vad produkten faktiskt kostar just nu,
-  // inte den statiska förslagssiffran i competitorPrices.ts.
-  const catalogRows = await listProductsForAdmin();
-  const currentPriceByHandle = Object.fromEntries(
-    catalogRows
-      .filter(row => row.priceMinMinor != null)
-      .map(row => [row.handle, row.priceMinMinor! / 100])
-  );
-  const variantProducts = await listLinnevikVariantProducts();
+export default async function AdminPricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ vy?: string }>;
+}) {
+  const view: View = (await searchParams).vy === 'priser' ? 'priser' : 'kostnad';
+  const accent = accentFor('/admin');
+
+  if (view === 'priser') {
+    const user = await readSessionValue((await cookies()).get(ADMIN_COOKIE)?.value);
+    // Reglagets blå startläge ska visa vad produkten faktiskt kostar just nu,
+    // inte den statiska förslagssiffran i competitorPrices.ts.
+    const catalogRows = await listProductsForAdmin();
+    const currentPriceByHandle = Object.fromEntries(
+      catalogRows
+        .filter(row => row.priceMinMinor != null)
+        .map(row => [row.handle, row.priceMinMinor! / 100])
+    );
+    const variantProducts = await listLinnevikVariantProducts();
+
+    return (
+      <>
+        <PageHeader
+          kicker="Prisbild · marknad och våra priser"
+          title="Vad produkterna ska kosta"
+          accent={accent}
+          description={
+            <>
+              Marknadens priser för motsvarande produkter, och våra egna priser per variant.
+              Marginalerna räknas mot den landade kostnaden — underlaget för den ligger under{' '}
+              <b className="font-semibold text-ink">Kostnadsunderlag</b>. Alla belopp i SEK
+              exklusive moms.
+            </>
+          }
+          actions={
+            <Link href="/admin/franzen" className={buttonClass('secondary', 'sm')}>
+              Prisbild – Franzén
+            </Link>
+          }
+        />
+
+        <ViewTabs current={view} />
+
+        <CompetitorCharts currentPrices={currentPriceByHandle} />
+
+        <VariantPricing user={user} products={variantProducts} />
+      </>
+    );
+  }
 
   return (
     <>
       <PageHeader
         kicker={`Sändning ${shipment.goodsInvoiceNo} · Shanghai → Göteborg → Uppsala`}
         title="Vad varje produkt faktiskt kostade fram till lagret"
-        accent={accentFor('/admin')}
+        accent={accent}
         description={
           <>
             Varukostnaden är den <b className="font-semibold text-ink">faktiskt betalda</b> — USD{' '}
@@ -66,6 +147,8 @@ export default async function AdminPricingPage() {
           </Link>
         }
       />
+
+      <ViewTabs current={view} />
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(148px,1fr))] gap-x-6 gap-y-3.5 rounded-card border border-rule bg-surface px-5 py-4 shadow-card sm:px-6">
         <Meta label="Leverantörsfaktura" value={shipment.goodsInvoiceNo} />
@@ -109,10 +192,6 @@ export default async function AdminPricingPage() {
       </StatRow>
 
       <CostCharts products={byLandedDesc} />
-
-      <CompetitorCharts currentPrices={currentPriceByHandle} />
-
-      <VariantPricing user={user} products={variantProducts} />
     </>
   );
 }
