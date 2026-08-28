@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import CompetitorCharts from '@/components/admin/CompetitorCharts';
 import CostCharts from '@/components/admin/CostCharts';
+import VariantPricing from '@/components/admin/VariantPricing';
 import { PageHeader, StatRow, StatTile, buttonClass } from '@/components/admin/ui';
 import { accentFor } from './nav';
 import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
@@ -109,7 +110,9 @@ export default async function AdminPricingPage() {
 
       <CostCharts products={byLandedDesc} />
 
-      <CompetitorCharts user={user} currentPrices={currentPriceByHandle} variantProducts={variantProducts} />
+      <CompetitorCharts currentPrices={currentPriceByHandle} />
+
+      <VariantPricing user={user} products={variantProducts} />
     </>
   );
 }

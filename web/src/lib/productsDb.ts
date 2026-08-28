@@ -205,12 +205,14 @@ async function listVariantProductsBySupplier(
 }
 
 /**
- * Egna produkter (leverantör Linnevik) som har fler än en variant — det är där
- * en enda "vårt pris"-siffra inte räcker, eftersom varje storlek/fyllning kan
- * behöva sättas för sig.
+ * Egna produkter (leverantör Linnevik). Tvåvariantsregeln gällde när listan
+ * bara var ett tillägg under produktgraferna; nu är variantvyn hela prisbilden
+ * för de egna produkterna, och då måste även en envariantsprodukt med — annars
+ * försvinner Täcke Daniel (enda varianten TAC-DAN-220200-3D) helt ur verktyget.
+ * Samma skäl som gör att Franzén-listan tar minVariants: 1.
  */
 export async function listLinnevikVariantProducts(): Promise<VariantPricingProduct[]> {
-  return listVariantProductsBySupplier('Linnevik', { minVariants: 2 });
+  return listVariantProductsBySupplier('Linnevik', { minVariants: 1 });
 }
 
 /**
