@@ -3,6 +3,7 @@ import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
 import { claimRefundAmount, getOrderById, recordRefund, syncRefundedTotal } from '@/lib/ordersDb';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
 import { refundVatMinor } from '@/lib/vat';
+import { ensureCreditNoteForRefund } from '@/lib/creditNotes';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -74,7 +75,15 @@ export async function POST(request: NextRequest, { params }: Params) {
       note,
       actor: auth.user,
     });
-    return NextResponse.json({ refund }, { status: 201 });
+    // En faktura som återbetalas ska krediteras med en egen handling som
+    // hänvisar till den. Anropet sväljer sina fel med flit: pengarna är redan
+    // återbetalade, och ett fel här får inte få adminvyn att tro motsatsen.
+    const creditNoteId = await ensureCreditNoteForRefund({
+      stripeRefundId: stripeRefund.id,
+      status: stripeRefund.status ?? 'pending',
+      reason,
+    });
+    return NextResponse.json({ refund, creditNoteId }, { status: 201 });
   } catch (error) {
     // Stripe tog aldrig emot beloppet — släpp bokningen, annars ser ordern
     // för alltid ut att ha återbetalats mer än den har.

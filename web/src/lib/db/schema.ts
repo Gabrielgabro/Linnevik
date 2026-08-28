@@ -642,6 +642,11 @@ export const refunds = pgTable(
     id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
     orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
     stripeRefundId: text('stripe_refund_id').notNull(),
+    // Kreditnotan som ställdes ut för den här återbetalningen, när ordern
+    // betalades mot faktura. Numret sparas bredvid id:t: det är numret
+    // bokföringen hänvisar till, och det ska gå att läsa utan att fråga Stripe.
+    stripeCreditNoteId: text('stripe_credit_note_id'),
+    creditNoteNumber: text('credit_note_number'),
     amountMinor: integer('amount_minor').notNull(),
     // Hur mycket av det återbetalade beloppet som var utgående moms. Beloppet
     // ovan är brutto — det är mot betalningen återbetalningen görs.
@@ -656,6 +661,11 @@ export const refunds = pgTable(
   },
   table => [
     uniqueIndex('refunds_stripe_refund_id_key').on(table.stripeRefundId),
+    // Delvis unikt: de flesta återbetalningar (kortordrar) har ingen
+    // kreditnota alls, och NULL ska inte krocka med NULL.
+    uniqueIndex('refunds_stripe_credit_note_id_key')
+      .on(table.stripeCreditNoteId)
+      .where(sql`${table.stripeCreditNoteId} is not null`),
     index('refunds_order_id_idx').on(table.orderId),
   ]
 );

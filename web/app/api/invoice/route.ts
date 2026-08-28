@@ -23,7 +23,7 @@ import { sendInvoiceCreatedNotice } from '@/lib/orderEmails';
 import { claimDiscountCapacity, DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout, usableStripeCustomerId } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
-import { isSwedishSoleTrader, swedishOrganizationNumber } from '@/lib/companyRegistration';
+import { isSwedishSoleTrader, normalizeCompanyRegistrationNumber, swedishOrganizationNumber } from '@/lib/companyRegistration';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 import {
   INVOICE_COUNTRY,
@@ -374,9 +374,28 @@ const INVOICE_MEMO: Record<string, string> = {
 const SELLER_LEGAL_NAME = process.env.INVOICE_SELLER_NAME ?? 'Linneviken AB';
 const SELLER_ORG_NUMBER = process.env.INVOICE_SELLER_ORG_NUMBER ?? '559307-2951';
 const SELLER_F_TAX = (process.env.INVOICE_SELLER_F_TAX ?? 'true') === 'true';
+/**
+ * Säljarens momsregistreringsnummer, härlett ur organisationsnumret om det
+ * inte satts uttryckligen. En momsgrupp eller filial bär ett annat löpnummer
+ * än `01` och sätter då env-variabeln.
+ */
+const SELLER_VAT_NUMBER =
+  process.env.INVOICE_SELLER_VAT_NUMBER?.trim() ||
+  normalizeCompanyRegistrationNumber(SELLER_ORG_NUMBER);
 
-function sellerFooterLine(locale: string): string {
-  const identity = `${SELLER_LEGAL_NAME}, org.nr ${SELLER_ORG_NUMBER}.`;
+/**
+ * @param vatPrinted Om Stripe redan skriver ut momsnumret i säljarblocket,
+ * alltså om `account_tax_ids` kom med på fakturan.
+ */
+function sellerFooterLine(locale: string, vatPrinted: boolean): string {
+  // Säljarens momsregistreringsnummer är en obligatorisk uppgift (17 kap 24 §
+  // p.4 ML) och nådde förut fakturan bara via `account_tax_ids`. Den listan
+  // hämtas med ett anrop vars fel sväljs, så ett strul hos Stripe skickade i
+  // väg en faktura utan numret — ett fel ingen kunde se på vägen ut. Foten bär
+  // det i stället när säljarblocket inte gör det.
+  const identity = vatPrinted
+    ? `${SELLER_LEGAL_NAME}, org.nr ${SELLER_ORG_NUMBER}.`
+    : `${SELLER_LEGAL_NAME}, org.nr ${SELLER_ORG_NUMBER}, momsreg.nr ${SELLER_VAT_NUMBER}.`;
   if (!SELLER_F_TAX) return identity;
   return locale === 'sv'
     ? `${identity} Godkänd för F-skatt.`
@@ -684,7 +703,7 @@ export async function POST(request: NextRequest) {
       ],
       // Betalningsvillkoren är desamma som köpvillkoren på sajten (§4), och
       // står på fakturan därför att det är där kunden faktiskt läser dem.
-      footer: [t.terms.section4Text2, t.terms.section4Text3, sellerFooterLine(invoiceLocale)].join(' '),
+      footer: [t.terms.section4Text2, t.terms.section4Text3, sellerFooterLine(invoiceLocale, accountTaxIds.length > 0)].join(' '),
       metadata: {
         linnevik_order_id: String(orderId),
         linnevik_shipping_minor: String(shipping.amountMinor),

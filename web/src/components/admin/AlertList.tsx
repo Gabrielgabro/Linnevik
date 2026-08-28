@@ -40,6 +40,7 @@ const KIND_LABEL: Record<string, string> = {
   'order.dispute': 'Tvist',
   'order.amount_mismatch': 'Beloppsavvikelse',
   'order.refund_outside_admin': 'Återbetalning i Stripe',
+  'order.credit_note_failed': 'Kreditnota saknas',
   'email.failed': 'E-post',
   'inventory.low_stock': 'Lågt lager',
 };
@@ -47,6 +48,9 @@ const KIND_LABEL: Record<string, string> = {
 /** Larm som betyder att pengar eller lager står fel just nu. */
 const CRITICAL = new Set([
   'order.dispute',
+  // En återbetald faktura utan kreditnota är en utställd handling som säger
+  // fel belopp. Den rättas för hand i Stripe, och först då är den borta.
+  'order.credit_note_failed',
   'order.stock_exception',
   'webhook.unmatched_session',
   'order.amount_mismatch',

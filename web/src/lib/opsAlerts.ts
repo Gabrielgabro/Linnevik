@@ -28,6 +28,7 @@ export type AlertKind =
   | 'order.dispute'
   | 'order.amount_mismatch'
   | 'order.refund_outside_admin'
+  | 'order.credit_note_failed'
   | 'email.failed'
   | 'inventory.low_stock';
 

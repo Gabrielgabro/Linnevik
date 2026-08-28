@@ -25,6 +25,7 @@ import { getStripe } from '@/lib/stripe';
 import { raiseAlert } from '@/lib/opsAlerts';
 import { disputeOutcome } from '@/lib/orderChecks';
 import { recordRefund, updateRefundStatus } from '@/lib/ordersDb';
+import { ensureCreditNoteForRefund } from '@/lib/creditNotes';
 import { refundVatMinor } from '@/lib/vat';
 
 function idOf(value: string | { id: string } | null | undefined): string | null {
@@ -118,6 +119,13 @@ export async function syncStripeRefund(refund: Stripe.Refund): Promise<void> {
   // Normaliserar summan efter samma regel som alla andra statusändringar:
   // en misslyckad eller makulerad återbetalning ska inte räknas.
   await updateRefundStatus(refund.id, status);
+  // Betalades ordern mot faktura ska beloppet också krediteras som en
+  // handling, inte bara flyttas tillbaka. Sväljer sina egna fel och larmar.
+  await ensureCreditNoteForRefund({
+    stripeRefundId: refund.id,
+    status,
+    reason: refund.reason ?? null,
+  });
 
   await raiseAlert({
     kind: 'order.refund_outside_admin',
