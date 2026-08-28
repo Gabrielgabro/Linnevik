@@ -182,7 +182,7 @@ export default function CompetitorCharts({
     <>
       <Card
         title="Bruttomarginal vid nuvarande pris"
-        sub="Katalogpriset minus landad kostnad, som andel av priset. Delad skala 0–100 %, så raderna går att jämföra rakt av. Priserna sätts i marknadsjämförelsen längre ned — den här grafen sammanfattar dem."
+        sub="Katalogpriset minus landad kostnad, som andel av priset. Delad skala 0–100 %, så raderna går att jämföra rakt av. Priserna sätts i marknadsjämförelsen längre upp — den här grafen sammanfattar dem."
         note={
           <>
             Marginalen varierar över sortimentet, och det är avsiktligt: priserna är satta mot
@@ -233,7 +233,7 @@ export default function CompetitorCharts({
             måste gå att sälja in i ett anbud, annars är den inte värd något. Dunprodukterna är det
             motsatta: där ligger golvet på 1 199 respektive 825 kr och vår produkt är bättre än allt
             vi jämför mot. <b>Jämförelsen gäller den storlek analysen är gjord på</b> — övriga
-            storlekar har sina egna motsvarigheter i marknadsjämförelsen nedanför.
+            storlekar har sina egna motsvarigheter i marknadsjämförelsen ovanför.
           </>
         }
       >

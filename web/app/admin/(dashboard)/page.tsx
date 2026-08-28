@@ -117,9 +117,9 @@ export default async function AdminPricingPage({
 
         <ViewTabs current={view} />
 
-        <CompetitorCharts currentPrices={currentPriceByHandle} />
-
         <VariantPricing user={user} products={variantProducts} />
+
+        <CompetitorCharts currentPrices={currentPriceByHandle} />
       </>
     );
   }
