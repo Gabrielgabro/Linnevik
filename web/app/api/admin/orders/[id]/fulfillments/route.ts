@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
+import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
 import { createFulfillment } from '@/lib/ordersDb';
 import { sendShipmentNotice } from '@/lib/orderEmails';
 
@@ -10,7 +10,9 @@ export async function POST(request: NextRequest, { params }: Params) {
   if ('response' in auth) return auth.response;
   const orderId = routeId((await params).id);
   if (orderId === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
-  const body = await readBody(request);
+  const parsed = await readJson(request);
+  if ('response' in parsed) return parsed.response;
+  const body = parsed.body;
   const status = String(body.status ?? 'shipped');
   if (!['shipped', 'delivered'].includes(status)) {
     return NextResponse.json({ error: 'Invalid fulfillment status.' }, { status: 400 });

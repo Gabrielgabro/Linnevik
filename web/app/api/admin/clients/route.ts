@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
-import { readBody, requireAdmin } from '@/lib/adminRoute';
+import { isUniqueViolation, readBody, requireAdmin } from '@/lib/adminRoute';
 import { listClients } from '@/lib/clientsDb';
 import { InputError, parseClientInput } from '@/lib/clientsInput';
 import { getDb } from '@/lib/db';
@@ -33,9 +33,18 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // Unikt index på kundnummer. Två personer kan lägga till samtidigt, så
     // kollisionen fångas här i stället för med en kontrollfråga före.
-    if (String(error).includes('clients_customer_no_key')) {
+    // isUniqueViolation och inte String(error): drizzle lindar in databasfelet,
+    // så indexnamnet står inte i strängen — kollisionen blev ett tyst 500 där
+    // svaret skulle ha varit ett 409.
+    if (isUniqueViolation(error, 'clients_customer_no_key')) {
       return NextResponse.json(
         { error: `Kundnummer ${input.customerNo} används redan.` },
+        { status: 409 }
+      );
+    }
+    if (isUniqueViolation(error, 'clients_org_number_key')) {
+      return NextResponse.json(
+        { error: `Organisationsnummer ${input.orgNumber} finns redan på en annan kund.` },
         { status: 409 }
       );
     }

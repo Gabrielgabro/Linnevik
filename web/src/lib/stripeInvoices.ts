@@ -5,7 +5,7 @@ import { sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { getStripe } from '@/lib/stripe';
 import { raiseAlert } from '@/lib/opsAlerts';
-import { markOrderFailed, markOrderPaid, reconcileOrderSession } from '@/lib/ordersDb';
+import { abandonPendingOrder, markOrderFailed, markOrderPaid, reconcileOrderSession } from '@/lib/ordersDb';
 import { sendOrderConfirmation } from '@/lib/orderEmails';
 
 function orderIdFromMetadata(invoice: Stripe.Invoice): number | null {
@@ -111,17 +111,55 @@ export async function reconcileRecentStripeInvoices(): Promise<{
   failures: string[];
 }> {
   const pending = await getDb().execute(sql`
+    select id, stripe_session_id
+    from orders
+    where payment_method = 'invoice' and payment_status = 'pending'
+      and created_at >= now() - interval '90 days'
+      -- An order still inside its creation window may simply be mid-request.
+      -- Stripe's search index also lags a little behind writes, so anything
+      -- younger than this is left for the request that owns it.
+      and created_at <= now() - interval '30 minutes'
+    order by created_at asc
+    limit 100
+  `);
+  const rows = pending.rows as Array<{ id: number; stripe_session_id: string }>;
+  const failures: string[] = [];
+  // Orders whose Stripe reference never arrived: the invoice call was cut off
+  // between reserving stock and hearing back. Generic expiry skips invoice
+  // orders on purpose, and the loop below only knows `in_` references, so
+  // without this these held their reservation for good. Ask Stripe whether the
+  // invoice exists — the order id travels in its metadata — and either adopt
+  // it or release the order.
+  const unattached = rows.filter(row => row.stripe_session_id.startsWith('pending_'));
+  for (const row of unattached) {
+    try {
+      const found = await getStripe().invoices.search({
+        query: `metadata['linnevik_order_id']:'${row.id}'`,
+        limit: 1,
+      });
+      const orphan = found.data[0];
+      if (orphan) {
+        await reconcileInvoiceReference(orphan);
+      } else {
+        await abandonPendingOrder(row.id, 'Invoice was never created in Stripe');
+      }
+    } catch (error) {
+      failures.push(`order ${row.id}: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
+  }
+  // Re-read: an adopted orphan now carries an `in_` reference and belongs in
+  // the pass below, which decides whether it is paid, void, draft or overdue.
+  const attached = await getDb().execute(sql`
     select stripe_session_id
     from orders
     where payment_method = 'invoice' and payment_status = 'pending'
       and created_at >= now() - interval '90 days'
+      and left(stripe_session_id, 3) = 'in_'
     order by created_at asc
     limit 100
   `);
-  const references = (pending.rows as Array<{ stripe_session_id: string }>)
-    .map(row => row.stripe_session_id)
-    .filter(id => id.startsWith('in_'));
-  const failures: string[] = [];
+  const references = (attached.rows as Array<{ stripe_session_id: string }>)
+    .map(row => row.stripe_session_id);
   let paid = 0;
   let voided = 0;
   for (const id of references) {
@@ -162,7 +200,7 @@ export async function reconcileRecentStripeInvoices(): Promise<{
       kind: 'reconcile.failed',
       key: 'reconcile:invoices',
       subject: `Fakturaavstämningen misslyckades för ${failures.length} fakturor`,
-      detail: { fel: failures.slice(0, 10), kontrollerade: references.length },
+      detail: { fel: failures.slice(0, 10), kontrollerade: references.length + unattached.length },
     });
   }
   return { checked: references.length, paid, voided, failures };

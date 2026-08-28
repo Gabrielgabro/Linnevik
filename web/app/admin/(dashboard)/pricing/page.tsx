@@ -47,7 +47,11 @@ export default async function PricingPage() {
           påverkas aldrig härifrån. Listpriserna i katalogen är ännu platshållare, så marginalerna
           i modellen är riktmärken tills priserna är satta."
       />
-      <PricingConfigPanel initial={row} modelProducts={modelProducts} />
+      <PricingConfigPanel
+        initial={row}
+        modelProducts={modelProducts}
+        liveVersion={versions[0]?.version ?? null}
+      />
 
       {versions.length > 0 && (
         <Panel

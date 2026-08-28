@@ -86,6 +86,45 @@ export async function checkRateLimit(input: {
   }
 }
 
+/**
+ * Läser hinken utan att räkna upp den.
+ *
+ * Finns för inloggningen: där ska bara *misslyckade* försök kosta något.
+ * Räknades varje anrop kunde tio lyckade inloggningar från samma kontor låsa
+ * den elfte i en kvart, vilket är ett driftstopp och inget skydd.
+ *
+ * Felar öppet på samma sätt som checkRateLimit.
+ */
+export async function peekRateLimit(input: {
+  scope: string;
+  identity: string;
+  limit: number;
+}): Promise<RateLimitResult> {
+  const open: RateLimitResult = { allowed: true, remaining: input.limit, retryAfterSeconds: 0 };
+  if (!process.env.DATABASE_URL) return open;
+
+  const bucket = `${input.scope}:${input.identity}`.slice(0, 200);
+  try {
+    const result = await getDb().execute(sql`
+      select count, extract(epoch from (expires_at - now()))::int as retry_after
+        from rate_limits
+       where bucket = ${bucket} and expires_at > now()
+    `);
+    const row = result.rows[0] as { count: number; retry_after: number } | undefined;
+    if (!row) return open;
+
+    const count = Number(row.count);
+    return {
+      allowed: count < input.limit,
+      remaining: Math.max(0, input.limit - count),
+      retryAfterSeconds: Math.max(0, Number(row.retry_after)),
+    };
+  } catch (error) {
+    console.error('[rateLimit] Kunde inte läsa hinken:', error);
+    return open;
+  }
+}
+
 /** Städar bort utgångna hinkar. Anropas av dygnskörningen. */
 export async function pruneRateLimits(): Promise<number> {
   if (!process.env.DATABASE_URL) return 0;

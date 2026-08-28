@@ -30,10 +30,28 @@ import { raiseAlert } from '@/lib/opsAlerts';
 
 export type OrderWithItems = OrderRow & { items: OrderItemRow[] };
 
+/**
+ * The cart version already carries an attempt paid for the *other* way.
+ *
+ * Only one order may exist per cart version, so the two checkout routes race
+ * for it whenever a buyer starts both. The loser must stop rather than adopt
+ * the winner's order — see the note in `createPendingOrder`.
+ */
+export class PaymentMethodConflictError extends Error {
+  constructor(public readonly existingMethod: string) {
+    super(`This cart already has a ${existingMethod} checkout in progress.`);
+    this.name = 'PaymentMethodConflictError';
+  }
+}
+
 /** Orderrad med hur mycket av den som redan gått ut genom dörren. */
 export type OrderItemProgress = OrderItemRow & {
   fulfilledQuantity: number;
   remainingQuantity: number;
+  /** Antal som redan returnerats. */
+  returnedQuantity: number;
+  /** Vad som går att returnera nu: utlevererat minus redan returnerat. */
+  returnableQuantity: number;
 };
 
 // Omit: en ren korsning hade gett `items` typen OrderItemRow[] & OrderItemProgress[],
@@ -68,6 +86,23 @@ async function fulfilledPerItem(orderId: number): Promise<Map<number, number>> {
     (result.rows as Array<{ id: number; fulfilled: number }>).map(row => [
       Number(row.id),
       Number(row.fulfilled),
+    ])
+  );
+}
+
+/** Hur mycket av varje rad som kommit tillbaka, oavsett om det lades i lager. */
+async function returnedPerItem(orderId: number): Promise<Map<number, number>> {
+  const result = await getDb().execute(sql`
+    select oi.id, coalesce(sum(oir.quantity), 0)::int as returned
+    from order_items oi
+    left join order_item_returns oir on oir.order_item_id = oi.id
+    where oi.order_id = ${orderId}
+    group by oi.id
+  `);
+  return new Map(
+    (result.rows as Array<{ id: number; returned: number }>).map(row => [
+      Number(row.id),
+      Number(row.returned),
     ])
   );
 }
@@ -155,7 +190,7 @@ export async function createPendingOrder(
       on conflict (cart_id, cart_version)
         where cart_id is not null and cart_version is not null
         do nothing
-      returning id
+      returning id, payment_method
     ), payload as (
       select * from jsonb_to_recordset(${payload}::jsonb) as x(
         "variantId" integer,
@@ -171,15 +206,25 @@ export async function createPendingOrder(
       from new_order cross join payload
       returning order_id
     )
-    select id from new_order
+    select id, payment_method from new_order
     union all
-    select id from orders
+    select id, payment_method from orders
     where cart_id = ${cart?.id ?? null} and cart_version = ${cart?.version ?? null}
       and not exists (select 1 from new_order)
     limit 1
   `);
-  const row = (result.rows as Array<{ id: number }>)[0];
+  const row = (result.rows as Array<{ id: number; payment_method: string | null }>)[0];
   if (!row) throw new Error('Cart changed while checkout was starting.');
+  // The insert lost the race for this cart version, so the row above is an
+  // attempt someone else already started. Handing it back blindly let a card
+  // checkout and an invoice run against the *same* order: both would reserve
+  // its stock, both would build a payable object in Stripe, only one could
+  // attach — and whichever lost then released stock that the survivor still
+  // expects to ship. An attempt started under the other payment method is not
+  // ours to resume.
+  const existingMethod = row.payment_method ?? 'checkout';
+  const requestedMethod = snapshot.paymentMethod ?? 'checkout';
+  if (existingMethod !== requestedMethod) throw new PaymentMethodConflictError(existingMethod);
   return Number(row.id);
 }
 
@@ -519,12 +564,13 @@ export async function listRecentOrders(limit = 50): Promise<OrderRow[]> {
 export async function getOrderById(id: number): Promise<OrderDetail | null> {
   const [order] = await getDb().select().from(orders).where(eq(orders.id, id)).limit(1);
   if (!order) return null;
-  const [items, orderRefunds, orderFulfillments, events, fulfilled, customer] = await Promise.all([
+  const [items, orderRefunds, orderFulfillments, events, fulfilled, returned, customer] = await Promise.all([
     getDb().select().from(orderItems).where(eq(orderItems.orderId, id)),
     getDb().select().from(refunds).where(eq(refunds.orderId, id)).orderBy(desc(refunds.createdAt)),
     getDb().select().from(fulfillments).where(eq(fulfillments.orderId, id)).orderBy(desc(fulfillments.createdAt)),
     getDb().select().from(orderEvents).where(eq(orderEvents.orderId, id)).orderBy(desc(orderEvents.createdAt)),
     fulfilledPerItem(id),
+    returnedPerItem(id),
     order.customerId
       ? getDb()
           .select({ clientId: customers.clientId })
@@ -535,10 +581,15 @@ export async function getOrderById(id: number): Promise<OrderDetail | null> {
   ]);
   const withProgress: OrderItemProgress[] = items.map(item => {
     const fulfilledQuantity = fulfilled.get(item.id) ?? 0;
+    const returnedQuantity = returned.get(item.id) ?? 0;
     return {
       ...item,
       fulfilledQuantity,
       remainingQuantity: Math.max(0, item.quantity - fulfilledQuantity),
+      returnedQuantity,
+      // Samma räkning som spärren i returnOrderItems: bara det som gått ut
+      // genom dörren kan komma tillbaka, och bara en gång.
+      returnableQuantity: Math.max(0, fulfilledQuantity - returnedQuantity),
     };
   });
   return {
@@ -619,6 +670,56 @@ export async function updateOrderManagement(
     }
   }
   return row ?? null;
+}
+
+/**
+ * Reserverar ett återbetalningsbelopp *innan* Stripe anropas.
+ *
+ * Kontrollen i rutten läste `refunded_minor`, jämförde mot summan och ringde
+ * sedan Stripe. Två samtidiga delåterbetalningar hann läsa samma värde: båda
+ * såg beloppet som möjligt, båda gick igenom, och ordern kunde betalas
+ * tillbaka mer än den var värd. En enda villkorad UPDATE tar radlåset och
+ * serialiserar dem — den andra ser vad den första redan lagt på och får noll
+ * rader tillbaka.
+ *
+ * `payment_status` rörs inte här. Den räknas om av `recordRefund` när Stripe
+ * svarat, och av `syncRefundedTotal` när anropet misslyckades och
+ * reservationen ska släppas.
+ */
+export async function claimRefundAmount(orderId: number, amountMinor: number): Promise<boolean> {
+  const result = await getDb().execute(sql`
+    update orders
+       set refunded_minor = refunded_minor + ${amountMinor}, updated_at = now()
+     where id = ${orderId}
+       and refunded_minor + ${amountMinor} <= total_minor
+    returning id
+  `);
+  return result.rows.length > 0;
+}
+
+/**
+ * Skriver om `refunded_minor` och `payment_status` från refunds-tabellen.
+ *
+ * Används för att släppa en reservation som Stripe aldrig tog emot. Summan
+ * räknas över `pending` och `succeeded`, samma regel som `recordRefund`.
+ */
+export async function syncRefundedTotal(orderId: number): Promise<void> {
+  await getDb().execute(sql`
+    update orders o
+       set refunded_minor = r.total,
+           payment_status = case
+             when r.total >= o.total_minor then 'refunded'
+             when r.total > 0 then 'partially_refunded'
+             else o.payment_status
+           end,
+           updated_at = now()
+      from (
+        select coalesce(sum(amount_minor), 0)::int as total
+          from refunds
+         where order_id = ${orderId} and status in ('pending', 'succeeded')
+      ) r
+     where o.id = ${orderId}
+  `);
 }
 
 export async function recordRefund(input: {

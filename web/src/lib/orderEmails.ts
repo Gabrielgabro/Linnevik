@@ -121,12 +121,21 @@ export async function sendOrderConfirmation(sessionId: string): Promise<boolean>
  */
 export async function sendInvoiceCreatedNotice(
   sessionId: string,
-  invoice: { hostedUrl: string | null; number: string | null; dueDate: Date | null }
+  invoice: { hostedUrl: string | null; number: string | null; dueDate: Date | null },
+  /**
+   * Företagets fakturabrevlåda (`clients.invoice_email`), när den är ifylld.
+   *
+   * Hos större köpare tar en delad ekonomiadress emot fakturorna, inte den
+   * anställda som beställde. Ordern hänger kvar på kontots egen adress — det
+   * är identiteten — men brevet går dit fakturan ska behandlas.
+   */
+  invoiceEmail?: string | null
 ): Promise<boolean> {
   if (!mailConfigured()) return false;
   try {
     const order = await getOrderBySession(sessionId);
-    if (!order?.email) {
+    const recipient = invoiceEmail?.trim() || order?.email;
+    if (!order || !recipient) {
       console.warn('[orderEmails] Ingen order eller e-postadress för faktura', sessionId);
       return false;
     }
@@ -144,7 +153,7 @@ export async function sendInvoiceCreatedNotice(
     return await deliver(
       order.id,
       'order.invoice',
-      order.email,
+      recipient,
       invoiceCreatedEmail(
         {
           id: order.id,

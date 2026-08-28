@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
+import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
 import { returnOrderItems } from '@/lib/ordersDb';
 
 type Params = { params: Promise<{ id: string }> };
@@ -9,7 +9,9 @@ export async function POST(request: NextRequest, { params }: Params) {
   if ('response' in auth) return auth.response;
   const orderId = routeId((await params).id);
   if (orderId === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
-  const body = await readBody(request);
+  const parsed = await readJson(request);
+  if ('response' in parsed) return parsed.response;
+  const body = parsed.body;
   if (!Array.isArray(body.items)) {
     return NextResponse.json({ error: 'items must be an array.' }, { status: 400 });
   }

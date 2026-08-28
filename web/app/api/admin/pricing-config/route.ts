@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readBody, requireAdmin } from '@/lib/adminRoute';
+import { BodyError, readBody, requireAdmin } from '@/lib/adminRoute';
 import {
   PricingConfigInputError,
   getPricingConfigRow,
@@ -23,7 +23,8 @@ export async function PATCH(request: NextRequest) {
     await record(auth.user, 'pricing_config.updated', 'pricing_config', { strategy: input.strategy });
     return NextResponse.json({ pricingConfig: row });
   } catch (error) {
-    const status = error instanceof PricingConfigInputError ? 400 : 500;
+    const badInput = error instanceof PricingConfigInputError || error instanceof BodyError;
+    const status = badInput ? 400 : 500;
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Kunde inte spara mängdrabatten.' },
       { status }

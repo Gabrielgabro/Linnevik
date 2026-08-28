@@ -12,6 +12,16 @@ const cartRoute = readFileSync(resolve('app/api/store/cart/[id]/route.ts'), 'utf
 const orderEmails = readFileSync(resolve('src/lib/orderEmails.ts'), 'utf8');
 
 describe('Stripe invoice checkout contracts', () => {
+  it('prints a human reference and stays inside Stripe\'s four custom fields', () => {
+    expect(invoiceRoute).toContain("{ name: 'Er referens', value: reference }");
+    expect(invoiceRoute).toContain('account.contactName');
+    // Organisationsnummer, Momsreg.nr, Ordernummer och Er referens är fyra —
+    // Stripe tar inte fler, så inköpsordernumret delar fält med referensen.
+    const fields = invoiceRoute.slice(invoiceRoute.indexOf('custom_fields: ['));
+    expect(fields.slice(0, fields.indexOf('],')).match(/name: '/g)).toHaveLength(4);
+    expect(invoiceRoute).toContain('Ert ordernr');
+  });
+
   it('creates a 30-day Stripe send-invoice flow from server-priced cart data', () => {
     expect(invoiceRoute).toContain("collection_method: 'send_invoice'");
     expect(invoiceRoute).toContain('days_until_due: INVOICE_DUE_DAYS');
@@ -24,7 +34,7 @@ describe('Stripe invoice checkout contracts', () => {
   it('only lets a signed-in, active company account raise an invoice', () => {
     expect(invoiceRoute).toContain('getCurrentCustomerFromCookies()');
     expect(invoiceRoute).toContain('if (!account) {');
-    expect(invoiceRoute).toContain("status: 401");
+    expect(invoiceRoute).toContain("'SIGN_IN_REQUIRED'");
     expect(invoiceRoute).toContain("account.status !== 'active'");
     // The organisation number and e-mail are taken from the account, never the
     // request. Both, plus the company name and address, are checked by
@@ -34,14 +44,15 @@ describe('Stripe invoice checkout contracts', () => {
     expect(invoiceRoute).toContain('email: account.email');
     expect(invoiceRoute).not.toMatch(/supplied\?\.(email|organizationNumber)/);
     expect(invoiceRoute).toContain('resolveCompanyProfile({');
-    expect(invoiceRoute).toContain('if (!resolved.ok) throw new CartError(');
+    expect(invoiceRoute).toContain('if (!resolved.ok) {');
+    expect(invoiceRoute).toContain('throw new InvoiceError(PROFILE_GAP_CODES[resolved.missing]');
   });
 
   it('rate-limits invoice creation per IP and per account', () => {
     expect(invoiceRoute).toContain("scope: 'invoice',");
     expect(invoiceRoute).toContain("scope: 'invoice_account',");
     expect(invoiceRoute).toContain('clientIp(request.headers)');
-    expect(invoiceRoute).toMatch(/status: 429/);
+    expect(invoiceRoute).toMatch(/'RATE_LIMITED', .*, 429/);
   });
 
   it('settles only from Stripe invoice events and handles invoice expiry before stock release', () => {
@@ -86,9 +97,12 @@ describe('Stripe invoice checkout contracts', () => {
   it('mails the buyer the invoice when it is sent, not when it is paid', () => {
     // Stripes eget utskick styrs av en kontoinställning och är inte vårt brev.
     // Utan det här hörde köparen ingenting från oss förrän betalningen kom in.
-    expect(invoiceRoute).toContain('sendInvoiceCreatedNotice(sent.id, {');
+    expect(invoiceRoute).toContain('sendInvoiceCreatedNotice(');
     expect(invoiceRoute).toContain('hostedUrl: sent.hosted_invoice_url ?? null');
     expect(orderEmails).toContain("deliver(\n      order.id,\n      'order.invoice'");
+    // Fakturan går till företagets fakturabrevlåda när kundregistret har en.
+    expect(orderEmails).toContain("const recipient = invoiceEmail?.trim() || order?.email;");
+    expect(invoiceRoute).toContain('notifyEmail: account.invoiceEmail');
     // Ett omspelat försök får inte skicka mejlet en gång till.
     expect(orderEmails).toContain("detail->>'template' = 'order.invoice'");
   });

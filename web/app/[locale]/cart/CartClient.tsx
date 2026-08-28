@@ -15,6 +15,8 @@ export type InvoicePrefill = {
     line2: string;
     city: string;
     postalCode: string;
+    /** Personen på kontot, förval för "Er referens" på fakturan. */
+    reference: string;
 };
 
 export default function CartClient({
@@ -263,6 +265,9 @@ export default function CartClient({
                         addressLine2Label={t.cart.summary.invoiceAddressLine2}
                         postalCodeLabel={t.cart.summary.invoicePostalCode}
                         cityLabel={t.cart.summary.invoiceCity}
+                        referenceLabel={t.cart.summary.invoiceReference}
+                        referenceHelper={t.cart.summary.invoiceReferenceHelper}
+                        purchaseOrderLabel={t.cart.summary.invoicePurchaseOrder}
                     />
 
                     <LocaleLink

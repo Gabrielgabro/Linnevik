@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
+import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
 import { getOrderById, updateOrderManagement } from '@/lib/ordersDb';
 
 type Params = { params: Promise<{ id: string }> };
@@ -20,7 +20,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if ('response' in auth) return auth.response;
   const id = routeId((await params).id);
   if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
-  const body = await readBody(request);
+  const parsed = await readJson(request);
+  if ('response' in parsed) return parsed.response;
+  const body = parsed.body;
   const status = body.status === undefined ? undefined : String(body.status);
   if (status && !['pending', 'paid', 'on_hold', 'cancelled', 'closed'].includes(status)) {
     return NextResponse.json({ error: 'Invalid order status.' }, { status: 400 });

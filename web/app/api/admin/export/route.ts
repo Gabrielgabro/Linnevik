@@ -3,11 +3,9 @@ import { record } from '@/lib/adminActivity';
 import { requireAdmin } from '@/lib/adminRoute';
 import { ordersCsv, refundsCsv } from '@/lib/bookkeepingExport';
 import { catalogCsv } from '@/lib/catalogExport';
+import { isCalendarDate } from '@/lib/isoDate';
 
 export const runtime = 'nodejs';
-
-/** Enkelt datumformat, och inget annat: värdet går rakt in i en SQL-cast. */
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Filerna bokföringen och leverantörskontakten behöver.
@@ -31,7 +29,9 @@ export async function GET(request: NextRequest) {
 
   const from = params.get('from') ?? '';
   const to = params.get('to') ?? '';
-  if (!DATE.test(from) || !DATE.test(to)) {
+  // Värdet går rakt in i en SQL-cast, så både formen och kalendern måste
+  // stämma: 2026-02-31 tog sig förbi en ren formkontroll och blev ett 500.
+  if (!isCalendarDate(from) || !isCalendarDate(to)) {
     return NextResponse.json(
       { error: 'Ange from och to som ÅÅÅÅ-MM-DD.' },
       { status: 400 }

@@ -30,6 +30,19 @@ describe('account creation hardening contracts', () => {
     expect(form).toContain('disabled={isPending}');
   });
 
+  it('requires a contact person, so no company is registered without a human', () => {
+    expect(actions).toContain('!firstName || !lastName');
+    expect(form).toContain('autoComplete="given-name"\n                                    required');
+    expect(form).toContain('autoComplete="family-name"\n                                    required');
+  });
+
+  it('carries role and phone through to the CRM contact without requiring them', () => {
+    expect(actions).toContain("formData.get('role')");
+    expect(actions).toContain("formData.get('phone')");
+    expect(actions).not.toMatch(/!role|!phone/);
+    expect(operations).toContain('client_id, first_name, last_name, role, email, phone, status');
+  });
+
   it('serializes concurrent contact creation for the same account', () => {
     expect(operations).toContain('pg_advisory_xact_lock');
     expect(operations).toContain('where client_id = ${client.id} and lower(email) = ${email}');

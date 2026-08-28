@@ -92,9 +92,9 @@ export default async function SampleRequestPage({
                   <span style={{ color: 'var(--viz-ink-3)' }}> · {item.variantLabel}</span>
                 )}
               </span>
-              {item.productId ? (
+              {item.productHandle ? (
                 <Link
-                  href={`/admin/products/${item.productId}`}
+                  href={`/admin/products/${item.productHandle}`}
                   className="shrink-0 text-brand-text hover:underline"
                 >
                   Öppna produkt

@@ -22,6 +22,7 @@ import {
   isValidCompanyRegistrationNumber,
   normalizeCompanyRegistrationNumber,
 } from '@/lib/companyRegistration';
+import { isCalendarDate } from '@/lib/isoDate';
 
 export class InputError extends Error {}
 
@@ -49,8 +50,9 @@ function isoDate(body: Body, key: string): string | null {
   const value = text(body, key, 10);
   if (value === null) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new InputError(`${key} måste vara ÅÅÅÅ-MM-DD.`);
-  const parsed = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) throw new InputError(`${key} är inget giltigt datum.`);
+  // Date tar emot 2026-02-31 utan att klaga och kallar det 3 mars, så formen
+  // ovan räcker inte — dagen måste finnas i kalendern.
+  if (!isCalendarDate(value)) throw new InputError(`${key} är inget giltigt datum.`);
   return value;
 }
 

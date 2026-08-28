@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
-import { getOrderById, recordRefund } from '@/lib/ordersDb';
+import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
+import { claimRefundAmount, getOrderById, recordRefund, syncRefundedTotal } from '@/lib/ordersDb';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
 import { refundVatMinor } from '@/lib/vat';
 
@@ -17,7 +17,9 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!order.stripePaymentIntentId || order.paymentStatus === 'pending') {
     return NextResponse.json({ error: 'Order has no refundable payment.' }, { status: 409 });
   }
-  const body = await readBody(request);
+  const parsed = await readJson(request);
+  if ('response' in parsed) return parsed.response;
+  const body = parsed.body;
   const amountMinor = Number(body.amountMinor);
   const remaining = order.totalMinor - order.refundedMinor;
   if (!Number.isInteger(amountMinor) || amountMinor < 1 || amountMinor > remaining) {
@@ -38,6 +40,15 @@ export async function POST(request: NextRequest, { params }: Params) {
   const note = body.note ? String(body.note).trim().slice(0, 2_000) : null;
   const submittedKey = body.requestKey ? String(body.requestKey) : '';
   const requestKey = /^[a-zA-Z0-9_-]{1,80}$/.test(submittedKey) ? submittedKey : crypto.randomUUID();
+  // Beloppet bokas av på ordern före Stripe-anropet. Kontrollen ovan läser ett
+  // värde som hinner bli inaktuellt; den här bokningen är den som faktiskt
+  // håller, och den andra av två samtidiga återbetalningar stoppas här.
+  if (!(await claimRefundAmount(id, amountMinor))) {
+    return NextResponse.json(
+      { error: 'Beloppet överskrider vad som återstår att återbetala. Ladda om ordern.' },
+      { status: 409 }
+    );
+  }
   try {
     const stripeRefund = await getStripe().refunds.create(
       {
@@ -65,6 +76,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
     return NextResponse.json({ refund }, { status: 201 });
   } catch (error) {
+    // Stripe tog aldrig emot beloppet — släpp bokningen, annars ser ordern
+    // för alltid ut att ha återbetalats mer än den har.
+    await syncRefundedTotal(id).catch(releaseError => {
+      console.error('[Refund] Could not release the claimed amount:', releaseError);
+    });
     console.error('[Refund] Failed:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Refund failed.' }, { status: 502 });
   }

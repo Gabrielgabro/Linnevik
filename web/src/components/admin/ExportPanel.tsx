@@ -23,12 +23,22 @@ type Summary = {
   refundedVatMinor: number;
 };
 
-/** Innevarande månad, som är den period man nästan alltid vill ha. */
+/**
+ * Innevarande månad, som är den period man nästan alltid vill ha.
+ *
+ * Räknad i svensk tid och inte i UTC. Bokföringen förs i svensk tid, och den
+ * första i månaden strax efter midnatt ligger Stockholm en eller två timmar
+ * före UTC — då hade UTC-varianten föreslagit månaden som just tog slut.
+ */
 function currentMonth(): { from: string; to: string } {
-  const now = new Date();
-  const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
-  return { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10) };
+  // sv-SE ger ÅÅÅÅ-MM-DD, vilket är precis det format fälten vill ha.
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' });
+  const [year, month] = today.split('-').map(Number);
+  const last = new Date(Date.UTC(year, month, 0));
+  return {
+    from: `${today.slice(0, 7)}-01`,
+    to: last.toISOString().slice(0, 10),
+  };
 }
 
 export default function ExportPanel({ icon }: { icon?: React.ReactNode }) {

@@ -5,7 +5,7 @@ import { CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
 import { registerCustomer } from '@/lib/commerceOperations';
 import { requestMagicLink } from '@/lib/magicLink';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
-import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
+import { getServerLanguage } from '@/lib/language';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
 import {
     isValidCompanyRegistrationNumber,
@@ -24,16 +24,15 @@ const REGISTER_RATE_PER_EMAIL = 5;
 const REGISTER_RATE_WINDOW_SECONDS = 60 * 60;
 
 async function getActionTranslations(): Promise<Translations> {
-    const cookieStore = await cookies();
-    const locale = cookieStore.get('NEXT_LOCALE')?.value;
-    const lang: Language = locale && isSupportedLanguage(locale) ? locale : DEFAULT_LANGUAGE;
-    return getTranslations(lang);
+    return getTranslations(await getServerLanguage());
 }
 
 type RegisterFields = {
     email?: string;
     firstName?: string;
     lastName?: string;
+    role?: string;
+    phone?: string;
     companyRegistrationNumber?: string;
     companyName?: string;
     addressLine1?: string;
@@ -51,13 +50,21 @@ export type RegisterState = {
 export async function handleRegister(_: RegisterState, formData: FormData): Promise<RegisterState> {
     const t = await getActionTranslations();
 
-    // Get current locale from cookie
-    const cookieStore = await cookies();
-    const locale = cookieStore.get('NEXT_LOCALE')?.value;
+    // Adressen först, kakan sedan: en besökare som kommer rakt in på /en har
+    // ingen NEXT_LOCALE, och fick då svenska felmeddelanden och en svensk
+    // inloggningslänk under ett engelskt gränssnitt.
+    const locale = await getServerLanguage();
 
     const email = formData.get('email')?.toString().trim().toLowerCase() ?? '';
-    const firstName = formData.get('firstName')?.toString().trim() || undefined;
-    const lastName = formData.get('lastName')?.toString().trim() || undefined;
+    // Kontaktpersonen är obligatorisk: kundregistret listar företag, men en
+    // faktura går till en människa, och "Er referens" hämtas härifrån. Utan
+    // namn blev kontakten döpt efter mejladressens första del.
+    const firstName = formData.get('firstName')?.toString().trim() || '';
+    const lastName = formData.get('lastName')?.toString().trim() || '';
+    // Roll och telefon är frivilliga — de gör kontakten användbar, men ingen
+    // registrering ska falla på dem.
+    const role = formData.get('role')?.toString().trim() || undefined;
+    const phone = formData.get('phone')?.toString().trim() || undefined;
     const companyRegistrationNumber = normalizeCompanyRegistrationNumber(
         formData.get('companyRegistrationNumber')
     );
@@ -77,6 +84,8 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
         email,
         firstName,
         lastName,
+        role,
+        phone,
         companyRegistrationNumber,
         companyName,
         // Fälten ekas tillbaka i den form kunden skrev dem, inte i den
@@ -89,7 +98,7 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     };
 
     // Validation: required fields
-    if (!email || !companyRegistrationNumber || !companyName || !address) {
+    if (!email || !firstName || !lastName || !companyRegistrationNumber || !companyName || !address) {
         return {
             status: 'error',
             message: t.register.errors.missingFields,
@@ -116,7 +125,7 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     }
 
     // Validation: name lengths and characters
-    if (firstName && (firstName.length > 100 || firstName.length < 1)) {
+    if (firstName.length > 100) {
         return {
             status: 'error',
             message: t.register.errors.firstNameInvalid,
@@ -124,12 +133,20 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
         };
     }
 
-    if (lastName && (lastName.length > 100 || lastName.length < 1)) {
+    if (lastName.length > 100) {
         return {
             status: 'error',
             message: t.register.errors.lastNameInvalid,
             fields,
         };
+    }
+
+    if (role && role.length > 120) {
+        return { status: 'error', message: t.register.errors.roleInvalid, fields };
+    }
+
+    if (phone && phone.length > 40) {
+        return { status: 'error', message: t.register.errors.phoneInvalid, fields };
     }
 
     // Validation: company registration number format
@@ -186,6 +203,8 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
             email,
             firstName,
             lastName,
+            role,
+            phone,
             taxId: companyRegistrationNumber,
             companyName,
             address,
@@ -203,7 +222,7 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
         try {
             linkSent = await requestMagicLink({
                 email,
-                locale: locale && isSupportedLanguage(locale) ? locale : DEFAULT_LANGUAGE,
+                locale,
                 ip: clientIp(headerList),
                 userAgent: headerList.get('user-agent'),
             });
@@ -242,12 +261,11 @@ export async function handleRecover(_: RecoverState, formData: FormData): Promis
     }
 
     try {
-        const cookieStore = await cookies();
-        const locale = cookieStore.get('NEXT_LOCALE')?.value;
+        const locale = await getServerLanguage();
         const headerList = await headers();
         await requestMagicLink({
             email,
-            locale: locale && isSupportedLanguage(locale) ? locale : DEFAULT_LANGUAGE,
+            locale,
             ip: clientIp(headerList),
             userAgent: headerList.get('user-agent'),
         });

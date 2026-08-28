@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
-import { checkRateLimit, clientIp } from '@/lib/rateLimit';
+import { checkRateLimit, clientIp, peekRateLimit } from '@/lib/rateLimit';
 import {
   ADMIN_COOKIE,
   readSessionValue,
@@ -43,12 +43,14 @@ export async function POST(request: NextRequest) {
   // Lösenordet är delat och /admin kan återbetala pengar. Fördröjningen nedan
   // bromsar en gissning i taget; den här stoppar den som gissar i tusental.
   // Räknas per IP och inte per namn: namnet väljer den som loggar in själv.
-  const limit = await checkRateLimit({
-    scope: 'admin_login',
-    identity: clientIp(request.headers),
-    limit: 10,
-    windowSeconds: 15 * 60,
-  });
+  //
+  // Hinken *läses* här och räknas upp först när lösenordet visade sig vara
+  // fel. Räknades varje försök tärde de som kan lösenordet på samma budget
+  // som den som gissar, och ett kontor där alla loggar in på morgonen kunde
+  // låsa ut sig självt i en kvart.
+  const identity = clientIp(request.headers);
+  const bucket = { scope: 'admin_login', identity, limit: 10, windowSeconds: 15 * 60 };
+  const limit = await peekRateLimit(bucket);
   if (!limit.allowed) {
     await record(user, 'admin.login_blocked');
     return NextResponse.json(
@@ -60,6 +62,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!(await verifyPassword(password))) {
+    await checkRateLimit(bucket);
     // Bromsa gissningar en aning utan att låsa ute någon.
     await new Promise(resolve => setTimeout(resolve, 600));
     await record(user, 'admin.login_failed');

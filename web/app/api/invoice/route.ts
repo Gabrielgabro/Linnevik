@@ -7,13 +7,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
 import { getDb } from '@/lib/db';
-import { clients, customers } from '@/lib/db/schema';
+import { clients, customers, products, productVariants } from '@/lib/db/schema';
 import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
 import { GOODS_TAX_CODE, SHIPPING_TAX_CODE, checkoutTaxMode, vatBps, VatConfigurationError } from '@/lib/vat';
-import { createPendingOrder, attachSession, abandonPendingOrder, getOrderByCartVersion, setPendingOrderCustomerDetails } from '@/lib/ordersDb';
+import { createPendingOrder, attachSession, abandonPendingOrder, getOrderByCartVersion, PaymentMethodConflictError, setPendingOrderCustomerDetails } from '@/lib/ordersDb';
 import { CartError, getOwnedCart, markOwnedCartCheckoutStarted, validateOwnedCartForCheckout } from '@/lib/cartDb';
 import { ownedCommerceEnabled } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
@@ -64,6 +64,15 @@ const PROFILE_GAP_MESSAGES: Record<CompanyProfileGap, string> = {
   country: 'Vi kan för närvarande bara fakturera svenska adresser.',
 };
 
+/** Samma luckor som ovan, men som stabila koder gränssnittet kan översätta. */
+const PROFILE_GAP_CODES: Record<CompanyProfileGap, string> = {
+  email: 'PROFILE_EMAIL_MISSING',
+  organizationNumber: 'PROFILE_ORG_NUMBER_MISSING',
+  companyName: 'PROFILE_COMPANY_MISSING',
+  address: 'PROFILE_ADDRESS_MISSING',
+  country: 'PROFILE_COUNTRY_UNSUPPORTED',
+};
+
 type InvoiceBody = {
   cartId?: unknown;
   discountCode?: unknown;
@@ -72,6 +81,9 @@ type InvoiceBody = {
   profile?: {
     companyName?: unknown;
     address?: AddressInput;
+    /** "Er referens" och köparens eget inköpsordernummer/kostnadsställe. */
+    reference?: unknown;
+    purchaseOrder?: unknown;
   };
 };
 
@@ -86,6 +98,25 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/**
+ * Ett fel köparen kan läsa på sitt eget språk.
+ *
+ * `error` är loggens text och står kvar på svenska; `code` är det stabila som
+ * gränssnittet slår upp i sina översättningar. Utan koden visades den svenska
+ * serversträngen rakt av för en engelsk köpare — se `messageForCode`.
+ */
+function fail(code: string, error: string, status: number, headers?: Record<string, string>) {
+  return NextResponse.json({ error, code }, { status, ...(headers ? { headers } : {}) });
+}
+
+/** Ett avbrott med en färdig kod, kastat inifrån fakturaflödet. */
+class InvoiceError extends Error {
+  constructor(public readonly code: string, message: string, public readonly status: number) {
+    super(message);
+    this.name = 'InvoiceError';
+  }
+}
+
 
 type InvoiceAccountData = {
   id: number;
@@ -95,6 +126,17 @@ type InvoiceAccountData = {
   companyName: string;
   organizationNumber: string;
   address: PostalAddress | null;
+  /** Kontaktpersonen på kontot. Förval för "Er referens" på fakturan. */
+  contactName: string;
+  /**
+   * Företagets fakturaadress för e-post, när kundregistret har en.
+   *
+   * Stora köpare tar emot fakturor på en delad brevlåda hos ekonomi, inte på
+   * den anställdas adress. Kontots egen adress är fortfarande identiteten —
+   * det är den ordern, rabattspärrarna och kundposten hänger på — men brevet
+   * med fakturan går hit.
+   */
+  invoiceEmail: string | null;
 };
 
 /**
@@ -133,7 +175,32 @@ async function loadInvoiceAccount(): Promise<InvoiceAccountData | null> {
     companyName: client?.name ?? customer.company ?? '',
     organizationNumber: client?.orgNumber ?? customer.taxId ?? '',
     address: clientAddress ?? normalizeAddress(customer.defaultBillingAddress),
+    contactName: [customer.firstName, customer.lastName].filter(Boolean).join(' ').trim(),
+    invoiceEmail: client?.invoiceEmail?.trim() || null,
   };
+}
+
+/**
+ * "Er referens" på fakturan.
+ *
+ * En svensk leverantörsfaktura ställs ut på ett företag men hanteras av en
+ * människa, och det är referensen köparens ekonomiavdelning sorterar på — utan
+ * den blir fakturan liggande. Personen på kontot är förvalet; köparen får
+ * skriva om den för den här ordern, eftersom den som beställer inte alltid är
+ * den som attesterar.
+ *
+ * Inköpsordernumret läggs i samma fält i stället för ett eget: Stripe tar emot
+ * högst fyra `custom_fields` på en faktura, och organisationsnummer, momsnummer
+ * och vårt ordernummer upptar redan tre.
+ */
+const REFERENCE_MAX = 140;
+
+function invoiceReference(body: InvoiceBody, account: InvoiceAccountData): string | null {
+  const reference = text(body.profile?.reference) || account.contactName;
+  const purchaseOrder = text(body.profile?.purchaseOrder);
+  const parts = [reference, purchaseOrder ? `Ert ordernr ${purchaseOrder}` : ''].filter(Boolean);
+  if (!parts.length) return null;
+  return parts.join(' · ').slice(0, REFERENCE_MAX);
 }
 
 /**
@@ -156,7 +223,9 @@ function resolveProfile(body: InvoiceBody, account: InvoiceAccountData): Invoice
     companyName: text(supplied?.companyName) || account.companyName,
     address: normalizeAddress(supplied?.address) ?? account.address,
   });
-  if (!resolved.ok) throw new CartError(PROFILE_GAP_MESSAGES[resolved.missing], 400);
+  if (!resolved.ok) {
+    throw new InvoiceError(PROFILE_GAP_CODES[resolved.missing], PROFILE_GAP_MESSAGES[resolved.missing], 400);
+  }
   return resolved.profile;
 }
 
@@ -180,6 +249,26 @@ type InvoiceLine = {
  * Produkten återanvänds när varan finns i Stripe; annars skapas den med raden,
  * precis som kortkassan gör för samma katalog.
  */
+/**
+ * Stripe-produkterna bakom ett antal varianter.
+ *
+ * Fakturaraderna prissätts en gång per order under en idempotensnyckel som bär
+ * ordernumret och varianten. Stripe spelar bara om en nyckel för *exakt* samma
+ * parametrar, så en återupptagen faktura måste bygga raden ur samma källa som
+ * första försöket gjorde — utan produkt-id:t skickas `product_data` i stället
+ * för `product`, och då avvisar Stripe återupptagandet i just det läge det
+ * fanns till för.
+ */
+async function stripeProductIdsForVariants(variantIds: number[]): Promise<Map<number, string | null>> {
+  if (!variantIds.length) return new Map();
+  const rows = await getDb()
+    .select({ variantId: productVariants.id, stripeProductId: products.stripeProductId })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(inArray(productVariants.id, variantIds));
+  return new Map(rows.map(row => [row.variantId, row.stripeProductId]));
+}
+
 async function priceForLine(line: InvoiceLine, orderId: number): Promise<string> {
   const price = await getStripe().prices.create(
     {
@@ -307,6 +396,8 @@ async function finishInvoice(input: {
   lines: InvoiceLine[];
   shipping: { name: string; currency: string; amountMinor: number };
   taxMode: Awaited<ReturnType<typeof checkoutTaxMode>>;
+  /** Företagets fakturabrevlåda, när kundregistret har en. */
+  notifyEmail?: string | null;
 }) {
   const itemTaxRates = input.taxMode.kind === 'explicit' ? [input.taxMode.taxRateId] : undefined;
   for (const line of input.lines) {
@@ -332,17 +423,21 @@ async function finishInvoice(input: {
   // och är inte vårt brev till kunden; utan det här fick köparen ingenting
   // från oss förrän fakturan betalats, alltså upp till 30 dagar senare.
   // `sendInvoiceCreatedNotice` sväljer sina fel: fakturan är redan skickad.
-  await sendInvoiceCreatedNotice(sent.id, {
-    hostedUrl: sent.hosted_invoice_url ?? null,
-    number: sent.number ?? null,
-    dueDate: sent.due_date ? new Date(sent.due_date * 1000) : null,
-  });
+  await sendInvoiceCreatedNotice(
+    sent.id,
+    {
+      hostedUrl: sent.hosted_invoice_url ?? null,
+      number: sent.number ?? null,
+      dueDate: sent.due_date ? new Date(sent.due_date * 1000) : null,
+    },
+    input.notifyEmail
+  );
   return sent;
 }
 
 export async function POST(request: NextRequest) {
   if (!ownedCommerceEnabled() || !stripeConfigured()) {
-    return NextResponse.json({ error: 'Invoice checkout is not configured.' }, { status: 503 });
+    return fail('NOT_CONFIGURED', 'Invoice checkout is not configured.', 503);
   }
 
   const ipLimit = await checkRateLimit({
@@ -352,24 +447,17 @@ export async function POST(request: NextRequest) {
     windowSeconds: INVOICE_RATE_WINDOW_SECONDS,
   });
   if (!ipLimit.allowed) {
-    return NextResponse.json(
-      { error: 'För många fakturaförsök. Försök igen senare.' },
-      { status: 429, headers: { 'Retry-After': String(ipLimit.retryAfterSeconds) } }
-    );
+    return fail('RATE_LIMITED', 'För många fakturaförsök. Försök igen senare.', 429, {
+      'Retry-After': String(ipLimit.retryAfterSeconds),
+    });
   }
 
   const account = await loadInvoiceAccount();
   if (!account) {
-    return NextResponse.json(
-      { error: 'Logga in med ditt företagskonto för att betala mot faktura.' },
-      { status: 401 }
-    );
+    return fail('SIGN_IN_REQUIRED', 'Logga in med ditt företagskonto för att betala mot faktura.', 401);
   }
   if (account.status !== 'active') {
-    return NextResponse.json(
-      { error: 'Ditt företagskonto kan inte betala mot faktura. Kontakta oss.' },
-      { status: 403 }
-    );
+    return fail('ACCOUNT_INACTIVE', 'Ditt företagskonto kan inte betala mot faktura. Kontakta oss.', 403);
   }
 
   const accountLimit = await checkRateLimit({
@@ -379,10 +467,9 @@ export async function POST(request: NextRequest) {
     windowSeconds: INVOICE_RATE_WINDOW_SECONDS,
   });
   if (!accountLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Kontot har nått gränsen för antal fakturor. Försök igen senare.' },
-      { status: 429, headers: { 'Retry-After': String(accountLimit.retryAfterSeconds) } }
-    );
+    return fail('RATE_LIMITED', 'Kontot har nått gränsen för antal fakturor. Försök igen senare.', 429, {
+      'Retry-After': String(accountLimit.retryAfterSeconds),
+    });
   }
 
   let body: InvoiceBody;
@@ -392,7 +479,7 @@ export async function POST(request: NextRequest) {
     cartId = text(body.cartId);
     if (!/^[0-9a-f-]{36}$/i.test(cartId)) throw new Error('A valid cartId is required.');
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid request.' }, { status: 400 });
+    return fail('INVALID_REQUEST', error instanceof Error ? error.message : 'Invalid request.', 400);
   }
 
   let pendingOrderId: number | null = null;
@@ -405,7 +492,7 @@ export async function POST(request: NextRequest) {
 
     const profile = resolveProfile(body, account);
     const currentCart = await getOwnedCart(cartId);
-    if (!currentCart) return NextResponse.json({ error: 'Cart not found.' }, { status: 404 });
+    if (!currentCart) return fail('CART_NOT_FOUND', 'Cart not found.', 404);
     if (currentCart.status === 'checkout_started') {
       const existing = await getOrderByCartVersion(cartId, currentCart.version);
       if (existing?.paymentMethod === 'invoice' && existing.stripeSessionId.startsWith('in_')) {
@@ -418,7 +505,15 @@ export async function POST(request: NextRequest) {
         // every remaining call is keyed on the order id and replays cleanly.
         // Answering 409 here left the buyer with a frozen cart and reserved
         // stock until the daily reconciliation swept the draft away.
-        if (invoice.status === 'draft' && existing.status === 'pending') {
+        // Varje rad måste kunna peka ut sin variant: idempotensnyckeln bakom
+        // priset bär variantnumret, och en rad vars variant hunnit tas bort
+        // kan inte spela om nyckeln första försöket använde. Då är 409 rätt
+        // svar — avstämningen städar bort utkastet och släpper lagret.
+        const recoverable = existing.items.every(item => item.variantId !== null);
+        if (invoice.status === 'draft' && existing.status === 'pending' && recoverable) {
+          const productIds = await stripeProductIdsForVariants(
+            existing.items.map(item => item.variantId as number)
+          );
           const finished = await finishInvoice({
             invoiceId: invoice.id,
             orderId: existing.id,
@@ -428,7 +523,8 @@ export async function POST(request: NextRequest) {
               currency: existing.currency,
               unitAmountMinor: item.unitAmountMinor,
               quantity: item.quantity,
-              variantId: item.variantId ?? 0,
+              variantId: item.variantId as number,
+              stripeProductId: productIds.get(item.variantId as number) ?? null,
             })),
             shipping: {
               name: existing.shippingMethod ?? 'Frakt',
@@ -436,6 +532,7 @@ export async function POST(request: NextRequest) {
               amountMinor: existing.shippingMinor,
             },
             taxMode: await checkoutTaxMode(),
+            notifyEmail: account.invoiceEmail,
           });
           invoiceSent = true;
           return NextResponse.json({
@@ -445,7 +542,7 @@ export async function POST(request: NextRequest) {
           });
         }
       }
-      return NextResponse.json({ error: 'Checkout has already started.' }, { status: 409 });
+      return fail('CHECKOUT_IN_PROGRESS', 'Checkout has already started.', 409);
     }
 
     const locale = await getServerLanguage();
@@ -486,7 +583,7 @@ export async function POST(request: NextRequest) {
     if (!(await reserveOrderStockStrict(orderId, 'invoice', expiresAt))) {
       await abandonPendingOrder(orderId, 'Insufficient stock before invoice');
       pendingOrderId = null;
-      throw new CartError('Lagret ändrades. Kontrollera korgen och försök igen.', 409);
+      throw new InvoiceError('STOCK_CHANGED', 'Lagret ändrades. Kontrollera korgen och försök igen.', 409);
     }
 
     const customerId = await (async () => {
@@ -526,6 +623,7 @@ export async function POST(request: NextRequest) {
 
     const couponId = discount ? await ensureStripeCoupon(discount) : null;
     const orgNumber = swedishOrganizationNumber(profile.organizationNumber);
+    const reference = invoiceReference(body, account);
     // Fakturans språk, inte sajtens: texten på fakturan ska följa samma språk
     // som Stripe renderar resten av PDF:en på, annars får en svensk kund som
     // råkat surfa på engelska en svensk faktura med engelska villkor i foten.
@@ -557,6 +655,7 @@ export async function POST(request: NextRequest) {
         ...(orgNumber ? [{ name: 'Organisationsnummer', value: orgNumber }] : []),
         { name: 'Momsreg.nr', value: profile.organizationNumber },
         { name: 'Ordernummer', value: String(orderId) },
+        ...(reference ? [{ name: 'Er referens', value: reference }] : []),
       ],
       // Betalningsvillkoren är desamma som köpvillkoren på sajten (§4), och
       // står på fakturan därför att det är där kunden faktiskt läser dem.
@@ -565,6 +664,7 @@ export async function POST(request: NextRequest) {
         linnevik_order_id: String(orderId),
         linnevik_shipping_minor: String(shipping.amountMinor),
         linnevik_tax_id: profile.organizationNumber,
+        ...(reference ? { linnevik_reference: reference } : {}),
         linnevik_vat_mode: taxMode.kind,
       },
     }, { idempotencyKey: `linnevik_invoice_${ownedCart.id}_${ownedCart.version}` });
@@ -579,6 +679,7 @@ export async function POST(request: NextRequest) {
       lines: priced,
       shipping: { name: shipping.name, currency: shipping.currency, amountMinor: shipping.amountMinor },
       taxMode,
+      notifyEmail: account.invoiceEmail,
     });
     invoiceSent = true;
     return NextResponse.json({
@@ -602,11 +703,16 @@ export async function POST(request: NextRequest) {
       });
     }
     const message = error instanceof Error ? error.message : 'Invoice checkout failed.';
-    if (error instanceof VatConfigurationError) return NextResponse.json({ error: 'Invoice checkout is not configured.' }, { status: 503 });
-    if (error instanceof CartError) return NextResponse.json({ error: message }, { status: error.status });
+    if (error instanceof VatConfigurationError) return fail('NOT_CONFIGURED', 'Invoice checkout is not configured.', 503);
+    if (error instanceof InvoiceError) return fail(error.code, message, error.status);
+    // Kortkassan hann först på den här korgversionen. Två betalbara objekt på
+    // en order är ett dubbelsålt lager — försöket slutar här i stället för att
+    // ta över kassans order.
+    if (error instanceof PaymentMethodConflictError) return fail('CHECKOUT_IN_PROGRESS', message, 409);
+    if (error instanceof CartError) return fail('CART_INVALID', message, error.status);
     if (error instanceof CartRuleError) return NextResponse.json({ error: message, code: error.code }, { status: 409 });
     if (error instanceof DiscountError) return NextResponse.json({ error: message, code: `DISCOUNT_${error.reason}` }, { status: 409 });
-    if (ambiguousStripeFailure) return NextResponse.json({ error: 'Invoice checkout is temporarily unavailable. Try again.' }, { status: 503 });
-    return NextResponse.json({ error: 'Invoice checkout failed.' }, { status: 500 });
+    if (ambiguousStripeFailure) return fail('STRIPE_UNAVAILABLE', 'Invoice checkout is temporarily unavailable. Try again.', 503);
+    return fail('CHECKOUT_FAILED', 'Invoice checkout failed.', 500);
   }
 }

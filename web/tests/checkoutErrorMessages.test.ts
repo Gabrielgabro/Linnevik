@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 const checkout = readFileSync(resolve('app/api/checkout/route.ts'), 'utf8');
 const button = readFileSync(resolve('src/components/CheckoutButton.tsx'), 'utf8');
 const invoiceButton = readFileSync(resolve('src/components/InvoiceCheckoutButton.tsx'), 'utf8');
+const invoice = readFileSync(resolve('app/api/invoice/route.ts'), 'utf8');
 const en = JSON.parse(readFileSync(resolve('src/translations/en.json'), 'utf8'));
 const sv = JSON.parse(readFileSync(resolve('src/translations/sv.json'), 'utf8'));
 
@@ -21,7 +22,10 @@ const DISCOUNT_REASONS = [
 const SERVER_WORDED = new Set(['CART_INVALID']);
 
 function emittedCodes(): string[] {
-  const codes = [...checkout.matchAll(/fail\(\s*'([A-Z_]+)'/g)].map(match => match[1]);
+  // Fakturarutten svarade länge med sina svenska serversträngar utan kod, och
+  // då visade det engelska gränssnittet dem rakt av. Den räknas med här nu.
+  const codes = [...checkout.matchAll(/fail\(\s*'([A-Z_]+)'/g), ...invoice.matchAll(/fail\(\s*'([A-Z_]+)'/g)]
+    .map(match => match[1]);
   return [...new Set([...codes, ...DISCOUNT_REASONS.map(reason => `DISCOUNT_${reason}`)])].filter(
     code => !SERVER_WORDED.has(code)
   );

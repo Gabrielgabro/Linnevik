@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
-import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
+import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
 import { getOrderById } from '@/lib/ordersDb';
 import { sendOrderConfirmation, sendShipmentNotice } from '@/lib/orderEmails';
 
@@ -33,7 +33,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 
-  const body = await readBody(request);
+  const parsed = await readJson(request);
+  if ('response' in parsed) return parsed.response;
+  const body = parsed.body;
   const template = String(body.template ?? 'confirmation');
 
   let sent = false;

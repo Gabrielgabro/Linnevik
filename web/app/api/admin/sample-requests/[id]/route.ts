@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
+import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
 import { record } from '@/lib/adminActivity';
 import {
   getSampleRequestById,
@@ -28,7 +28,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const id = routeId((await params).id);
   if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
 
-  const body = await readBody(request);
+  const parsed = await readJson(request);
+  if ('response' in parsed) return parsed.response;
+  const body = parsed.body;
   const status = body.status === undefined ? undefined : body.status;
   if (status !== undefined && !isSampleStatus(status)) {
     return NextResponse.json({ error: 'Ogiltig status.' }, { status: 400 });

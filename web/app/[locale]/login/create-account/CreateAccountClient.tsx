@@ -50,6 +50,7 @@ export default function CreateAccountClient() {
                                     name="firstName"
                                     type="text"
                                     autoComplete="given-name"
+                                    required
                                     maxLength={100}
                                     className={fieldClass}
                                     placeholder={t.register.firstNamePlaceholder}
@@ -66,10 +67,48 @@ export default function CreateAccountClient() {
                                     name="lastName"
                                     type="text"
                                     autoComplete="family-name"
+                                    required
                                     maxLength={100}
                                     className={fieldClass}
                                     placeholder={t.register.lastNamePlaceholder}
                                     defaultValue={state.fields?.lastName ?? ''}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Rollen och telefonnumret hör till personen, inte till
+                            företaget. Båda frivilliga: de gör kontakten användbar
+                            för säljet, men ingen registrering ska falla på dem. */}
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label htmlFor="role" className="block mb-2 text-sm font-medium text-primary">
+                                    {t.register.roleLabel}
+                                </label>
+                                <input
+                                    id="role"
+                                    name="role"
+                                    type="text"
+                                    autoComplete="organization-title"
+                                    maxLength={120}
+                                    className={fieldClass}
+                                    placeholder={t.register.rolePlaceholder}
+                                    defaultValue={state.fields?.role ?? ''}
+                                />
+                            </div>
+
+                            <div>
+                                <label htmlFor="phone" className="block mb-2 text-sm font-medium text-primary">
+                                    {t.register.phoneLabel}
+                                </label>
+                                <input
+                                    id="phone"
+                                    name="phone"
+                                    type="tel"
+                                    autoComplete="tel"
+                                    maxLength={40}
+                                    className={fieldClass}
+                                    placeholder={t.register.phonePlaceholder}
+                                    defaultValue={state.fields?.phone ?? ''}
                                 />
                             </div>
                         </div>

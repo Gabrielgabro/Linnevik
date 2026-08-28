@@ -20,6 +20,7 @@ import {
   abandonPendingOrder,
   createPendingOrder,
   getOrderByCartVersion,
+  PaymentMethodConflictError,
 } from '@/lib/ordersDb';
 import {
   CartError,
@@ -514,6 +515,12 @@ export async function POST(request: NextRequest) {
     // moms — och 503 så att det syns som ett driftfel, inte ett kundfel.
     if (error instanceof VatConfigurationError) {
       return fail('NOT_CONFIGURED', 'Checkout is not configured.', 503);
+    }
+    // The buyer started an invoice for this same cart version a moment ago.
+    // Two payable objects for one order is a double sale, so this attempt ends
+    // here rather than adopting the invoice's order.
+    if (error instanceof PaymentMethodConflictError) {
+      return fail('CHECKOUT_IN_PROGRESS', message, 409);
     }
     if (error instanceof CartError) {
       return fail('CART_INVALID', message, error.status);

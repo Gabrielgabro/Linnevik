@@ -53,6 +53,20 @@ export type SampleRequestDetail = SampleRequestRow & {
 };
 
 /**
+ * Detaljvyns rader, med produktens handle.
+ *
+ * Raden bär bara `productId`, men /admin/products slås upp på handle — så
+ * länken från en provförfrågan pekade på /admin/products/8 och gav 404.
+ */
+export type SampleRequestItemWithHandle = SampleRequestItemRow & {
+  productHandle: string | null;
+};
+
+export type SampleRequestFull = Omit<SampleRequestDetail, 'items'> & {
+  items: SampleRequestItemWithHandle[];
+};
+
+/**
  * Skriver förfrågan och dess rader.
  *
  * Kopplingen till kund görs på adressen, och bara när den redan finns — en
@@ -149,7 +163,7 @@ export async function listSampleRequests(limit = 200): Promise<SampleRequestDeta
   }));
 }
 
-export async function getSampleRequestById(id: number): Promise<SampleRequestDetail | null> {
+export async function getSampleRequestById(id: number): Promise<SampleRequestFull | null> {
   const [row] = await getDb()
     .select()
     .from(sampleRequests)
@@ -157,10 +171,25 @@ export async function getSampleRequestById(id: number): Promise<SampleRequestDet
     .limit(1);
   if (!row) return null;
 
-  const items = await getDb()
+  const rows = await getDb()
     .select()
     .from(sampleRequestItems)
     .where(eq(sampleRequestItems.requestId, id));
+
+  // Produkten kan ha tagits bort sedan förfrågan kom in, så handlen slås upp
+  // och får vara null när den inte finns kvar. Länken göms då i vyn.
+  const productIds = rows.map(item => item.productId).filter((value): value is number => value !== null);
+  const handles = productIds.length
+    ? await getDb()
+        .select({ id: products.id, handle: products.handle })
+        .from(products)
+        .where(inArray(products.id, productIds))
+    : [];
+  const handleById = new Map(handles.map(product => [product.id, product.handle]));
+  const items: SampleRequestItemWithHandle[] = rows.map(item => ({
+    ...item,
+    productHandle: item.productId === null ? null : handleById.get(item.productId) ?? null,
+  }));
 
   const [customer] = row.customerId
     ? await getDb()

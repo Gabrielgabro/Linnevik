@@ -373,6 +373,9 @@ export async function registerCustomer(input: {
   email: string;
   firstName?: string | null;
   lastName?: string | null;
+  /** Roll och telefon hör till kontaktpersonen, inte till inloggningen. */
+  role?: string | null;
+  phone?: string | null;
   taxId?: string | null;
   companyName?: string | null;
   address?: PostalAddress | null;
@@ -389,6 +392,8 @@ export async function registerCustomer(input: {
     email,
     firstName: input.firstName,
     lastName: input.lastName,
+    role: input.role,
+    phone: input.phone,
     status: 'active',
     companyName: input.companyName,
     orgNumber: input.taxId,
@@ -396,12 +401,13 @@ export async function registerCustomer(input: {
   });
   const result = await getDb().execute(sql`
     insert into customers (
-      client_id, email, customer_no, first_name, last_name, company, tax_id, tax_id_type,
+      client_id, email, customer_no, first_name, last_name, phone, company, tax_id, tax_id_type,
       default_billing_address, default_shipping_address
     )
     values (
       ${client.id}, ${email}, ${client.customerNo}, ${input.firstName ?? null},
-      ${input.lastName ?? null}, ${client.name}, ${input.taxId ?? null},
+      ${input.lastName ?? null}, ${input.phone?.trim() || null},
+      ${client.name}, ${input.taxId ?? null},
       ${input.taxId ? STRIPE_TAX_ID_TYPE : null},
       ${JSON.stringify(input.address ?? null)}::jsonb,
       ${JSON.stringify(input.address ?? null)}::jsonb
@@ -513,6 +519,8 @@ type CommerceClientIdentity = ClientCompanyProfile & {
   customerNo?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  /** Kontaktpersonens roll hos kunden, t.ex. "Inköpsansvarig". Frivillig. */
+  role?: string | null;
   phone?: string | null;
   status?: string | null;
 };
@@ -634,6 +642,11 @@ async function ensureClientForCommerceCustomer(
       input.companyName?.trim() ||
       [input.firstName, input.lastName].filter(Boolean).join(' ').trim() ||
       email;
+    // Utan måltavla gäller `do nothing` varje unik spärr på tabellen, inte
+    // bara kundnumret. Det är det som gör organisationsnumret säkert: två
+    // anställda på samma företag som registrerar sig i samma ögonblick hinner
+    // båda förbi uppslagningen ovan, och då är det databasen som avgör vem som
+    // skapar posten — den andra läser den i stället för att skapa en till.
     [client] = await db
       .insert(clients)
       .values({
@@ -642,8 +655,16 @@ async function ensureClientForCommerceCustomer(
         status: input.status === 'active' ? 'Aktiv kund' : 'Vilande',
         ...clientProfileColumns(input),
       })
-      .onConflictDoNothing({ target: clients.customerNo })
+      .onConflictDoNothing()
       .returning();
+    if (!client && input.orgNumber) {
+      [client] = await db
+        .select()
+        .from(clients)
+        .where(eq(clients.orgNumber, input.orgNumber))
+        .orderBy(asc(clients.id))
+        .limit(1);
+    }
     if (!client) {
       [client] = await db.select().from(clients).where(eq(clients.customerNo, customerNo)).limit(1);
     }
@@ -662,11 +683,12 @@ async function ensureClientForCommerceCustomer(
       select pg_advisory_xact_lock(hashtextextended(${contactLockKey}, 0))
     )
     insert into client_contacts (
-      client_id, first_name, last_name, email, phone, status
+      client_id, first_name, last_name, role, email, phone, status
     )
     select
       ${client.id}, ${input.firstName?.trim() || email.split('@')[0]},
-      ${input.lastName?.trim() || null}, ${email}, ${input.phone?.trim() || null},
+      ${input.lastName?.trim() || null}, ${input.role?.trim() || null},
+      ${email}, ${input.phone?.trim() || null},
       ${input.status === 'active' ? 'Vunnen' : 'Ej kontaktad'}
     from contact_lock
     where not exists (

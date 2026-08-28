@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
 import { messageForCode } from '@/components/CheckoutButton';
 
@@ -14,6 +15,8 @@ type Props = {
     line2?: string;
     city?: string;
     postalCode?: string;
+    /** Personen på kontot, förval för "Er referens". */
+    reference?: string;
   };
   /** True only for a signed-in company account. Guests pay by card. */
   eligible: boolean;
@@ -32,6 +35,9 @@ type Props = {
   addressLine2Label: string;
   postalCodeLabel: string;
   cityLabel: string;
+  referenceLabel: string;
+  referenceHelper: string;
+  purchaseOrderLabel: string;
 };
 
 /**
@@ -41,6 +47,8 @@ type Props = {
  * and the address for this order.
  */
 export default function InvoiceCheckoutButton(props: Props) {
+  // Proxyn ligger inte framför /api: språket i adressen skickas med här.
+  const { locale } = useLocale();
   const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +58,8 @@ export default function InvoiceCheckoutButton(props: Props) {
     line2: props.initialProfile?.line2 ?? '',
     city: props.initialProfile?.city ?? '',
     postalCode: props.initialProfile?.postalCode ?? '',
+    reference: props.initialProfile?.reference ?? '',
+    purchaseOrder: '',
   });
 
   function change(field: keyof typeof profile, value: string) {
@@ -63,7 +73,7 @@ export default function InvoiceCheckoutButton(props: Props) {
     try {
       const response = await fetch('/api/invoice', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-linnevik-locale': locale },
         body: JSON.stringify({
           cartId: props.cartId,
           discountCode: props.discountCode,
@@ -72,6 +82,8 @@ export default function InvoiceCheckoutButton(props: Props) {
             address: {
               line1: profile.line1, line2: profile.line2, city: profile.city, postalCode: profile.postalCode,
             },
+            reference: profile.reference,
+            purchaseOrder: profile.purchaseOrder,
           },
         }),
       });
@@ -136,6 +148,18 @@ export default function InvoiceCheckoutButton(props: Props) {
               <input value={profile.city} onChange={event => change('city', event.target.value)} autoComplete="address-level2" className="mt-1 w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-600" />
             </label>
           </div>
+          {/* Er referens är det köparens ekonomiavdelning sorterar fakturan
+              på. Inköpsordernumret är frivilligt och hamnar i samma fält på
+              fakturan — Stripe tar bara fyra egna fält. */}
+          <label className="block text-sm text-secondary">
+            {props.referenceLabel}
+            <input value={profile.reference} onChange={event => change('reference', event.target.value)} autoComplete="name" maxLength={100} className="mt-1 w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-600" />
+          </label>
+          <label className="block text-sm text-secondary">
+            {props.purchaseOrderLabel}
+            <input value={profile.purchaseOrder} onChange={event => change('purchaseOrder', event.target.value)} autoComplete="off" maxLength={40} className="mt-1 w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-600" />
+          </label>
+          <p className="text-xs text-secondary">{props.referenceHelper}</p>
           <button type="button" onClick={createInvoice} disabled={isPending || !props.cartId || props.disabled} className="block w-full rounded-full bg-accent px-6 py-3 text-center font-semibold text-color-accent-primary transition-colors hover:bg-accent/90 disabled:opacity-60">
             {isPending ? props.pendingLabel : props.label}
           </button>

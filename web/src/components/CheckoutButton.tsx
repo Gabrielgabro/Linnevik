@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useLocale } from '@/contexts/LocaleContext';
 
 /**
  * Turn an API failure into something the buyer can read *in their language*.
@@ -48,6 +49,10 @@ export default function CheckoutButton({
 }: Props) {
     const [isPending, setIsPending] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Proxyn ligger inte framför /api, så språket i adressen når inte rutten
+    // av sig självt. Utan det öppnades Stripe-kassan på svenska för en köpare
+    // som läste sidan på engelska.
+    const { locale } = useLocale();
     const hasContent = Boolean(cartId) && !disabled;
 
     async function startCheckout() {
@@ -58,7 +63,7 @@ export default function CheckoutButton({
         try {
             const response = await fetch('/api/checkout', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-linnevik-locale': locale },
                 body: JSON.stringify({ cartId, discountCode }),
             });
             const data = await response.json();

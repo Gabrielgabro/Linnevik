@@ -1,4 +1,5 @@
 import type { CustomerInput, DiscountInput, ShippingInput } from '@/lib/commerceOperations';
+import { isCalendarDate } from '@/lib/isoDate';
 
 type Body = Record<string, unknown>;
 
@@ -31,6 +32,12 @@ function bool(body: Body, key: string): boolean | undefined {
 function date(body: Body, key: string): Date | null | undefined {
   const value = text(body, key, 100);
   if (value === undefined || value === null) return value;
+  // `new Date('2026-02-31')` kastar inte — den rullar vidare till 3 mars, och
+  // ett omöjligt datum sparades tyst som ett annat än det som skickades in.
+  // Rena ÅÅÅÅ-MM-DD kontrolleras därför mot kalendern först.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value) && !isCalendarDate(value)) {
+    throw new CommerceInputError(`${key} must be a date.`);
+  }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) throw new CommerceInputError(`${key} must be a date.`);
   return parsed;
