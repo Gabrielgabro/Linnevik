@@ -1,6 +1,7 @@
 import {
   Activity,
   BellRing,
+  Building2,
   Download,
   FolderTree,
   LineChart,
@@ -80,7 +81,10 @@ export const NAV: NavGroup[] = [
   {
     label: 'Kundregister',
     items: [
-      { href: '/admin/clients', label: 'Kunder', icon: Users, accent: 'var(--viz-s1)' },
+      // Två register, inte ett: företagen säljarbetet handlar om, och de
+      // personer som har skrivit in sig i inloggningsportalen.
+      { href: '/admin/clients', label: 'Tvätterikunder', icon: Building2, accent: 'var(--viz-s1)' },
+      { href: '/admin/customers', label: 'Kunder', icon: Users, accent: 'var(--adm-ok)' },
       { href: '/admin/activity', label: 'Aktivitet', icon: Activity, accent: 'var(--viz-ink-3)' },
       // Sist i menyn men först i uppmärksamhet när siffran på den är röd:
       // driftlarmen är det enda i /admin som betyder "titta nu".

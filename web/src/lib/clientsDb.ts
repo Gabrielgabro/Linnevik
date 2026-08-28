@@ -7,9 +7,11 @@
 import { asc, desc, eq, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import type { ClientWithCounts } from '@/lib/clients';
+import type { PortalAccount } from '@/lib/portalAccounts';
 import {
   clientContacts,
   clients,
+  customerLoginTokens,
   customers,
   orders,
   type ClientContactRow,
@@ -100,4 +102,52 @@ export async function nextCustomerNo(): Promise<string> {
     })
     .from(clients);
   return String(Math.max(Number(row?.max ?? 0), 1000) + 1);
+}
+
+/**
+ * Alla konton i inloggningsportalen. Ordnade på nyast först — det är den nya
+ * registreringen man kommer hit för att titta på, inte den äldsta.
+ *
+ * Ordersiffrorna och senaste inloggningen räknas som underfrågor i stället för
+ * joins: en join mot både ordrar och tokens skulle multiplicera raderna med
+ * varandra, och listan är i storleksordningen hundratals konton.
+ */
+export async function listPortalAccounts(): Promise<PortalAccount[]> {
+  if (!clientsConfigured()) return [];
+  const rows = await getDb()
+    .select({
+      id: customers.id,
+      email: customers.email,
+      firstName: customers.firstName,
+      lastName: customers.lastName,
+      company: customers.company,
+      phone: customers.phone,
+      taxId: customers.taxId,
+      status: customers.status,
+      createdAt: sql<string>`${customers.createdAt}::text`,
+      clientId: customers.clientId,
+      clientName: clients.name,
+      customerNo: customers.customerNo,
+      stripeCustomerId: customers.stripeCustomerId,
+      shopifyCustomerId: customers.shopifyCustomerId,
+      orderCount: sql<number>`(
+        select count(*)::int from ${orders} o where o.customer_id = ${customers.id}
+      )`,
+      spendMinor: sql<number>`(
+        select coalesce(sum(o.total_minor), 0)::int from ${orders} o
+        where o.customer_id = ${customers.id}
+      )`,
+      lastOrderAt: sql<string | null>`(
+        select max(o.created_at)::text from ${orders} o where o.customer_id = ${customers.id}
+      )`,
+      lastLoginAt: sql<string | null>`(
+        select max(t.consumed_at)::text from ${customerLoginTokens} t
+        where t.customer_id = ${customers.id} and t.consumed_at is not null
+      )`,
+    })
+    .from(customers)
+    .innerJoin(clients, eq(clients.id, customers.clientId))
+    .orderBy(desc(customers.createdAt));
+
+  return rows;
 }

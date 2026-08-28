@@ -17,10 +17,11 @@ export default async function AdminClientsPage() {
     <>
       <PageHeader
         kicker={`${clients.length} företag · ${contacts} kontaktpersoner`}
-        title="Kundregister"
+        title="Tvätterikunder"
         accent={accentFor('/admin/clients')}
         description="Alla företag samlade på ett ställe: kontaktpersoner, säljarbete, webbkonton
-          och orderhistorik. Ett företag kan ha flera personer och webbkonton."
+          och orderhistorik. Ett företag kan ha flera personer och webbkonton — själva
+          portalkontona listas under Kunder."
         actions={
           <Link href="/admin/clients/new" className={buttonClass('primary')}>
             <Plus size={16} strokeWidth={2} aria-hidden />

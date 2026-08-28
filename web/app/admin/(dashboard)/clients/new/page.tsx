@@ -19,7 +19,7 @@ export default async function NewClientPage() {
             className="inline-flex items-center gap-1.5 hover:text-ink-2 hover:underline"
           >
             <ArrowLeft size={13} strokeWidth={2} aria-hidden />
-            Kundregister
+            Tvätterikunder
           </Link>
         }
         title="Lägg till kund"
