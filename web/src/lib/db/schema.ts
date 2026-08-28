@@ -242,6 +242,14 @@ export const productVariants = pgTable(
     inventoryReserved: integer('inventory_reserved').notNull().default(0),
     minimumOrderQuantity: integer('minimum_order_quantity').notNull().default(1),
     orderIncrement: integer('order_increment').notNull().default(1),
+    // Inköpssidan, som kunden aldrig ser. `supplierCostMinor` är det pris vi
+    // faktiskt förhandlat fram hos leverantören — bättre än det som står i
+    // artikelfilen, och bara åtkomligt bakom deras inloggning, därför
+    // handskrivet. NULL betyder "inget angivet", och då gäller artikelfilens
+    // pris. `purchaseBatchSize` är hur många vi tar hem per omgång; det är
+    // inte `orderIncrement`, som är kundens steg i kassan.
+    supplierCostMinor: integer('supplier_cost_minor'),
+    purchaseBatchSize: integer('purchase_batch_size'),
     inventoryTracked: boolean('inventory_tracked').notNull().default(true),
     availableForSale: boolean('available_for_sale').notNull().default(false),
     // Ordningen kunden ser dem i, på produktsidan och i adminvyn. Utan den
@@ -272,6 +280,14 @@ export const productVariants = pgTable(
       .where(isNotNull(table.stripeLookupKey)),
     check('product_variants_minimum_order_quantity_check', sql`${table.minimumOrderQuantity} > 0`),
     check('product_variants_order_increment_check', sql`${table.orderIncrement} > 0`),
+    check(
+      'product_variants_supplier_cost_minor_check',
+      sql`${table.supplierCostMinor} is null or ${table.supplierCostMinor} >= 0`
+    ),
+    check(
+      'product_variants_purchase_batch_size_check',
+      sql`${table.purchaseBatchSize} is null or ${table.purchaseBatchSize} > 0`
+    ),
     check('product_variants_inventory_quantity_nonnegative', sql`${table.inventoryQuantity} >= 0`),
     check(
       'product_variants_inventory_reserved_valid',

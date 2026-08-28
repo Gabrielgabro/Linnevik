@@ -4,7 +4,7 @@ import FranzenPricing from '@/components/admin/FranzenPricing';
 import { PageHeader, StatRow, StatTile, buttonClass } from '@/components/admin/ui';
 import { accentFor } from '../nav';
 import { ADMIN_COOKIE, readSessionValue } from '@/lib/adminAuth';
-import { articleForSku } from '@/data/franzenArticles';
+import { costOf, negotiatedCostOf } from '@/lib/franzenCost';
 import {
   franzenCollectedAt,
   franzenVariantCompetitors,
@@ -22,14 +22,15 @@ export default async function AdminFranzenPricingPage() {
   const products = await listFranzenVariantProducts();
 
   const variants = products.flatMap(p => p.variants);
-  const withCost = variants.filter(v => articleForSku(v.sku) !== null);
+  const withCost = variants.filter(v => costOf(v) !== null);
+  const withNegotiated = variants.filter(v => negotiatedCostOf(v) !== null);
   const withMarket = variants.filter(v => (franzenVariantCompetitors[v.sku] ?? []).length > 0);
 
   // Påslaget mätt över de varianter där båda talen finns. Ett enkelt medel per
   // variant, inte ett volymvägt — vi har ingen försäljningsvolym att väga med.
   const markups = withCost
     .map(v => {
-      const cost = articleForSku(v.sku)!.inköpspris;
+      const cost = costOf(v);
       return cost && cost > 0 ? v.priceMinor / 100 / cost : null;
     })
     .filter((n): n is number => n !== null);
@@ -51,10 +52,11 @@ export default async function AdminFranzenPricingPage() {
         description={
           <>
             Samma uppställning som prisbilden för Kina-sändningen, men med ett annat
-            kostnadsunderlag: här är <b className="font-semibold text-ink">Franzéns inköpspris</b>{' '}
-            ur artikelfilen, inte en landad kostnad — frakten in till oss ligger utanför, så den
-            verkliga marginalen är något lägre än den som räknas ut här. Konkurrenterna är Livv,
-            Tingstad, Sovtex, Bygghemma och Spis & Servis. Alla belopp i SEK per styck exklusive
+            kostnadsunderlag: här är <b className="font-semibold text-ink">Franzéns inköpspris</b>,
+            inte en landad kostnad — frakten in till oss ligger utanför, så den verkliga marginalen
+            är något lägre än den som räknas ut här. Priset som räknas är det förmånliga vi
+            förhandlat fram, där ett sådant är inskrivet på varianten, annars artikelfilens.
+            Konkurrenterna är Livv, Tingstad, Sovtex, Bygghemma och Spis & Servis. Alla belopp i SEK per styck exklusive
             moms; konsumentpriser är omräknade med /1,25.
           </>
         }
@@ -76,7 +78,7 @@ export default async function AdminFranzenPricingPage() {
           label="Med inköpspris"
           value={String(withCost.length)}
           accent="var(--viz-s3)"
-          hint={`${variants.length - withCost.length} varianter är obelagda mot Franzéns artikelfil`}
+          hint={`${withNegotiated.length} med förmånligt pris inskrivet, ${variants.length - withCost.length} utan pris alls`}
         />
         <StatTile
           label="Med marknadsdata"

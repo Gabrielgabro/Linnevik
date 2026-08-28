@@ -10,6 +10,7 @@ import {
 } from '@/data/franzenCompetitorPrices';
 import { articleForSku } from '@/data/franzenArticles';
 import type { AdminUser } from '@/lib/adminAuth';
+import { costOf, listCostOf, negotiatedCostOf } from '@/lib/franzenCost';
 import type { VariantPricingProduct, VariantPricingVariant } from '@/lib/productsDb';
 import { Card, Legend, sek, Tooltip, useTip } from './VizPrimitives';
 
@@ -63,8 +64,6 @@ const optionLabel = (v: VariantPricingVariant) =>
 
 const liveOf = (v: VariantPricingVariant) => v.priceMinor / 100;
 
-/** Franzéns inköpspris för varianten, eller null när varianten är obelagd. */
-const costOf = (sku: string) => articleForSku(sku)?.inköpspris ?? null;
 
 const marketOf = (sku: string): FranzenCompetitor[] =>
   [...(franzenVariantCompetitors[sku] ?? [])].sort((a, b) => a.priceSek - b.priceSek);
@@ -358,6 +357,173 @@ function PriceSlider({
   );
 }
 
+/**
+ * Inköpsvillkoren för en variant, handskrivna.
+ *
+ * Franzéns artikelfil bär det listade priset. Det vi faktiskt betalar är
+ * förhandlat och ligger bara bakom deras inloggning — ingen import kan hämta
+ * hit det, så det skrivs in här. Är fältet ifyllt är det priset som gäller för
+ * marginalen i graferna ovanför; tomrensar man det faller allt tillbaka på
+ * artikelfilen igen. Det är också vägen in för de varianter som står som
+ * "obelagd hos Franzén" och därför saknar inköpspris helt.
+ *
+ * "Beställes i" är hur många vi tar hem per omgång. Det påverkar ingenting i
+ * kassan — kundens steg är `orderIncrement` på samma rad, ett annat tal.
+ */
+function SupplierTerms({ variant, decimals }: { variant: VariantPricingVariant; decimals: number }) {
+  const router = useRouter();
+  const saved = {
+    cost: negotiatedCostOf(variant),
+    batch: variant.purchaseBatchSize,
+  };
+  const [cost, setCost] = useState(saved.cost === null ? '' : String(saved.cost));
+  const [batch, setBatch] = useState(saved.batch === null ? '' : String(saved.batch));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const listCost = listCostOf(variant.sku);
+  const article = articleForSku(variant.sku);
+
+  // Tomt fält betyder "inget angivet", alltså null — inte noll kronor.
+  const parsed = (raw: string): number | null | undefined => {
+    const trimmed = raw.trim().replace(',', '.');
+    if (!trimmed) return null;
+    const num = Number(trimmed);
+    return Number.isFinite(num) && num >= 0 ? num : undefined;
+  };
+
+  const costValue = parsed(cost);
+  const batchValue = parsed(batch);
+  const costMinor =
+    costValue === undefined ? undefined : costValue === null ? null : Math.round(costValue * 100);
+  const batchInt =
+    batchValue === undefined ? undefined : batchValue === null ? null : Math.round(batchValue);
+  const dirty = costMinor !== variant.supplierCostMinor || batchInt !== variant.purchaseBatchSize;
+
+  const save = async () => {
+    if (costValue === undefined) return setError('Inköpspriset måste vara ett tal.');
+    if (batchValue === undefined) return setError('Beställningsposten måste vara ett tal.');
+    if (batchValue !== null && batchValue < 1) return setError('Beställningsposten måste vara minst 1.');
+
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/variants/${variant.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplierCostMinor: costMinor, purchaseBatchSize: batchInt }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Kunde inte spara inköpsvillkoren.');
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kunde inte spara inköpsvillkoren.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const field =
+    'w-[104px] rounded-[3px] border px-2 py-1 text-right font-mono text-[12px] tabular-nums';
+  const fieldStyle = {
+    background: 'var(--viz-surface)',
+    borderColor: 'var(--viz-rule)',
+    color: 'var(--viz-ink)',
+  };
+
+  return (
+    <div className={ROW}>
+      <span
+        className="text-right text-[12.5px] leading-tight max-[620px]:col-span-full max-[620px]:text-left"
+        style={{ color: 'var(--viz-ink-2)' }}
+      >
+        Inköp hos Franzén
+        <span className="block text-[10.5px]" style={{ color: 'var(--viz-ink-3)' }}>
+          {article ? `art. ${article.artikelkod}` : 'ingen artikel'}
+        </span>
+      </span>
+
+      <div className="col-span-2 flex flex-wrap items-end gap-x-4 gap-y-2 max-[620px]:col-span-full">
+        <label className="flex flex-col gap-1">
+          <span className="text-[10.5px] leading-none" style={{ color: 'var(--viz-ink-3)' }}>
+            Förmånligt inköpspris från Franzén
+          </span>
+          <span className="flex items-center gap-1.5">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={cost}
+              onChange={e => setCost(e.target.value)}
+              placeholder={listCost === null ? '—' : sek(listCost, decimals)}
+              aria-label={`Förmånligt inköpspris från Franzén för ${variant.sku}, kronor per styck`}
+              className={field}
+              style={fieldStyle}
+            />
+            <span className="font-mono text-[10.5px]" style={{ color: 'var(--viz-ink-3)' }}>
+              kr/st
+            </span>
+          </span>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[10.5px] leading-none" style={{ color: 'var(--viz-ink-3)' }}>
+            Beställes i
+          </span>
+          <span className="flex items-center gap-1.5">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={batch}
+              onChange={e => setBatch(e.target.value)}
+              placeholder={article?.antalPerFörp ? String(article.antalPerFörp) : '—'}
+              aria-label={`Beställes i, antal per omgång för ${variant.sku}`}
+              className={field}
+              style={fieldStyle}
+            />
+            <span className="font-mono text-[10.5px]" style={{ color: 'var(--viz-ink-3)' }}>
+              st/omg.
+            </span>
+          </span>
+        </label>
+
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy || !dirty}
+          className="rounded-sm border px-2 py-1 font-mono text-[9.5px] uppercase tracking-[0.06em] disabled:opacity-35"
+          style={{ borderColor: 'var(--viz-rule)', color: 'var(--viz-ink)' }}
+          title="Sparas på varianten. Priset används för marginalen i graferna ovanför."
+        >
+          {busy ? 'Sparar…' : 'Spara'}
+        </button>
+
+        <span className="text-[10.5px] leading-snug" style={{ color: 'var(--viz-ink-3)' }}>
+          {saved.cost !== null && listCost !== null
+            ? `Artikelfilen säger ${sek(listCost, decimals)} kr — ${
+                saved.cost < listCost
+                  ? `${sek(listCost - saved.cost, decimals)} kr bättre`
+                  : saved.cost > listCost
+                    ? `${sek(saved.cost - listCost, decimals)} kr sämre`
+                    : 'samma pris'
+              }.`
+            : listCost !== null
+              ? `Tomt fält = artikelfilens ${sek(listCost, decimals)} kr gäller.`
+              : 'Varianten saknar pris i artikelfilen — fyll i det förhandlade här.'}
+          {article?.antalPerFörp ? ` Franzéns förpackning: ${article.antalPerFörp} st.` : ''}
+        </span>
+
+        {error && (
+          <span role="alert" className="text-[11.5px]" style={{ color: 'var(--viz-flag)' }}>
+            {error}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Ett block per variant: reglage, inköpspris, marknaden, allas bud. */
 function VariantBlock({
   variant,
@@ -382,7 +548,9 @@ function VariantBlock({
   ) => void;
   hideTip: () => void;
 }) {
-  const cost = costOf(variant.sku);
+  const cost = costOf(variant);
+  const negotiated = negotiatedCostOf(variant);
+  const listCost = listCostOf(variant.sku);
   const market = marketOf(variant.sku);
   const baseline = liveOf(variant);
   const primary = primaryOf(market);
@@ -449,7 +617,7 @@ function VariantBlock({
 
       {cost !== null && (
         <Bar
-          label="Vårt inköpspris"
+          label={negotiated === null ? 'Vårt inköpspris' : 'Vårt inköpspris (förmånligt)'}
           sub={articleForSku(variant.sku)?.artikelkod}
           value={cost}
           varName={SERIES.cost.varName}
@@ -460,9 +628,16 @@ function VariantBlock({
           tip={{
             title: `Franzén — ${articleForSku(variant.sku)?.benämning ?? variant.sku}`,
             rows: [
-              `${sek(cost, decimals)} kr/st, vårt inköpspris exkl. inkommande frakt`,
-              `Franzéns listpris ${sek(articleForSku(variant.sku)?.grundpris ?? 0, 0)} kr, rek. utpris ${sek(articleForSku(variant.sku)?.rekUtpris ?? 0, 0)} kr`,
+              negotiated === null
+                ? `${sek(cost, decimals)} kr/st ur artikelfilen, exkl. inkommande frakt`
+                : `${sek(cost, decimals)} kr/st — förmånligt pris, inskrivet för hand`,
+              negotiated !== null && listCost !== null
+                ? `Artikelfilens inköpspris är ${sek(listCost, decimals)} kr`
+                : `Franzéns listpris ${sek(articleForSku(variant.sku)?.grundpris ?? 0, 0)} kr, rek. utpris ${sek(articleForSku(variant.sku)?.rekUtpris ?? 0, 0)} kr`,
               `Vid ${sek(price, decimals)} kr blir marginalen ${sek(marginPct(price, cost) ?? 0, 0)} %`,
+              variant.purchaseBatchSize
+                ? `Beställes i poster om ${variant.purchaseBatchSize} st`
+                : 'Ingen beställningspost angiven',
             ],
             note:
               'Inköpspriset saknar frakten in till oss, så den verkliga marginalen är något ' +
@@ -470,6 +645,8 @@ function VariantBlock({
           }}
         />
       )}
+
+      <SupplierTerms variant={variant} decimals={decimals} />
 
       {market.map(row => {
         const diff = price - row.priceSek;

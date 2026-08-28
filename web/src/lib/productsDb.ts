@@ -118,6 +118,10 @@ export type VariantPricingVariant = {
   sku: string;
   optionValues: Array<{ name: string; value: string }>;
   priceMinor: number;
+  /** Förhandlat inköpspris i öre, handskrivet i /admin. NULL = inget angivet. */
+  supplierCostMinor: number | null;
+  /** Hur många vi tar hem per omgång från leverantören. NULL = inte bestämt. */
+  purchaseBatchSize: number | null;
 };
 
 export type VariantPricingProduct = {
@@ -154,6 +158,8 @@ async function listVariantProductsBySupplier(
       sku: productVariants.sku,
       optionValues: productVariants.optionValues,
       priceMinor: productVariants.priceMinor,
+      supplierCostMinor: productVariants.supplierCostMinor,
+      purchaseBatchSize: productVariants.purchaseBatchSize,
     })
     .from(products)
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
@@ -172,6 +178,8 @@ async function listVariantProductsBySupplier(
       sku: row.sku,
       optionValues: row.optionValues,
       priceMinor: row.priceMinor,
+      supplierCostMinor: row.supplierCostMinor,
+      purchaseBatchSize: row.purchaseBatchSize,
     });
   }
   const result = [...byProduct.values()].filter(p => p.variants.length >= minVariants);
@@ -467,6 +475,8 @@ export type VariantInput = Partial<
     | 'inventoryQuantity'
     | 'minimumOrderQuantity'
     | 'orderIncrement'
+    | 'supplierCostMinor'
+    | 'purchaseBatchSize'
     | 'inventoryTracked'
     | 'availableForSale'
     | 'active'

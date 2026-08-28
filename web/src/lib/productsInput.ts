@@ -46,6 +46,24 @@ function count(body: Body, key: string, max = 100_000_000): number | undefined {
   return num;
 }
 
+/**
+ * Heltal ≥ 0 som också går att tomrensa. count() svarar `undefined` både på
+ * "aldrig skickat" och på "tomt fält", vilket duger för de fält som har ett
+ * NOT NULL-värde att falla tillbaka på — men inte för de nullbara: ett tomt
+ * inköpsprisfält betyder "ta bort priset", och den skillnaden går förlorad där.
+ */
+function nullableCount(body: Body, key: string, max = 100_000_000): number | null | undefined {
+  const value = body[key];
+  if (value === undefined) return undefined;
+  if (value === null || (typeof value === 'string' && value.trim() === '')) return null;
+  const num = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
+  if (!Number.isInteger(num) || num < 0) {
+    throw new InputError(`${key} måste vara ett heltal som inte är negativt.`);
+  }
+  if (num > max) throw new InputError(`${key} är orimligt stort.`);
+  return num;
+}
+
 function intOrNull(body: Body, key: string): number | null | undefined {
   const value = body[key];
   if (value === undefined) return undefined;
@@ -159,6 +177,18 @@ export function parseVariantInput(body: Body, { partial = false } = {}): Variant
   if (orderIncrement !== undefined) {
     if (orderIncrement < 1) throw new InputError('Beställningssteget måste vara minst 1.');
     input.orderIncrement = orderIncrement;
+  }
+
+  // Inköpssidan. Båda är nullbara: tomt fält betyder "inget angivet" och inte
+  // noll — utan det går ett förhandlat pris inte att ta bort igen, och en
+  // beställningspost om 0 hade varit meningslös.
+  const supplierCostMinor = nullableCount(body, 'supplierCostMinor', 100_000_000);
+  if (supplierCostMinor !== undefined) input.supplierCostMinor = supplierCostMinor;
+
+  const purchaseBatchSize = nullableCount(body, 'purchaseBatchSize', 1_000_000);
+  if (purchaseBatchSize !== undefined) {
+    if (purchaseBatchSize === 0) throw new InputError('Beställningsposten måste vara minst 1.');
+    input.purchaseBatchSize = purchaseBatchSize;
   }
 
   const availableForSale = bool(body, 'availableForSale');

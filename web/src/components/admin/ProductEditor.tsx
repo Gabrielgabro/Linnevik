@@ -547,6 +547,14 @@ function VariantRow({
       setError(OPTION_ERROR);
       return;
     }
+    // NaN blir null i JSON, och null betyder "ta bort priset". Ett skrivfel
+    // hade alltså tyst raderat det förhandlade priset i stället för att klaga.
+    const supplierCostMinor = values.supplierCost.trim() ? toMinor(values.supplierCost) : null;
+    if (supplierCostMinor !== null && !Number.isFinite(supplierCostMinor)) {
+      setBusy(false);
+      setError('Inköpspriset måste vara ett tal.');
+      return;
+    }
     const response = await fetch(`/api/admin/variants/${variant.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -556,6 +564,10 @@ function VariantRow({
         inventoryQuantity: values.inventoryQuantity,
         minimumOrderQuantity: values.minimumOrderQuantity,
         orderIncrement: values.orderIncrement,
+        // Tomt fält betyder "inget angivet" och inte noll, så det skickas som
+        // null — parseVariantInput skiljer på de två.
+        supplierCostMinor,
+        purchaseBatchSize: values.purchaseBatchSize.trim() || null,
         inventoryTracked: values.inventoryTracked === 'on',
         availableForSale: values.availableForSale === 'on',
         active: values.active === 'on',
@@ -682,6 +694,25 @@ function VariantRow({
               type="number"
               min="1"
               defaultValue={String(variant.orderIncrement)}
+            />
+            {/* Inköpssidan. Priset är vad vi betalar leverantören, inte något
+                kunden ser, och är tomt tills någon förhandlat fram det. */}
+            <Field
+              label="Förmånligt inköpspris (SEK/st)"
+              name="supplierCost"
+              type="number"
+              step="0.01"
+              min="0"
+              defaultValue={
+                variant.supplierCostMinor === null ? '' : (variant.supplierCostMinor / 100).toFixed(2)
+              }
+            />
+            <Field
+              label="Beställes i (st/omgång)"
+              name="purchaseBatchSize"
+              type="number"
+              min="1"
+              defaultValue={variant.purchaseBatchSize === null ? '' : String(variant.purchaseBatchSize)}
             />
           </div>
 
@@ -811,6 +842,8 @@ function NewVariant({ productId }: { productId: number }) {
         inventoryQuantity: values.inventoryQuantity || 0,
         minimumOrderQuantity: values.minimumOrderQuantity || 1,
         orderIncrement: values.orderIncrement || 1,
+        supplierCostMinor: values.supplierCost.trim() ? toMinor(values.supplierCost) : null,
+        purchaseBatchSize: values.purchaseBatchSize.trim() || null,
         inventoryTracked: values.inventoryTracked === 'on',
         availableForSale: values.availableForSale === 'on',
         optionValues,
@@ -834,6 +867,8 @@ function NewVariant({ productId }: { productId: number }) {
         <Field label="Lager" name="inventoryQuantity" type="number" defaultValue="0" />
         <Field label="Minsta antal" name="minimumOrderQuantity" type="number" min="1" defaultValue="1" />
         <Field label="Beställningssteg" name="orderIncrement" type="number" min="1" defaultValue="1" />
+        <Field label="Förmånligt inköpspris (SEK/st)" name="supplierCost" type="number" step="0.01" min="0" />
+        <Field label="Beställes i (st/omgång)" name="purchaseBatchSize" type="number" min="1" />
       </div>
       <OptionFields options={options} setOptions={setOptions} disabled={busy} />
       <div className="flex flex-wrap gap-x-6 gap-y-2">
