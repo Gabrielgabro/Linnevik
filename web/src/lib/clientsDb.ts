@@ -4,7 +4,7 @@
  * följa med ut i webbläsarpaketet.
  */
 
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import type { ClientWithCounts } from '@/lib/clients';
 import type { PortalAccount } from '@/lib/portalAccounts';
@@ -150,4 +150,43 @@ export async function listPortalAccounts(): Promise<PortalAccount[]> {
     .orderBy(desc(customers.createdAt));
 
   return rows;
+}
+
+/**
+ * Tar bort kunder ur båda registren: företagsposten och de webbkonton som
+ * hänger på den.
+ *
+ * Webbkontona måste raderas i ett eget steg — främmande nyckeln
+ * customers.client_id är RESTRICT, och den kontrollen går inte att komma runt
+ * genom att radera båda i samma sats. De två satserna körs som en batch, vilket
+ * neon kör i en transaktion: antingen försvinner företaget med sina konton,
+ * eller ingenting.
+ *
+ * Ordrarna står kvar. Order-raden pekar på kunden med ON DELETE SET NULL och
+ * bär köparens namn, adress och org-nummer som de såg ut vid köpet — en
+ * bokförd order får inte försvinna för att någon städar i kundregistret.
+ * Detsamma gäller provbeställningar och rabattinlösen; inloggningslänkarna
+ * däremot följer med kontot (CASCADE), och det är just det som är "nollställ
+ * inloggningen".
+ */
+export async function deleteClientsWithAccounts(
+  ids: number[]
+): Promise<{ clients: number; accounts: number }> {
+  if (!clientsConfigured() || ids.length === 0) return { clients: 0, accounts: 0 };
+  const db = getDb();
+  const [removedAccounts, removedClients] = await db.batch([
+    db.delete(customers).where(inArray(customers.clientId, ids)).returning({ id: customers.id }),
+    db.delete(clients).where(inArray(clients.id, ids)).returning({ id: clients.id }),
+  ]);
+  return { clients: removedClients.length, accounts: removedAccounts.length };
+}
+
+/**
+ * Tar bort ett enskilt webbkonto. Företaget står kvar i tvätterikundregistret
+ * — kontot är inloggningen, inte kunden.
+ */
+export async function deletePortalAccount(id: number): Promise<CustomerRow | null> {
+  if (!clientsConfigured()) return null;
+  const [row] = await getDb().delete(customers).where(eq(customers.id, id)).returning();
+  return row ?? null;
 }

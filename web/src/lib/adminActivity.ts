@@ -44,6 +44,7 @@ export type AdminAction =
   | 'collection.deleted'
   | 'customer.created'
   | 'customer.updated'
+  | 'customer.deleted'
   | 'discount.created'
   | 'discount.updated'
   | 'shipping.created'
@@ -84,6 +85,7 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'collection.deleted': 'Tog bort kategori',
   'customer.created': 'La till webbkonto på kund',
   'customer.updated': 'Ändrade webbkonto på kund',
+  'customer.deleted': 'Tog bort webbkonto',
   'discount.created': 'La till rabattkod',
   'discount.updated': 'Ändrade rabattkod',
   'shipping.created': 'La till fraktregel',

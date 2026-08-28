@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
 import { isUniqueViolation, readBody, requireAdmin, routeId } from '@/lib/adminRoute';
 import { diff, InputError, parseClientInput } from '@/lib/clientsInput';
+import { deleteClientsWithAccounts } from '@/lib/clientsDb';
 import { getDb } from '@/lib/db';
 import { clients, customers } from '@/lib/db/schema';
 
@@ -80,7 +81,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return NextResponse.json({ client: row, changed: changes });
 }
 
-/** Ta bort en kund. Kontaktpersonerna följer med via cascade i schemat. */
+/**
+ * Ta bort en kund ur båda registren. Kontaktpersonerna följer med via cascade i
+ * schemat, webbkontona raderas av deleteClientsWithAccounts. Ordrarna står kvar
+ * — se den funktionen för varför.
+ */
 export async function DELETE(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
@@ -92,24 +97,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const [existing] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
   if (!existing) return NextResponse.json({ error: 'Okänd kund.' }, { status: 404 });
 
-  const [commerceCustomer] = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(eq(customers.clientId, id))
-    .limit(1);
-  if (commerceCustomer) {
-    return NextResponse.json(
-      { error: 'Kunden har webbkonto eller orderhistorik och kan inte tas bort.' },
-      { status: 409 }
-    );
-  }
-
-  await db.delete(clients).where(eq(clients.id, id));
+  const removed = await deleteClientsWithAccounts([id]);
 
   await record(auth.user, 'client.deleted', String(id), {
     kundnr: existing.customerNo,
     kund: existing.name,
+    webbkonton: String(removed.accounts),
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, accounts: removed.accounts });
 }

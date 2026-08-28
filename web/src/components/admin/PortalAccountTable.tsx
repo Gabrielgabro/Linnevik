@@ -7,8 +7,10 @@
  */
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { UserRound } from 'lucide-react';
+import { Trash2, UserRound } from 'lucide-react';
+import { ErrorNote } from '@/components/admin/Fields';
 import {
   EmptyState,
   FilterPill,
@@ -34,9 +36,41 @@ import {
 const ORIGINS: AccountOrigin[] = ['portal', 'checkout', 'import'];
 
 export default function PortalAccountTable({ accounts }: { accounts: PortalAccount[] }) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [origin, setOrigin] = useState<AccountOrigin | null>(null);
   const [onlyNeverLoggedIn, setOnlyNeverLoggedIn] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Kontot raderas, företaget står kvar. Ordrarna följer inte med — de bär
+   * köparens uppgifter från köptillfället och ska finnas kvar i bokföringen
+   * även när inloggningen är borta.
+   */
+  const remove = async (account: PortalAccount) => {
+    if (
+      !confirm(
+        `Ta bort webbkontot ${account.email}? Inloggningen upphör direkt. ` +
+          `${account.clientName} står kvar bland tvätterikunderna, och ordrarna står kvar.`
+      )
+    ) {
+      return;
+    }
+    setBusyId(account.id);
+    setError(null);
+    const response = await fetch(
+      `/api/admin/clients/${account.clientId}/customers/${account.id}`,
+      { method: 'DELETE' }
+    );
+    const data = await response.json().catch(() => ({}));
+    setBusyId(null);
+    if (!response.ok) {
+      setError(data.error ?? 'Kunde inte ta bort webbkontot.');
+      return;
+    }
+    router.refresh();
+  };
 
   const originCounts = useMemo(() => {
     const counts: Record<AccountOrigin, number> = { portal: 0, checkout: 0, import: 0 };
@@ -109,6 +143,9 @@ export default function PortalAccountTable({ accounts }: { accounts: PortalAccou
               <Th>Senaste inloggning</Th>
               <Th align="right">Ordrar</Th>
               <Th align="right">Köpt för</Th>
+              <Th align="right">
+                <span className="sr-only">Ta bort</span>
+              </Th>
             </tr>
           </thead>
           <tbody>
@@ -157,12 +194,25 @@ export default function PortalAccountTable({ accounts }: { accounts: PortalAccou
                   <Td numeric align="right">
                     {account.spendMinor > 0 ? formatMinor(account.spendMinor) : '—'}
                   </Td>
+                  <Td align="right">
+                    <button
+                      type="button"
+                      onClick={() => remove(account)}
+                      disabled={busyId === account.id}
+                      aria-label={`Ta bort webbkontot ${account.email}`}
+                      className="rounded-ctl p-1.5 text-ink-3 transition-colors hover:bg-plane hover:text-danger disabled:opacity-50"
+                    >
+                      <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+                    </button>
+                  </Td>
                 </Tr>
               );
             })}
           </tbody>
         </TableShell>
       )}
+
+      <ErrorNote>{error}</ErrorNote>
 
       <p className="text-[12.5px] text-ink-3">
         Visar {visible.length} av {accounts.length} konton.

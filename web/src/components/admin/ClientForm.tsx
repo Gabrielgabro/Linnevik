@@ -60,7 +60,14 @@ export default function ClientForm(props: Props) {
   // råkar radera ett halvår av bearbetning i förbifarten.
   const remove = async () => {
     if (!client) return;
-    if (!confirm(`Ta bort ${client.name}? Kundens kontaktpersoner tas bort samtidigt.`)) return;
+    if (
+      !confirm(
+        `Ta bort ${client.name}? Kontaktpersonerna och webbkontona i ` +
+          'inloggningsportalen tas bort samtidigt. Ordrarna står kvar.'
+      )
+    ) {
+      return;
+    }
     setBusy(true);
     setError(null);
     const response = await fetch(`/api/admin/clients/${client.id}`, { method: 'DELETE' });

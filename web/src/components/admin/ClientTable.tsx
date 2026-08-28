@@ -179,7 +179,8 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
       action === 'delete' &&
       !confirm(
         `Ta bort ${ids.length} ${ids.length === 1 ? 'kund' : 'kunder'}? ` +
-          'Kontaktpersonerna tas bort samtidigt.'
+          'Kontaktpersonerna och webbkontona i inloggningsportalen tas bort samtidigt. ' +
+          'Ordrarna står kvar.'
       )
     ) {
       return;

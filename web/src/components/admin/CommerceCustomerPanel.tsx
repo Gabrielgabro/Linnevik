@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
 import { Panel, Tag } from '@/components/admin/ui';
 import type { CustomerRow, OrderRow } from '@/lib/db/schema';
@@ -47,6 +47,35 @@ function AccountForm({ clientId, customer }: { clientId: number; customer?: Cust
     router.refresh();
   };
 
+  /**
+   * Kontot försvinner, företaget står kvar. Ordrarna följer inte med — de bär
+   * köparens uppgifter från köptillfället och hör till bokföringen, inte till
+   * inloggningen.
+   */
+  const remove = async () => {
+    if (!customer) return;
+    if (
+      !confirm(
+        `Ta bort webbkontot ${customer.email}? Inloggningen upphör direkt. ` +
+          'Kunden och orderhistoriken står kvar.'
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const response = await fetch(`/api/admin/clients/${clientId}/customers/${customer.id}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setError(data.error ?? 'Kunde inte ta bort webbkontot.');
+      return;
+    }
+    router.refresh();
+  };
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-4 border-b border-grid py-5 last:border-b-0">
       <div className="grid grid-cols-3 gap-4 max-[760px]:grid-cols-1">
@@ -85,6 +114,17 @@ function AccountForm({ clientId, customer }: { clientId: number; customer?: Cust
           {busy ? 'Sparar…' : customer ? 'Spara webbkonto' : 'Skapa webbkonto'}
         </Button>
         {saved && !busy && <span className="text-[13px] text-ink-3">Sparat.</span>}
+        {customer && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={remove}
+            className="ml-auto inline-flex items-center gap-1.5 text-[13px] text-ink-3 transition-colors hover:text-danger disabled:opacity-50"
+          >
+            <Trash2 size={14} strokeWidth={1.75} aria-hidden />
+            Ta bort webbkonto
+          </button>
+        )}
       </div>
     </form>
   );

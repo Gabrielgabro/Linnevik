@@ -9,8 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
 import { readBody, requireAdmin } from '@/lib/adminRoute';
 import { CLIENT_STATUSES, PRIORITIES, SEGMENTS } from '@/lib/clients';
+import { deleteClientsWithAccounts } from '@/lib/clientsDb';
 import { getDb } from '@/lib/db';
-import { clients, customers } from '@/lib/db/schema';
+import { clients } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 
@@ -62,23 +63,16 @@ export async function POST(request: NextRequest) {
   const summary = names.length > 5 ? `${names.slice(0, 5).join(', ')} m.fl.` : names.join(', ');
 
   if (action === 'delete') {
-    const linked = await db
-      .select({ clientId: customers.clientId })
-      .from(customers)
-      .where(inArray(customers.clientId, targets));
-    if (linked.length > 0) {
-      return NextResponse.json(
-        { error: 'Kunder med webbkonto eller orderhistorik kan inte tas bort.' },
-        { status: 409 }
-      );
-    }
-    await db.delete(clients).where(inArray(clients.id, targets));
+    // Webbkontona följer med — se deleteClientsWithAccounts. Ordrarna står kvar
+    // och behåller köparens uppgifter som de såg ut vid köpet.
+    const removed = await deleteClientsWithAccounts(targets);
     await record(auth.user, 'clients.batch', null, {
       åtgärd: 'tog bort',
-      antal: String(targets.length),
+      antal: String(removed.clients),
+      webbkonton: String(removed.accounts),
       kunder: summary,
     });
-    return NextResponse.json({ ok: true, count: targets.length });
+    return NextResponse.json({ ok: true, count: removed.clients, accounts: removed.accounts });
   }
 
   const FIELDS = {
