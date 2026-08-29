@@ -39,6 +39,16 @@
 //   Bygghemma     — B2C, webbhandel. För Borganäs of Sweden som eget
 //                   varumärke. Kortpriserna är frånpriser över färg/storlek,
 //                   vilket står i `caveat` på de rader det gäller.
+//   Fritz Magnus — B2B, och den viktigaste raden i filen. Det är inte en
+//                   konkurrent i vanlig mening: fritzmagnus.se har samma
+//                   organisationsnummer som Franzéns Textil i Kinna AB
+//                   (556508-0693), alltså Franzéns egen webbutik mot företag.
+//                   De fyra badrockarna vi lade in i 0039 är Fritz
+//                   Magnus-artiklar, och Franzén säljer dem själva till samma
+//                   hotellkunder vi vänder oss till, med utskrivna priser och
+//                   utan offertspärr. Priserna är staffade per antal; raden
+//                   anger den *dyraste* staffeln (minsta kvantiteten), så
+//                   jämförelsen är så gynnsam för oss som den kan bli.
 //   Spis & Servis — B2B, restauranggrossist. Står med i underlaget men har
 //                   INGA rader nedan, och det är ett resultat, inte en lucka:
 //                   deras textilsortiment slutar vid kökshanddukar och
@@ -53,7 +63,11 @@
 
 import type { Basis, Channel, WatchSpec } from './competitorPrices';
 
-export const franzenCollectedAt = '2026-08-26';
+/**
+ * Badrockarna från Fritz Magnus (0039) kartlades separat 2026-08-29 och de
+ * äldre raderna kontrollerades inte om vid det tillfället — därför två datum.
+ */
+export const franzenCollectedAt = '2026-08-26, badrockarna 2026-08-29';
 
 /**
  * Varför Spis & Servis inte har några rader. Visas i vyn — annars ser det ut
@@ -538,6 +552,257 @@ const ROBE_VAFFEL_VIT: FranzenCompetitor[] = ROBE_VAFFEL.map(row =>
     : row
 );
 
+/**
+ * BADROCKARNA FRÅN FRITZ MAGNUS (0039)
+ *
+ * De fyra här skiljer sig från allt annat i filen på en punkt som avgör hur
+ * de ska läsas: **varje leverantör nedan säljer exakt vår artikel.** Det är
+ * inte fyra jämförbara rockar, det är samma fyra rockar i fyra kanaler. Vi
+ * köper dem av Franzén; Franzén säljer dem själva via fritzmagnus.se; Tingstad
+ * köper dem av Franzén och säljer dem B2B; Sovtex säljer dem till slutkund.
+ * Därför är i stort sett varje rad `sameArticle`, och `match` är 'exact'.
+ *
+ * Identiteten är kontrollerad, inte antagen:
+ *   - Tingstads artikelnummer ÄR Fritz Magnus artikelnummer med prefix:
+ *     FM85790050 = 85-79005-0 (Gap), FM8579008 = 85-79008 (Gossip).
+ *   - Sovtex Alexia anger EAN 7350079440614, vilket är exakt EAN:et på
+ *     artikel 7709200 i vår skrapning.
+ *   - Gramvikt, material och konstruktion stämmer överens rad för rad
+ *     (380 g/m² 100 % bomull för velourrockarna, 270 g/m² 60/40 för Gap).
+ *
+ * Fritz Magnus staffar priset. Raden anger den dyraste staffeln — den minsta
+ * kvantiteten — och hela stegen står i `caveat`. En hotellkedja som köper
+ * 24 rockar betalar alltså mindre än raden visar, inte mer.
+ *
+ * Livv har ingen velourrock i klassen och Bygghemma ingen Fritz Magnus-vara.
+ * De står med som ram: Livv för golvet i B2B-kanalen, Bygghemma för vad en
+ * premiumvelourrock kostar en konsument.
+ */
+
+/** Livvs närmaste rock, gemensam ram för alla fyra. Ingen exakt motsvarighet. */
+const LIVV_VELOUR_REF: FranzenCompetitor = {
+  vendor: 'Livv',
+  product: 'Frotté/Velour Rock One Size',
+  spec: 'Frotté/velour, onesize',
+  size: 'One size',
+  priceSek: 489,
+  channel: 'b2b',
+  basis: 'ex',
+  url: LIVV_ROCKAR,
+  match: 'approx',
+  caveat:
+    'Livv för ingen rock i den här klassen — 380 g velour med sjalkrage finns inte i ' +
+    'sortimentet. Med som golv för vad en rock kostar i B2B-kanalen.',
+  watch: { fetchUrl: LIVV_ROCKAR, parser: 'livv-variant', key: 'Frotté/Velour Rock One Size' },
+};
+
+/** Bygghemmas premiumvelour, tak för velourrockarna. Inte vår artikel. */
+const BYGGHEMMA_VELOUR_REF: FranzenCompetitor = {
+  vendor: 'Bygghemma',
+  product: 'Badrock Svanefors Carlton',
+  spec: 'Velour ute, frotté inne, sjalkrage, piping',
+  size: 'One size',
+  priceSek: b2c(1079),
+  channel: 'b2c',
+  basis: 'b2c',
+  url: 'https://www.bygghemma.se/inredning-och-belysning/hemtextilier/badrumstextilier/morgonrock-och-badrock/badrock-svanefors-carlton/p-1916908',
+  match: 'approx',
+  caveat: 'Konsumentpris på en jämförbar premiumvelourrock. Tak, inte jämförelse.',
+};
+
+/** Gap, artikel 7703101 = Fritz Magnus 85-79005-0. Våffel 270 g/m², one size. */
+const ROBE_GAP: FranzenCompetitor[] = [
+  {
+    vendor: 'Fritz Magnus',
+    product: 'Gap badrock vit (85-79005-0)',
+    spec: '60 % bomull / 40 % polyester, våffel 270 g/m², satinpasspoal, one size (XL) — vår artikel',
+    size: 'One size (XL)',
+    priceSek: 432.3,
+    channel: 'b2b',
+    basis: 'ex',
+    url: 'https://www.fritzmagnus.se/hotell/badrum/morgonrock/gap-badrock',
+    match: 'exact',
+    primary: true,
+    sameArticle: true,
+    caveat:
+      'Franzéns egen butik mot företag, samma org.nr. Staffat: 432,30 kr vid 8 st, ' +
+      '408,20 vid 16, 396,20 vid 24. Vårt inköpspris är 360 kr — vi ligger 9 % under ' +
+      'det Franzén själva tar av ett hotell för 24 st.',
+  },
+  {
+    vendor: 'Tingstad',
+    product: 'Badrock GAP Fritz Magnus Vit (FM85790050)',
+    spec: 'Fritz Magnus 85-79005-0, våffel, vit, one size — vår artikel',
+    size: 'One size',
+    priceSek: 507,
+    channel: 'b2b',
+    basis: 'ex',
+    url: TING_BADROCK,
+    match: 'exact',
+    sameArticle: true,
+    caveat: 'Tingstads artikelnummer är Fritz Magnus eget med FM-prefix. Samma vara, B2B.',
+    watch: { fetchUrl: TING_BADROCK, parser: 'tingstad-analytics', key: 'FM85790050' },
+  },
+  {
+    vendor: 'Sovtex',
+    product: 'Hotell Morgonrock Våfflad Vit',
+    spec: 'Fritz Magnus våffelkvalitet med satinpasspoal, one size (XL) — vår artikel',
+    size: 'One size (XL)',
+    priceSek: b2c(679),
+    channel: 'b2c',
+    basis: 'b2c',
+    url: 'https://sovtex.se/hotell-restaurang/hotell-morgonrock-vafflad-vit',
+    match: 'exact',
+    sameArticle: true,
+    caveat: 'Till slutkund för 679 kr inkl. moms. Samma rad finns även under våffelrocken.',
+  },
+  LIVV_VELOUR_REF,
+];
+
+/** Prestige, artiklarna 7705200/7705300 = Fritz Magnus 85-79006. Velour 380 g/m². */
+const ROBE_PRESTIGE: FranzenCompetitor[] = [
+  {
+    vendor: 'Fritz Magnus',
+    product: 'Prestige badrock vit (85-79006)',
+    spec: '100 % bomull, velour 380 g/m², sjalkrage och satinpasspoal, M och XL — vår artikel',
+    size: 'M / XL',
+    priceSek: 469.6,
+    channel: 'b2b',
+    basis: 'ex',
+    url: 'https://www.fritzmagnus.se/hotell/badrum/morgonrock/prestige-badrock',
+    match: 'exact',
+    primary: true,
+    sameArticle: true,
+    caveat:
+      'Franzéns egen butik mot företag. Staffat: 469,60 kr vid 4 st, 443,50 vid 12, ' +
+      '430,50 vid 24. Vårt inköpspris är 400 kr — 7 % under deras 24-staffel.',
+  },
+  {
+    vendor: 'Tingstad',
+    product: 'Badrock Fritz Magnus Prestige Vit (FM857900)',
+    spec: 'Fritz Magnus 85-79006, velour, vit, M och XL — vår artikel',
+    size: 'M / XL',
+    priceSek: 561,
+    channel: 'b2b',
+    basis: 'ex',
+    url: TING_BADROCK,
+    match: 'exact',
+    sameArticle: true,
+    watch: { fetchUrl: TING_BADROCK, parser: 'tingstad-analytics', key: 'FM857900' },
+  },
+  {
+    vendor: 'Sovtex',
+    product: 'Prestige Badrock Velour Vit',
+    spec: 'Fritz Magnus velour 380 g/m², 100 % bomull — vår artikel',
+    size: 'One size',
+    priceSek: b2c(775),
+    channel: 'b2c',
+    basis: 'b2c',
+    url: SOVTEX_HR,
+    match: 'exact',
+    sameArticle: true,
+    caveat: 'Frånpris 775 kr inkl. moms (ord. pris högre, sidan rabatterar ca 20 %).',
+  },
+  BYGGHEMMA_VELOUR_REF,
+];
+
+/** Gossip, artikel 7707100 = Fritz Magnus 85-79008. Velour kimono 380 g/m². */
+const ROBE_GOSSIP: FranzenCompetitor[] = [
+  {
+    vendor: 'Fritz Magnus',
+    product: 'Gossip badrock vit (85-79008)',
+    spec: '100 % bomull, velour 380 g/m², kimonokrage, one size (XL) — vår artikel',
+    size: 'One size (XL)',
+    priceSek: 393.8,
+    channel: 'b2b',
+    basis: 'ex',
+    url: 'https://www.fritzmagnus.se/hotell/badrum/morgonrock/gossip-badrock',
+    match: 'exact',
+    primary: true,
+    sameArticle: true,
+    caveat:
+      'Franzéns egen butik mot företag. Staffat: 393,80 kr vid 4 st, 371,90 vid 14, ' +
+      '361,00 vid 28. Vårt inköpspris är 325 kr — 10 % under deras 28-staffel.',
+  },
+  {
+    vendor: 'Tingstad',
+    product: 'Badrock Fritz Magnus Gossip Vit (FM8579008)',
+    spec: 'Fritz Magnus 85-79008, velour kimono, vit, one size — vår artikel',
+    size: 'One size',
+    priceSek: 476,
+    channel: 'b2b',
+    basis: 'ex',
+    url: TING_BADROCK,
+    match: 'exact',
+    sameArticle: true,
+    watch: { fetchUrl: TING_BADROCK, parser: 'tingstad-analytics', key: 'FM8579008' },
+  },
+  {
+    vendor: 'Sovtex',
+    product: 'Gossip Badrock Velour Kimono Vit',
+    spec: 'Fritz Magnus velour 380 g/m², kimono — vår artikel',
+    size: 'One size (XL)',
+    priceSek: b2c(623),
+    channel: 'b2c',
+    basis: 'b2c',
+    url: SOVTEX_HR,
+    match: 'exact',
+    sameArticle: true,
+    caveat: 'Till slutkund för 623 kr inkl. moms.',
+  },
+  LIVV_VELOUR_REF,
+];
+
+/** Alexia, artiklarna 7709200/7709400 = Fritz Magnus 85-79013. Velourjacquard 380 g/m². */
+const ROBE_ALEXIA: FranzenCompetitor[] = [
+  {
+    vendor: 'Fritz Magnus',
+    product: 'Badrock Alexia vit (85-79013)',
+    spec: '100 % bomull, velourjacquard 380 g/m², sjalkrage, broderad krona, M och XL — vår artikel',
+    size: 'M / XL',
+    priceSek: 519.4,
+    channel: 'b2b',
+    basis: 'ex',
+    url: 'https://www.fritzmagnus.se/hotell/badrum/morgonrock/alexia-badrock',
+    match: 'exact',
+    primary: true,
+    sameArticle: true,
+    caveat:
+      'Franzéns egen butik mot företag. Staffat: 519,40 kr vid 4 st, 490,50 vid 10—12, ' +
+      '476,10 vid 24. Vårt inköpspris är 435 kr — 9 % under deras 24-staffel.',
+  },
+  {
+    vendor: 'Tingstad',
+    product: 'Badrock Fritz Magnus Alexia Vit (FM857901)',
+    spec: 'Fritz Magnus 85-79013, velourjacquard, vit, M och XL — vår artikel',
+    size: 'M / XL',
+    priceSek: 599,
+    channel: 'b2b',
+    basis: 'ex',
+    url: TING_BADROCK,
+    match: 'exact',
+    sameArticle: true,
+    caveat: 'Marknadens högsta B2B-pris på artikeln — och fortfarande under vårt listpris.',
+    watch: { fetchUrl: TING_BADROCK, parser: 'tingstad-analytics', key: 'FM857901' },
+  },
+  {
+    vendor: 'Sovtex',
+    product: 'Alexia Badrock Velour Vit',
+    spec: 'Fritz Magnus velour 380 g/m², EAN 7350079440614 — vår artikel, EAN-verifierad',
+    size: 'M / XL',
+    priceSek: b2c(823),
+    channel: 'b2c',
+    basis: 'b2c',
+    url: 'https://sovtex.se/hotell-restaurang/alexia-badrock-velour-vit',
+    match: 'exact',
+    sameArticle: true,
+    caveat:
+      'EAN:et på sidan är exakt vår artikel 7709200. 823 kr inkl. moms till slutkund, ' +
+      'ord. pris 1 029 kr.',
+  },
+  BYGGHEMMA_VELOUR_REF,
+];
+
 const PILLOWCASE_WIDE: FranzenCompetitor[] = [
   {
     vendor: 'Livv',
@@ -758,6 +1023,16 @@ export const franzenVariantCompetitors: Record<string, FranzenCompetitor[]> = {
 
   'MOR-VAF-VIT': ROBE_VAFFEL_VIT,
 
+  // Fritz Magnus-rockarna. M och XL delar marknadsfält: varken Fritz Magnus,
+  // Tingstad eller Sovtex tar storlekstillägg — priset är detsamma för båda,
+  // precis som vårt eget.
+  'MOR-GAP-VIT': ROBE_GAP,
+  'MOR-PRE-VIT-M': ROBE_PRESTIGE,
+  'MOR-PRE-VIT-XL': ROBE_PRESTIGE,
+  'MOR-GOS-VIT': ROBE_GOSSIP,
+  'MOR-ALE-VIT-M': ROBE_ALEXIA,
+  'MOR-ALE-VIT-XL': ROBE_ALEXIA,
+
   // Varje variant i katalogen har numera en rad här. Det gick inte förrän
   // 0033 rättade sortimentet mot Franzéns artikelfil: de storlekar och färger
   // som saknade marknadsdata (påslakan 220 × 230, örngott 50 × 60/50 × 70/
@@ -769,4 +1044,11 @@ export const franzenVariantCompetitors: Record<string, FranzenCompetitor[]> = {
 };
 
 /** Alla leverantörer som förekommer, i den ordning vyn presenterar dem. */
-export const FRANZEN_VENDORS = ['Livv', 'Tingstad', 'Sovtex', 'Bygghemma', 'Spis & Servis'] as const;
+export const FRANZEN_VENDORS = [
+  'Fritz Magnus',
+  'Livv',
+  'Tingstad',
+  'Sovtex',
+  'Bygghemma',
+  'Spis & Servis',
+] as const;

@@ -56,7 +56,9 @@ export default async function AdminFranzenPricingPage() {
             inte en landad kostnad — frakten in till oss ligger utanför, så den verkliga marginalen
             är något lägre än den som räknas ut här. Priset som räknas är det förmånliga vi
             förhandlat fram, där ett sådant är inskrivet på varianten, annars artikelfilens.
-            Konkurrenterna är Livv, Tingstad, Sovtex, Bygghemma och Spis & Servis. Alla belopp i SEK per styck exklusive
+            Konkurrenterna är Fritz Magnus, Livv, Tingstad, Sovtex, Bygghemma och Spis & Servis.
+            Fritz Magnus är Franzéns egen webbutik mot företag — samma organisationsnummer — och
+            säljer badrockarna vi köper av dem till samma hotell som vi vänder oss till. Alla belopp i SEK per styck exklusive
             moms; konsumentpriser är omräknade med /1,25.
           </>
         }
@@ -103,8 +105,11 @@ export default async function AdminFranzenPricingPage() {
             {undercut.length} {undercut.length === 1 ? 'variant säljs' : 'varianter säljs'} billigare
             av någon annan — som exakt samma artikel.
           </b>{' '}
-          Sovtex för Textilgruppens och Borganäs egna varor direkt till slutkund, med samma
-          artikelnummer som står på vår inköpsfaktura. En hotellinköpare som söker på
+          Två skilda fall. Sovtex för Textilgruppens och Borganäs egna varor direkt till slutkund,
+          med samma artikelnummer som står på vår inköpsfaktura. Allvarligare är badrockarna:{' '}
+          <b className="font-semibold text-ink">Franzén säljer dem själva</b> via fritzmagnus.se,
+          mot företag, med utskrivna staffelpriser och utan offertspärr — vårt inköpspris ligger
+          bara 7–10 % under vad de tar av ett hotell direkt. En hotellinköpare som söker på
           produktnamnet hittar dem. De raderna är rödmarkerade i graferna nedanför:{' '}
           {undercut.map(v => v.sku).join(', ')}.
         </div>
