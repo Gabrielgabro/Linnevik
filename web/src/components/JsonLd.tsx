@@ -29,9 +29,10 @@ type Props = {
         packSize?: number | null;
     };
     url: ValidUrl;
+    isMTO?: boolean;
 };
 
-export default function JsonLd({ product, url }: Props) {
+export default function JsonLd({ product, url, isMTO }: Props) {
     const variants = product.variants.edges.map(edge => edge.node);
     const variant = variants[0];
     const image = product.images.edges[0]?.node.url;
@@ -55,7 +56,9 @@ export default function JsonLd({ product, url }: Props) {
         priceCurrency: item.price.currencyCode,
         availability: item.availableForSale
             ? 'https://schema.org/InStock'
-            : 'https://schema.org/OutOfStock',
+            : isMTO
+                ? 'https://schema.org/PreOrder'
+                : 'https://schema.org/OutOfStock',
         url,
         seller,
         businessFunction: 'https://schema.org/Sell',
@@ -121,7 +124,9 @@ export default function JsonLd({ product, url }: Props) {
                 offerCount: variants.length,
                 availability: variants.some(item => item.availableForSale)
                     ? 'https://schema.org/InStock'
-                    : 'https://schema.org/OutOfStock',
+                    : isMTO
+                        ? 'https://schema.org/PreOrder'
+                        : 'https://schema.org/OutOfStock',
                 url,
                 seller,
             }

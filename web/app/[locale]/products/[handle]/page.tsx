@@ -27,6 +27,15 @@ import { resolveHandleRedirect } from '@/lib/redirectsDb';
 // finns kvar i staticParams.ts, där sitemapen använder den.
 export const dynamic = 'force-dynamic';
 
+/** Truncate text at the last word boundary before `max` characters. */
+function truncateAtWord(text: string | undefined | null, max = 155): string {
+    if (!text) return '';
+    if (text.length <= max) return text;
+    const truncated = text.slice(0, max);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return (lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated) + '…';
+}
+
 type Props = {
     params: Promise<{ locale: string; handle: string }>;
 };
@@ -48,11 +57,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         const image = product.images?.edges?.[0]?.node?.url;
 
         // Strip HTML from description for meta description
-        const plainDescription = product.descriptionHtml
-            ?.replace(/<[^>]*>/g, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 155) || product.title;
+        const plainDescription = truncateAtWord(
+            product.descriptionHtml
+                ?.replace(/<[^>]*>/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+        ) || product.title;
 
         return {
             title: `${product.title} | Linnevik`,
@@ -148,7 +158,7 @@ export default async function ProductPage({ params }: Props) {
                     variants: { edges: variants.map(node => ({ node })) },
                     moq,
                     packSize,
-                }} url={getSiteUrl(`${locale}/products/${handle}`)} />
+                }} url={getSiteUrl(`${locale}/products/${handle}`)} isMTO={hasMTOTag} />
                 <BreadcrumbJsonLd
                     locale={locale}
                     items={breadcrumbItems}

@@ -114,6 +114,22 @@ export default async function CollectionPage({ params, searchParams }: Props) {
                 items={breadcrumbItems}
                 homeLabel={t.breadcrumb.home}
             />
+            {products.length > 0 && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify({
+                        '@context': 'https://schema.org',
+                        '@type': 'ItemList',
+                        name: collection.title,
+                        numberOfItems: total,
+                        itemListElement: products.map((p, i) => ({
+                            '@type': 'ListItem',
+                            position: (page - 1) * PAGE_SIZE + i + 1,
+                            url: getSiteUrl(`${locale}/products/${p.handle}`),
+                        })),
+                    }) }}
+                />
+            )}
             <Breadcrumbs items={breadcrumbItems} />
 
             <header className="flex items-end justify-between gap-4 border-b border-light pb-6">

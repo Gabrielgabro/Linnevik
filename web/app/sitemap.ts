@@ -38,7 +38,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         getProductStaticParams(),
         getLastModifiedByHandle('products'),
     ]);
-    const productUrls = productParams.map(({ locale, handle }) => ({
+    const productUrls = productParams
+        .filter(({ handle }) => handle !== 'testprodukt')
+        .map(({ locale, handle }) => ({
         url: `${SITE_URL}/${locale}/products/${handle}`,
         lastModified: productDates.get(handle),
         priority: 0.9,
@@ -49,7 +51,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         getCollectionStaticParams(),
         getLastModifiedByHandle('collections'),
     ]);
-    const collectionUrls = collectionParams.map(({ locale, handle }) => ({
+    const collectionUrls = collectionParams
+        .filter(({ handle }) => handle !== 'featured')
+        .map(({ locale, handle }) => ({
         url: `${SITE_URL}/${locale}/collections/${handle}`,
         lastModified: collectionDates.get(handle),
         priority: 0.9,

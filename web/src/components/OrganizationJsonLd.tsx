@@ -18,9 +18,14 @@ export default function OrganizationJsonLd({ locale }: Props) {
     url: SITE_URL,
     logo: SITE_LOGO_URL,
     description,
+    // The brand's operating history dates to 1986; the legal entity
+    // Linneviken AB (559307-2951) was formed in 2021.
     foundingDate: '1986',
+    taxID: '559307-2951',
     email: SITE_EMAIL,
     telephone: SITE_TELEPHONE,
+    // Operating / visiting address. TODO: add the registered address
+    // (Uppsala) as a separate PostalAddress once verified.
     address: {
       '@type': 'PostalAddress',
       streetAddress: 'Himmelsbodavägen 15',

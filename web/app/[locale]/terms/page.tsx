@@ -24,8 +24,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const copy = (translations[language] ?? translations.sv).terms;
 
     return {
-        title: "Terms and Conditions | Linnevik",
-        description: "Read our terms and conditions.",
+        title: language === 'sv' ? 'Villkor | Linnevik' : 'Terms and Conditions | Linnevik',
+        description: language === 'sv'
+            ? 'Läs våra allmänna villkor för köp och leverans av hotelltextilier.'
+            : 'Read our terms and conditions for purchasing and delivery of hotel textiles.',
         alternates: getHreflang('/terms', language),
     };
 }

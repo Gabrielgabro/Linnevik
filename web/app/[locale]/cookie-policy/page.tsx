@@ -24,8 +24,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const locale = normalizeLocale(localeParam);
 
     return {
-        title: "Cookie Policy | Linnevik",
-        description: "Read about how we use cookies.",
+        title: locale === 'sv' ? 'Cookiepolicy | Linnevik' : 'Cookie Policy | Linnevik',
+        description: locale === 'sv'
+            ? 'Läs om hur vi använder cookies på linnevik.se.'
+            : 'Read about how we use cookies on linnevik.se.',
         alternates: getHreflang('/cookie-policy', locale),
     };
 }
