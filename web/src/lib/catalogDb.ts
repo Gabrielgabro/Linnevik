@@ -51,7 +51,7 @@ export async function getProductBreadcrumb(
     .innerJoin(collections, eq(collections.id, productCollections.collectionId))
     .where(
       and(
-        eq(products.handle, productHandle),
+        locale === 'en' ? eq(products.handleEn, productHandle) : eq(products.handle, productHandle),
         eq(productCollections.isPrimary, true),
         eq(collections.active, true)
       )
@@ -89,6 +89,8 @@ export async function getProductBreadcrumb(
 export type CatalogCollection = {
   id: number;
   handle: string;
+  handleSv: string;
+  handleEn: string;
   title: string;
   description: string | null;
   parentId: number | null;
@@ -116,6 +118,7 @@ export type CatalogProductCard = {
 type CollectionRow = {
   id: number;
   handle: string;
+  handle_en: string | null;
   title_sv: string;
   title_en: string;
   description_html: string | null;
@@ -130,7 +133,9 @@ type CollectionRow = {
 function toCollection(row: CollectionRow, locale: Language): CatalogCollection {
   return {
     id: row.id,
-    handle: row.handle,
+    handle: (locale === 'en' && row.handle_en) ? row.handle_en : row.handle,
+    handleSv: row.handle,
+    handleEn: row.handle_en || row.handle,
     title: titleFor({ titleSv: row.title_sv, titleEn: row.title_en }, locale),
     description:
       (locale === 'en' ? row.description_html_en : row.description_html) || null,
@@ -170,7 +175,7 @@ export async function listCollections(locale: Language): Promise<CatalogCollecti
   if (!catalogConfigured()) return [];
 
   const result = await getDb().execute(sql`
-    select collections.id, collections.handle, collections.title_sv, collections.title_en,
+    select collections.id, collections.handle, collections.handle_en, collections.title_sv, collections.title_en,
            collections.description_html, collections.description_html_en,
            collections.parent_id, collections.position,
            collections.image_url, collections.image_alt_text,
@@ -186,6 +191,7 @@ export async function listCollections(locale: Language): Promise<CatalogCollecti
 type ProductCardRow = {
   id: number;
   handle: string;
+  handle_en: string | null;
   title: string;
   title_en: string | null;
   image_url: string | null;
@@ -197,7 +203,7 @@ type ProductCardRow = {
 function toProductCard(row: ProductCardRow, locale: Language): CatalogProductCard {
   return {
     id: String(row.id),
-    handle: row.handle,
+    handle: (locale === 'en' && row.handle_en) ? row.handle_en : row.handle,
     title: (locale === 'en' ? row.title_en : row.title) || row.title,
     images: row.image_url
       ? { edges: [{ node: { url: row.image_url, altText: row.image_alt_text } }] }
@@ -221,7 +227,7 @@ export async function listCatalogProductCards(
 ): Promise<CatalogProductCard[]> {
   if (!catalogConfigured()) return [];
   const rows = await getDb().execute(sql`
-    select p.id, p.handle, p.title, p.title_en,
+    select p.id, p.handle, p.handle_en, p.title, p.title_en,
            img.url as image_url, img.alt_text as image_alt_text,
            price.price_minor, price.currency
     from products p
@@ -243,16 +249,16 @@ export async function listCatalogProductCards(
 
 export async function listCatalogSitemapEntries(
   resource: 'products' | 'collections'
-): Promise<Array<{ handle: string; updatedAt: Date }>> {
+): Promise<Array<{ handle: string; handle_en: string | null; updatedAt: Date }>> {
   if (!catalogConfigured()) return [];
   if (resource === 'products') {
     return getDb()
-      .select({ handle: products.handle, updatedAt: products.updatedAt })
+      .select({ handle: products.handle, handle_en: products.handleEn, updatedAt: products.updatedAt })
       .from(products)
       .where(eq(products.status, 'active'));
   }
   return getDb()
-    .select({ handle: collections.handle, updatedAt: collections.updatedAt })
+    .select({ handle: collections.handle, handle_en: collections.handleEn, updatedAt: collections.updatedAt })
     .from(collections)
     .where(eq(collections.active, true));
 }
@@ -282,14 +288,15 @@ export async function getCollectionPage(
   if (!catalogConfigured()) return null;
 
   const db = getDb();
+  const handleCondition = locale === 'en' ? sql`collections.handle_en = ${handle}` : sql`collections.handle = ${handle}`;
   const found = await db.execute(sql`
-    select collections.id, collections.handle, collections.title_sv, collections.title_en,
+    select collections.id, collections.handle, collections.handle_en, collections.title_sv, collections.title_en,
            collections.description_html, collections.description_html_en,
            collections.parent_id, collections.position,
            collections.image_url, collections.image_alt_text,
            ${SUBTREE_COUNT} as product_count
       from collections
-     where collections.handle = ${handle} and collections.active
+     where ${handleCondition} and collections.active
      limit 1
   `);
   const row = (found.rows as CollectionRow[])[0];
@@ -298,7 +305,7 @@ export async function getCollectionPage(
   const collection = toCollection(row, locale);
 
   const childRows = await db.execute(sql`
-    select collections.id, collections.handle, collections.title_sv, collections.title_en,
+    select collections.id, collections.handle, collections.handle_en, collections.title_sv, collections.title_en,
            collections.description_html, collections.description_html_en,
            collections.parent_id, collections.position,
            collections.image_url, collections.image_alt_text,
@@ -328,7 +335,7 @@ export async function getCollectionPage(
 
   const productRows = await db.execute(sql`
     ${subtree}
-    select p.id, p.handle, p.title, p.title_en,
+    select p.id, p.handle, p.handle_en, p.title, p.title_en,
            img.url as image_url, img.alt_text as image_alt_text,
            price.price_minor, price.currency
       from products p
@@ -363,14 +370,14 @@ export async function getCollectionPage(
 }
 
 /** Handles för `generateStaticParams`. */
-export async function listCollectionHandles(): Promise<string[]> {
+export async function listCollectionHandles(): Promise<{handle: string; handle_en: string | null}[]> {
   if (!catalogConfigured()) return [];
   const rows = await getDb()
-    .select({ handle: collections.handle })
+    .select({ handle: collections.handle, handle_en: collections.handleEn })
     .from(collections)
     .where(eq(collections.active, true))
     .orderBy(asc(collections.handle));
-  return rows.map(row => row.handle);
+  return rows;
 }
 
 /**
@@ -386,6 +393,8 @@ export async function listCollectionHandles(): Promise<string[]> {
 export type CatalogProduct = {
   id: string;
   handle: string;
+  handleSv: string;
+  handleEn: string;
   title: string;
   descriptionHtml: string | null;
   images: { edges: { node: { url: string; altText: string | null } }[] };
@@ -414,6 +423,7 @@ export type CatalogProduct = {
 type ProductDetailRow = {
   id: number;
   handle: string;
+  handle_en: string | null;
   title: string;
   title_en: string | null;
   description_html: string | null;
@@ -426,6 +436,7 @@ type VariantRow = {
   id: number;
   sku: string;
   option_values: Array<{ name: string; value: string }> | null;
+  option_values_en: Array<{ name: string; value: string }> | null;
   price_minor: number;
   currency: string;
   minimum_order_quantity: number;
@@ -482,11 +493,12 @@ export async function getCatalogProduct(
   if (!catalogConfigured()) return null;
 
   const db = getDb();
+  const handleCondition = locale === 'en' ? sql`handle_en = ${handle}` : sql`handle = ${handle}`;
   const found = await db.execute(sql`
-    select id, handle, title, title_en, description_html, description_html_en,
+    select id, handle, handle_en, title, title_en, description_html, description_html_en,
            tags, lead_time
       from products
-     where handle = ${handle} and status = 'active'
+     where ${handleCondition} and status = 'active'
      limit 1
   `);
   const row = (found.rows as ProductDetailRow[])[0];
@@ -501,7 +513,7 @@ export async function getCatalogProduct(
   // `active` och `available_for_sale` säger olika saker — om varianten ingår i
   // katalogen respektive om den får beställas. `cartRules` kräver båda.
   const variantRows = await db.execute(sql`
-    select id, sku, option_values, price_minor, currency,
+    select id, sku, option_values, option_values_en, price_minor, currency,
            minimum_order_quantity, order_increment,
            active and available_for_sale as purchasable
       from product_variants
@@ -515,9 +527,16 @@ export async function getCatalogProduct(
   const purchasable = variants.filter(variant => variant.purchasable);
   const title = (locale === 'en' ? row.title_en : row.title) || row.title;
 
+  const localizedVariants = variants.map(v => ({
+    ...v,
+    option_values: locale === 'en' ? (v.option_values_en ?? []) : (v.option_values ?? [])
+  }));
+
   return {
     id: String(row.id),
-    handle: row.handle,
+    handle: (locale === 'en' && row.handle_en) ? row.handle_en : row.handle,
+    handleSv: row.handle,
+    handleEn: row.handle_en || row.handle,
     title,
     descriptionHtml:
       (locale === 'en' ? row.description_html_en : row.description_html) || null,
@@ -526,9 +545,9 @@ export async function getCatalogProduct(
         node: { url: image.url, altText: image.alt_text },
       })),
     },
-    options: deriveOptions(variants),
+    options: deriveOptions(localizedVariants),
     variants: {
-      edges: variants.map(variant => ({
+      edges: localizedVariants.map(variant => ({
         node: {
           id: variantHandle(variant),
           variantId: variant.id,
@@ -571,6 +590,7 @@ export type CatalogSearchResult = {
 type SearchResultRow = {
   id: number;
   handle: string;
+  handle_en: string | null;
   title: string;
   title_en: string | null;
   product_type: string | null;
@@ -609,7 +629,7 @@ export async function searchCatalogProducts(
     : sql`true`;
 
   const rows = await getDb().execute(sql`
-    select p.id, p.handle, p.title, p.title_en, p.product_type, p.tags,
+    select p.id, p.handle, p.handle_en, p.title, p.title_en, p.product_type, p.tags,
            img.url as image_url, img.alt_text as image_alt_text
       from products p
       left join lateral (
@@ -623,7 +643,7 @@ export async function searchCatalogProducts(
 
   return (rows.rows as SearchResultRow[]).map(row => ({
     id: String(row.id),
-    handle: row.handle,
+    handle: (locale === 'en' && row.handle_en) ? row.handle_en : row.handle,
     title: (locale === 'en' ? row.title_en : row.title) || row.title,
     productType: row.product_type,
     tags: row.tags ?? [],
@@ -634,12 +654,12 @@ export async function searchCatalogProducts(
 }
 
 /** Handles för `generateStaticParams` på /products/[handle]. */
-export async function listProductHandles(): Promise<string[]> {
+export async function listProductHandles(): Promise<{handle: string; handle_en: string | null}[]> {
   if (!catalogConfigured()) return [];
   const rows = await getDb()
-    .select({ handle: products.handle })
+    .select({ handle: products.handle, handle_en: products.handleEn })
     .from(products)
     .where(eq(products.status, 'active'))
     .orderBy(asc(products.handle));
-  return rows.map(row => row.handle);
+  return rows;
 }

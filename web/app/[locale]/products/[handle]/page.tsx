@@ -7,7 +7,7 @@ import { getCatalogProduct, getProductBreadcrumb } from '@/lib/catalogDb';
 import { getPricingConfig } from '@/lib/pricing';
 import { isClientComputable } from '@/lib/pricingRules';
 import { getHreflang } from '@/lib/metadata';
-import { SITE_URL, getSiteUrl } from '@/lib/site';
+import { SITE_URL, getSiteUrl, getCanonicalUrl } from '@/lib/metadata';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
 import JsonLd from '@/components/JsonLd';
 import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
@@ -68,7 +68,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             title: `${product.title} | Linnevik`,
             description: plainDescription,
             metadataBase: new URL(SITE_URL),
-            alternates: getHreflang(`/products/${handle}`, locale),
+            alternates: {
+                canonical: getCanonicalUrl(locale, `/products/${product.handle}`),
+                languages: {
+                    sv: `${SITE_URL}/sv/products/${product.handleSv}`,
+                    en: `${SITE_URL}/en/products/${product.handleEn}`,
+                    'x-default': `${SITE_URL}/sv/products/${product.handleSv}`,
+                },
+            },
             openGraph: {
                 title: `${product.title} | Linnevik`,
                 description: plainDescription,

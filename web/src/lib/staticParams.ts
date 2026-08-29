@@ -11,10 +11,10 @@ export async function getStaticLocaleParams() {
 // Handlarna är språkoberoende, så listan hämtas en gång och paras ihop med
 // varje språk, precis som kategorierna nedan.
 export async function getProductStaticParams() {
-    const handles = await listProductHandles();
+    const records = await listProductHandles();
 
     return SUPPORTED_LANGUAGES.flatMap((lang) =>
-        handles.map((handle) => ({ locale: lang.code, handle }))
+        records.map((r) => ({ locale: lang.code, handle: (lang.code === 'en' && r.handle_en) ? r.handle_en : r.handle }))
     );
 }
 
@@ -22,9 +22,9 @@ export async function getProductStaticParams() {
 // Handlarna är språkoberoende, så listan hämtas en gång och paras ihop med
 // varje språk.
 export async function getCollectionStaticParams() {
-    const handles = await listCollectionHandles();
+    const records = await listCollectionHandles();
 
     return SUPPORTED_LANGUAGES.flatMap((lang) =>
-        handles.map((handle) => ({ locale: lang.code, handle }))
+        records.map((r) => ({ locale: lang.code, handle: (lang.code === 'en' && r.handle_en) ? r.handle_en : r.handle }))
     );
 }

@@ -1,6 +1,6 @@
 import { getCollectionPage } from '@/lib/catalogDb';
 import { getHreflang } from '@/lib/metadata';
-import { SITE_URL, getSiteUrl } from '@/lib/site';
+import { SITE_URL, getSiteUrl, getCanonicalUrl } from '@/lib/metadata';
 import ProductCard from "@/components/ProductCard";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import BreadcrumbJsonLd from "@/components/BreadcrumbJsonLd";
@@ -55,7 +55,14 @@ export async function generateMetadata({ params }: Props) {
         title: `${collection.title} – Linnevik`,
         description,
         metadataBase: new URL(SITE_URL),
-        alternates: getHreflang(`/collections/${handle}`, locale),
+        alternates: {
+            canonical: getCanonicalUrl(locale, `/collections/${collection.handle}`),
+            languages: {
+                sv: `${SITE_URL}/sv/collections/${collection.handleSv}`,
+                en: `${SITE_URL}/en/collections/${collection.handleEn}`,
+                'x-default': `${SITE_URL}/sv/collections/${collection.handleSv}`,
+            },
+        },
         openGraph: {
             title: `${collection.title} – Linnevik`,
             description,

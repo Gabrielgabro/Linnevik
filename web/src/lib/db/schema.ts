@@ -177,6 +177,7 @@ export const products = pgTable(
     id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
     shopifyProductId: text('shopify_product_id'),
     handle: text('handle').notNull(),
+    handleEn: text('handle_en'),
     title: text('title').notNull(),
     // Engelskan hämtades förr live ur Shopify med @inContext. Den bor här nu,
     // annars försvinner den engelska sajten den dagen butiken stängs.
@@ -214,6 +215,9 @@ export const products = pgTable(
       .on(table.shopifyProductId)
       .where(isNotNull(table.shopifyProductId)),
     uniqueIndex('products_handle_key').on(table.handle),
+    uniqueIndex('products_handle_en_key')
+      .on(table.handleEn)
+      .where(isNotNull(table.handleEn)),
     index('products_supplier_idx').on(table.supplier),
     index('products_status_idx').on(table.status),
     check('products_supplier_check', sql`length(btrim(${table.supplier})) > 0`),
@@ -231,6 +235,10 @@ export const productVariants = pgTable(
     shopifyVariantId: text('shopify_variant_id'),
     sku: text('sku').notNull(),
     optionValues: jsonb('option_values')
+      .$type<Array<{ name: string; value: string }>>()
+      .notNull()
+      .default([]),
+    optionValuesEn: jsonb('option_values_en')
       .$type<Array<{ name: string; value: string }>>()
       .notNull()
       .default([]),
@@ -338,6 +346,7 @@ export const collections = pgTable(
     id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
     shopifyCollectionId: text('shopify_collection_id'),
     handle: text('handle').notNull(),
+    handleEn: text('handle_en'),
     titleSv: text('title_sv').notNull(),
     titleEn: text('title_en').notNull(),
     descriptionHtml: text('description_html'),
@@ -364,6 +373,9 @@ export const collections = pgTable(
   },
   table => [
     uniqueIndex('collections_handle_key').on(table.handle),
+    uniqueIndex('collections_handle_en_key')
+      .on(table.handleEn)
+      .where(isNotNull(table.handleEn)),
     uniqueIndex('collections_shopify_collection_id_key')
       .on(table.shopifyCollectionId)
       .where(isNotNull(table.shopifyCollectionId)),

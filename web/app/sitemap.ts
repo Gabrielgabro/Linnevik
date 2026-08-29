@@ -8,7 +8,12 @@ import { SITE_URL } from '@/lib/site';
  */
 async function getLastModifiedByHandle(resource: 'products' | 'collections') {
     const entries = await listCatalogSitemapEntries(resource);
-    return new Map(entries.map(({ handle, updatedAt }) => [handle, new Date(updatedAt)]));
+    const map = new Map<string, Date>();
+    for (const { handle, handle_en, updatedAt } of entries) {
+        map.set(handle, new Date(updatedAt));
+        if (handle_en) map.set(handle_en, new Date(updatedAt));
+    }
+    return map;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

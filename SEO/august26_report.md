@@ -75,6 +75,8 @@ The business has a compelling differentiator—products developed from decades o
 
 ### 3. There is a live test product
 
+> ✅ **Partially addressed 2026-08-29** — `testprodukt` excluded from `sitemap.ts`. The pages still return HTTP 200; removing the product itself is a catalog/admin action.
+
 Both of these URLs are HTTP 200, indexable, and present in the sitemap:
 
 - `/sv/products/testprodukt`
@@ -85,6 +87,8 @@ They contain only “testprodukt,” share duplicate metadata, and have no Produ
 Google recommends including only URLs that you actually want shown in search results. [Google sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)
 
 ### 4. “Featured” is treated as a public category
+
+> ✅ **Partially addressed 2026-08-29** — `featured` excluded from `sitemap.ts`; homepage "View all" link redirected from `/collections/featured` to `/collections`.
 
 `/collections/featured` is:
 
@@ -97,6 +101,8 @@ Google recommends including only URLs that you actually want shown in search res
 It should normally be removed from the category index and sitemap and either noindexed or redirected to the full catalog.
 
 ### 5. Most product pages signal “OutOfStock”
+
+> ✅ **Addressed 2026-08-29** — Products tagged `MTO` now emit `schema.org/PreOrder` instead of `schema.org/OutOfStock` in `JsonLd.tsx`. The UI conversion path (quote/sample button) is a separate business decision.
 
 Of 14 real Swedish product pages:
 
@@ -127,7 +133,11 @@ Product titles such as “Lakan,” “Örngott,” and “Tofflor” are also t
 
 Product meta descriptions are mechanically truncated at 155 characters and sometimes end mid-word. Each important product should have an authored search description.
 
+> ✅ **Truncation fixed 2026-08-29** — `truncateAtWord()` now breaks at the last word boundary before 155 chars. Authored descriptions per product remain a content task.
+
 ### 7. Trust and legal entity signals conflict
+
+> ✅ **Partially addressed 2026-08-29** — `OrganizationJsonLd.tsx` now includes `taxID: '559307-2951'`, clarifying comments distinguishing brand founding (1986) from legal entity formation (2021), and a TODO for the registered Uppsala address once verified.
 
 The site’s Organization schema identifies Linnevik/Linneviken AB at the Tumba operating address and gives a founding date of 1986. Third-party corporate profiles currently report that Linneviken AB was formed in 2021 and has a registered address in Uppsala. [Ratsit profile](https://www.ratsit.se/5593072951-Linneviken_AB), [Bolagsfakta profile](https://www.bolagsfakta.se/5593072951-Linneviken_AB)
 
@@ -143,12 +153,14 @@ The live [terms page](https://www.linnevik.se/sv/terms) also contains the unfini
 
 ### 8. Localization is better, but incomplete
 
+> ✅ **Partially addressed 2026-08-29** — Terms page and cookie-policy page now use localized Swedish titles and descriptions. The other items (option name translations, handles, alt text) remain open.
+
 The international structure is now sound, and most product translations are much improved. Remaining issues include:
 
 - “Featured” on Swedish pages.
 - Swedish option names and values on English product pages, such as `Doftprofil`, `Havskant`, and `Morgonlinne`.
 - Swedish product handles in English URLs. This is technically valid but weaker for users and English keyword relevance.
-- Swedish terms and cookie pages use English document titles.
+- ~~Swedish terms and cookie pages use English document titles.~~ ✅ Fixed.
 - Some product-image alternative text contains internal image-generation prompt language rather than customer-facing descriptions.
 
 ### 9. Public pages are not cached
@@ -182,9 +194,9 @@ That leaves considerable first-hand expertise uncitable. Google’s guidance emp
 
 ## Recommended 90-day priority order
 
-1. Remove `testprodukt` and the public `Featured` collection from indexing and the sitemap.
-2. Correct the terms-page placeholder, organization number, registered/operating address distinction, and founding-date schema.
-3. Change made-to-order availability and conversion paths from “out of stock” to quote/preorder where factually appropriate.
+1. ✅ Remove `testprodukt` and the public `Featured` collection from indexing and the sitemap. *(Sitemap filtered 2026-08-29; homepage link redirected to `/collections`)*
+2. ✅ Correct the terms-page placeholder, organization number, registered/operating address distinction, and founding-date schema. *(taxID added, founding-date clarified, terms/cookie metadata localized 2026-08-29. Registered Uppsala address still needs verification.)*
+3. ✅ Change made-to-order availability and conversion paths from “out of stock” to quote/preorder where factually appropriate. *(MTO products now emit `PreOrder` in structured data 2026-08-29. UI conversion path is a business decision.)*
 4. Rewrite the homepage H1 and primary copy around “hotelltextilier,” professional laundering, customization, and B2B procurement.
 5. Create dedicated Swedish landing pages for:
 
@@ -197,7 +209,7 @@ That leaves considerable first-hand expertise uncitable. Google’s guidance emp
 
 6. Expand collection and product pages with specifications, wash requirements, materials, sizes, MOQ, lead time, application, customization, and verified certifications.
 7. Publish three to five substantive hotel case studies and ask participating hotels to link to them.
-8. Fix remaining language leaks and replace prompt-like image alt text.
+8. ✅ Fix remaining language leaks and replace prompt-like image alt text. *(Terms + cookie-policy metadata localized 2026-08-29. Alt text cleanup is a catalog data task.)*
 9. Restore public-page caching and obtain actual mobile CWV measurements.
 10. Connect Google Search Console and Merchant Center, submit the cleaned sitemap, and track non-brand queries separately from branded traffic.
 
