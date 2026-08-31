@@ -85,6 +85,12 @@ export const useCookieConsent = () => {
         }
         applyConsent(normalized);
         setShowBanner(false);
+        // Besöksmätaren lyssnar på det här. Utan händelsen hade den som tackar
+        // ja i rutan börjat räknas först vid nästa klick, och den som tackar
+        // nej hade fortsatt räknas till dess.
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('linnevik:consent', { detail: normalized }));
+        }
     }, []);
 
     const acceptAll = useCallback(() => {

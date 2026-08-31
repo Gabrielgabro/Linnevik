@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -983,6 +984,51 @@ export const pricingConfigVersions = pgTable(
   ]
 );
 
+// Förstapartsstatistik över besök i butiken. En rad per sidvisning, och bara
+// för den som tackat ja till analyskakor. Ingen IP och ingen user agent —
+// allt som härleds ur begäran sparas som färdiga etiketter. Se 0041.
+export const analyticsEvents = pgTable(
+  'analytics_events',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    // Klientens eget id för händelsen. Unikt, så att ett omskickat anrop inte
+    // blir två besök.
+    eventId: text('event_id').notNull(),
+    visitorId: text('visitor_id').notNull(),
+    sessionId: text('session_id').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    path: text('path').notNull(),
+    locale: text('locale').notNull().default('sv'),
+    eventType: text('event_type').notNull().default('page_view'),
+    productHandle: text('product_handle'),
+    referrerHost: text('referrer_host'),
+    sourceCategory: text('source_category').notNull().default('direct'),
+    sourceDetail: text('source_detail').notNull().default('Direkt'),
+    countryCode: text('country_code'),
+    region: text('region'),
+    regionCode: text('region_code'),
+    city: text('city'),
+    timezone: text('timezone'),
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
+    deviceCategory: text('device_category').notNull().default('Okänd'),
+    browserName: text('browser_name').notNull().default('Okänd'),
+    osName: text('os_name').notNull().default('Okänd'),
+  },
+  table => [
+    uniqueIndex('analytics_events_event_id_key').on(table.eventId),
+    index('analytics_events_occurred_at_idx').on(table.occurredAt),
+    index('analytics_events_visitor_idx').on(table.visitorId, table.occurredAt),
+    index('analytics_events_source_idx').on(table.sourceCategory, table.occurredAt),
+    index('analytics_events_location_idx').on(
+      table.countryCode,
+      table.regionCode,
+      table.city,
+      table.occurredAt
+    ),
+  ]
+);
+
 export type ProductRow = typeof products.$inferSelect;
 export type ProductVariantRow = typeof productVariants.$inferSelect;
 export type ProductImageRow = typeof productImages.$inferSelect;
@@ -1004,3 +1050,4 @@ export type SampleRequestItemRow = typeof sampleRequestItems.$inferSelect;
 export type OpsAlertRow = typeof opsAlerts.$inferSelect;
 export type UrlRedirectRow = typeof urlRedirects.$inferSelect;
 export type PricingConfigVersionRow = typeof pricingConfigVersions.$inferSelect;
+export type AnalyticsEventRow = typeof analyticsEvents.$inferSelect;

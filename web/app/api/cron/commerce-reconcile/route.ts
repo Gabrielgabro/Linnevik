@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { lowStockThreshold } from '@/lib/commerceConfig';
 import { lowStockVariants } from '@/lib/inventoryDb';
 import { raiseAlert } from '@/lib/opsAlerts';
+import { pruneAnalyticsEvents, RETENTION_DAYS } from '@/lib/analyticsDb';
 import { pruneRateLimits } from '@/lib/rateLimit';
 import { stripeConfigured } from '@/lib/stripe';
 import { reconcileRecentCheckoutSessions } from '@/lib/stripeCheckout';
@@ -66,6 +67,11 @@ export async function GET(request: NextRequest) {
   // tabellen ska inte växa för evigt.
   const prunedBuckets = await pruneRateLimits();
 
+  // Gallringen av besöksstatistiken åker med samma körning. Den låg först i
+  // skrivvägen, men då bar butikens hetaste anrop en radering mot den största
+  // tabellen — arbete som ändå görs en gång per dygn här.
+  const prunedVisits = await pruneAnalyticsEvents();
+
   return NextResponse.json(
     {
       runAt: new Date().toISOString(),
@@ -73,6 +79,8 @@ export async function GET(request: NextRequest) {
       invoices: invoiceResult,
       lowStock: lowStock.length,
       prunedBuckets,
+      prunedVisits,
+      visitRetentionDays: RETENTION_DAYS,
     },
     { status: result.failures.length || invoiceResult.failures.length ? 207 : 200 }
   );

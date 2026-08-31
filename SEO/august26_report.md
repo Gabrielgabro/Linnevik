@@ -153,15 +153,15 @@ The live [terms page](https://www.linnevik.se/sv/terms) also contains the unfini
 
 ### 8. Localization is better, but incomplete
 
-> ✅ **Partially addressed 2026-08-29** — Terms page and cookie-policy page now use localized Swedish titles and descriptions. The other items (option name translations, handles, alt text) remain open.
+> ✅ **Addressed 2026-08-29** — All localization issues have been resolved. The schema now natively supports English handles and option values, resolving the URL and translation issues. "Featured" is now displayed as "Utvalt" on Swedish pages. AI prompt text on images was replaced with creative product descriptions.
 
 The international structure is now sound, and most product translations are much improved. Remaining issues include:
 
-- “Featured” on Swedish pages.
-- Swedish option names and values on English product pages, such as `Doftprofil`, `Havskant`, and `Morgonlinne`.
-- Swedish product handles in English URLs. This is technically valid but weaker for users and English keyword relevance.
+- ~~“Featured” on Swedish pages.~~ ✅ Fixed.
+- ~~Swedish option names and values on English product pages, such as `Doftprofil`, `Havskant`, and `Morgonlinne`.~~ ✅ Fixed.
+- ~~Swedish product handles in English URLs. This is technically valid but weaker for users and English keyword relevance.~~ ✅ Fixed.
 - ~~Swedish terms and cookie pages use English document titles.~~ ✅ Fixed.
-- Some product-image alternative text contains internal image-generation prompt language rather than customer-facing descriptions.
+- ~~Some product-image alternative text contains internal image-generation prompt language rather than customer-facing descriptions.~~ ✅ Fixed.
 
 ### 9. Public pages are not cached
 

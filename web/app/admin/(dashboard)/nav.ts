@@ -11,6 +11,7 @@ import {
   Settings2,
   ShoppingCart,
   Users,
+  Users2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -76,6 +77,14 @@ export const NAV: NavGroup[] = [
       },
       { href: '/admin/commerce', label: 'Handel', icon: Settings2, accent: 'var(--adm-warn)' },
       { href: '/admin/export', label: 'Export', icon: Download, accent: 'var(--viz-s4)' },
+    ],
+  },
+  {
+    label: 'Publik',
+    items: [
+      // Besökssidan står för sig: den räknar folk som ännu inte är kunder, och
+      // hör därför inte hemma bland ordrarna eller i kundregistret.
+      { href: '/admin/analytics', label: 'Besökare', icon: Users2, accent: 'var(--viz-s3)' },
     ],
   },
   {
