@@ -14,6 +14,7 @@
 import { desc } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { adminActivity, type AdminActivityRow } from '@/lib/db/schema';
+import { revalidateStorefront } from '@/lib/storefrontCache';
 
 export type AdminAction =
   | 'admin.login'
@@ -110,12 +111,41 @@ export function activityConfigured(): boolean {
   return Boolean(process.env.DATABASE_URL);
 }
 
+/**
+ * Handlingar som ändrar något besökarna ser i butiken: priser, texter, bilder,
+ * kategorier och mängdrabatt. Rabattkoder och frakt finns med för säkerhets
+ * skull, eftersom det är billigt att tömma cachen en gång för mycket.
+ */
+const STOREFRONT_ACTIONS: ReadonlySet<AdminAction> = new Set<AdminAction>([
+  'product.created',
+  'product.updated',
+  'product.deleted',
+  'product.image_added',
+  'product.image_removed',
+  'variant.created',
+  'variant.updated',
+  'variant.deleted',
+  'collection.created',
+  'collection.updated',
+  'collection.deleted',
+  'suggestion.applied',
+  'pricing_config.updated',
+  'discount.created',
+  'discount.updated',
+  'shipping.created',
+  'shipping.updated',
+]);
+
 export async function record(
   actor: string,
   action: AdminAction,
   target?: string | null,
   detail: Record<string, unknown> = {}
 ): Promise<void> {
+  // Varje ändring i butiken passerar här, så här töms också butikens cache.
+  // Det görs före loggskrivningen och oberoende av den.
+  if (STOREFRONT_ACTIONS.has(action)) revalidateStorefront();
+
   if (!activityConfigured()) return;
   try {
     await getDb()

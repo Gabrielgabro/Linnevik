@@ -14,18 +14,19 @@ import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { resolveHandleRedirect } from '@/lib/redirectsDb';
 
-// export const dynamic = 'force-dynamic';
-
-// Katalogsidorna renderas per förfrågan. Priser, lager och texter ändras i
-// /admin och ska slå igenom direkt — en byggtidsstillbild av katalogen skulle
-// visa gårdagens pris för en kund som debiteras dagens.
+// Produktsidorna renderas vid första besöket och cachas sedan (ISR). Ingen
+// produkt förrenderas vid bygget, därav den tomma listan. En produkt som skapas
+// efter bygget fungerar alltså direkt, eftersom dynamicParams står kvar på sitt
+// standardvärde (true).
 //
-// Här stod förr generateStaticParams. Den var verkningslös (rot-layouten läser
-// headers(), vilket gör varje sida dynamisk) men inte harmlös: tillsammans med
-// dynamicParams i [locale]/layout.tsx betydde den att en produkt skapad efter
-// bygget skulle svara 404 den dag headers()-anropet försvann. Listan av handles
-// finns kvar i staticParams.ts, där sitemapen använder den.
-export const dynamic = 'force-dynamic';
+// Priser, lager och texter ändras i /admin och ska slå igenom direkt. Därför
+// tömmer varje sådan ändring cachen (src/lib/storefrontCache.ts). Utöver det
+// byggs sidan om senast efter 60 sekunder (`revalidate` i [locale]/layout.tsx).
+//
+// Listan av handles finns i staticParams.ts, där sitemapen använder den.
+export async function generateStaticParams() {
+    return [];
+}
 
 /** Truncate text at the last word boundary before `max` characters. */
 function truncateAtWord(text: string | undefined | null, max = 155): string {

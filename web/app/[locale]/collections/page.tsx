@@ -5,7 +5,6 @@ import Image from "next/image";
 import { getTranslations } from "@/lib/getTranslations";
 import { normalizeLocale } from "@/lib/i18n";
 
-export const dynamic = 'force-dynamic';
 
 type Props = {
     params: Promise<{ locale: string }>;

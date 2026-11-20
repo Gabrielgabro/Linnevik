@@ -62,12 +62,9 @@ export async function proxy(request: NextRequest) {
   );
 
   if (pathnameLocale) {
-    // Pass locale to the root layout so the server-rendered document can declare
-    // the correct html lang value without making cacheable public pages vary on
-    // a Set-Cookie header.
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-linnevik-locale', pathnameLocale);
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    // <html lang> comes from the [locale] segment in app/[locale]/layout.tsx,
+    // so nothing needs to be passed along here.
+    return NextResponse.next();
   }
 
   // Redirect to default locale if no locale in URL

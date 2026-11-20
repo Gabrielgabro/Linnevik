@@ -1,4 +1,6 @@
+import { unstable_cache } from 'next/cache';
 import { getCollectionPage } from '@/lib/catalogDb';
+import { CATALOG_TAG } from '@/lib/storefrontCache';
 import { getHreflang } from '@/lib/metadata';
 import { SITE_URL, getSiteUrl, getCanonicalUrl } from '@/lib/metadata';
 import ProductCard from "@/components/ProductCard";
@@ -10,10 +12,16 @@ import { resolveHandleRedirect } from "@/lib/redirectsDb";
 import { getTranslations } from "@/lib/i18n";
 import { normalizeLocale } from "@/lib/i18n";
 
-// Renderas per förfrågan, av samma skäl som produktsidan: katalogen ändras i
-// /admin och ska slå igenom direkt. Se kommentaren i products/[handle]/page.tsx
-// om varför generateStaticParams togs bort här och inte bara lämnades verkningslös.
-export const dynamic = 'force-dynamic';
+// Sidan renderas per förfrågan, eftersom den läser `?page=`. Det långsamma är
+// katalogfrågorna (fyra stycken i följd), och de cachas i stället under taggen
+// `catalog`. Admin tömmer den taggen när katalogen ändras, så ändringar syns
+// fortfarande direkt (se src/lib/storefrontCache.ts).
+const cachedCollectionPage = unstable_cache(
+    (handle: string, locale: Parameters<typeof getCollectionPage>[1], limit: number, offset: number) =>
+        getCollectionPage(handle, locale, { limit, offset }),
+    ['collection-page'],
+    { tags: [CATALOG_TAG], revalidate: 60 }
+);
 
 const PAGE_SIZE = 24;
 
@@ -40,7 +48,7 @@ export async function generateMetadata({ params }: Props) {
     const { locale: localeParam, handle } = await params;
     const locale = normalizeLocale(localeParam);
 
-    const page = await getCollectionPage(handle, locale, { limit: 0 });
+    const page = await cachedCollectionPage(handle, locale, 0, 0);
     if (!page) {
         return { title: "Kategori ej funnen – Linnevik" };
     }
@@ -88,10 +96,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
     // Kategorin, dess underkategorier och produkterna i hela underträdet
     // kommer nu ur våra egna tabeller. En förälder visar alltså sina barns
     // produkter i stället för att vara en tom rubrik.
-    const result = await getCollectionPage(handle, locale, {
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
-    });
+    const result = await cachedCollectionPage(handle, locale, PAGE_SIZE, (page - 1) * PAGE_SIZE);
 
     // Om kategorin inte hittas alls: kolla först om handlen bytts i /admin —
     // en omdöpt kategori ska leda vidare, inte dö. Se redirectsDb.
