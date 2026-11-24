@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
+import { ensureStripeProducts } from '@/lib/stripeCatalog';
 import {
   assertEveryAmountIsTaxed,
   checkoutTaxMode,
@@ -248,6 +249,11 @@ export async function POST(request: NextRequest) {
 
     // `retireAttempt` reopens the cart at a new version, so re-read it.
     const ownedCart = await validateOwnedCartForCheckout(ownedCartId);
+    // Varje vara ska finnas i Stripe, i det läge nyckeln tillhör, innan
+    // sessionen skapas. Saknas en skapas den här och nu.
+    const stripeProductIds = await ensureStripeProducts(
+      ownedCart.lines.map(line => line.productHandle)
+    );
     const priced = ownedCart.lines.map(line => ({
       variantId: line.variantId,
       sku: line.sku,
@@ -255,7 +261,7 @@ export async function POST(request: NextRequest) {
       quantity: line.quantity,
       unitAmountMinor: line.unitAmountMinor,
       currency: line.currency,
-      stripeProductId: line.stripeProductId,
+      stripeProductId: stripeProductIds.get(line.productHandle) ?? null,
     }));
     const subtotalMinor = priced.reduce(
       (sum, line) => sum + line.unitAmountMinor * line.quantity,
@@ -364,8 +370,7 @@ export async function POST(request: NextRequest) {
         currency: line.currency,
         unit_amount: line.unitAmountMinor,
         tax_behavior: 'exclusive' as const,
-        // Faller tillbaka på ett namn om produkten inte hunnit synkas till
-        // Stripe — kassan ska inte gå sönder för att katalogen släpar.
+        // `ensureStripeProducts` ger alltid ett id; namnet är en sista utväg.
         ...(line.stripeProductId
           ? { product: line.stripeProductId }
           : { product_data: { name: line.title, tax_code: GOODS_TAX_CODE } }),

@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq, inArray } from 'drizzle-orm';
 import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
+import { ensureStripeProducts } from '@/lib/stripeCatalog';
 import { getDb } from '@/lib/db';
 import { clients, customers, products, productVariants } from '@/lib/db/schema';
 import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
@@ -609,6 +610,10 @@ export async function POST(request: NextRequest) {
 
     const locale = await getServerLanguage();
     const ownedCart = await validateOwnedCartForCheckout(cartId);
+    // Samma spärr som kortkassan: varan ska finnas i Stripe i nyckelns läge.
+    const stripeProductIds = await ensureStripeProducts(
+      ownedCart.lines.map(line => line.productHandle)
+    );
     const priced = ownedCart.lines.map(line => ({
       variantId: line.variantId,
       sku: line.sku,
@@ -616,7 +621,7 @@ export async function POST(request: NextRequest) {
       quantity: line.quantity,
       unitAmountMinor: line.unitAmountMinor,
       currency: line.currency,
-      stripeProductId: line.stripeProductId,
+      stripeProductId: stripeProductIds.get(line.productHandle) ?? null,
     }));
     const subtotalMinor = priced.reduce((sum, line) => sum + line.unitAmountMinor * line.quantity, 0);
     const discount = await resolveDiscount({
