@@ -43,6 +43,9 @@ const KIND_LABEL: Record<string, string> = {
   'order.credit_note_failed': 'Kreditnota saknas',
   'email.failed': 'E-post',
   'inventory.low_stock': 'Lågt lager',
+  'invoice.config': 'Fakturainställning',
+  'invoice.overdue': 'Förfallen faktura',
+  'invoice.payment_mismatch': 'Fakturabetalning avviker',
 };
 
 /** Larm som betyder att pengar eller lager står fel just nu. */
@@ -54,6 +57,10 @@ const CRITICAL = new Set([
   'order.stock_exception',
   'webhook.unmatched_session',
   'order.amount_mismatch',
+  // Inga fakturaköp går igenom förrän bankgirot är rättat.
+  'invoice.config',
+  // En överbetalning ska tillbaka till kunden.
+  'invoice.payment_mismatch',
 ]);
 
 function detailText(detail: Record<string, unknown>): string {

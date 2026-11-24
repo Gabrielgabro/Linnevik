@@ -20,6 +20,14 @@ import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
 import { getTranslations } from '@/lib/i18n';
 import { sendInvoiceCreatedNotice } from '@/lib/orderEmails';
+import { raiseAlert } from '@/lib/opsAlerts';
+import {
+  InvoicePaymentConfigError,
+  invoicePaymentDetails,
+  ocrForOrder,
+  paymentInstructions,
+  type InvoicePaymentDetails,
+} from '@/lib/invoicePayment';
 import { claimDiscountCapacity, DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout, usableStripeCustomerId } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
@@ -442,6 +450,8 @@ async function finishInvoice(input: {
   taxMode: Awaited<ReturnType<typeof checkoutTaxMode>>;
   /** Företagets fakturabrevlåda, när kundregistret har en. */
   notifyEmail?: string | null;
+  /** Bankgiro/konto som står på fakturan; mejlet ska säga samma sak. */
+  payment: InvoicePaymentDetails;
 }) {
   const itemTaxRates = input.taxMode.kind === 'explicit' ? [input.taxMode.taxRateId] : undefined;
   for (const line of input.lines) {
@@ -473,6 +483,8 @@ async function finishInvoice(input: {
       hostedUrl: sent.hosted_invoice_url ?? null,
       number: sent.number ?? null,
       dueDate: sent.due_date ? new Date(sent.due_date * 1000) : null,
+      payment: input.payment,
+      ocr: ocrForOrder(input.orderId),
     },
     input.notifyEmail
   );
@@ -530,6 +542,11 @@ export async function POST(request: NextRequest) {
   let stripeInvoiceId: string | null = null;
   let invoiceSent = false;
   try {
+    // Först av allt, före order och reservation: en faktura utan bankgiro
+    // eller konto går inte att betala för en svensk företagskund, och ska då
+    // inte gå i väg alls. Kastar InvoicePaymentConfigError, som blir 503.
+    const payment = invoicePaymentDetails();
+
     await releaseExpiredReservations('invoice').catch(error => {
       console.error('[Invoice] Could not release expired reservations:', error);
     });
@@ -577,6 +594,7 @@ export async function POST(request: NextRequest) {
             },
             taxMode: await checkoutTaxMode(),
             notifyEmail: account.invoiceEmail,
+            payment,
           });
           invoiceSent = true;
           return NextResponse.json({
@@ -674,13 +692,17 @@ export async function POST(request: NextRequest) {
     const invoiceLocale = invoiceLocales(profile.address)[0];
     const t = getTranslations(invoiceLocale);
     const accountTaxIds = await sellerTaxIds();
+    const ocr = ocrForOrder(orderId);
+    const instructions = paymentInstructions(payment, ocr, invoiceLocale);
     const invoice = await getStripe().invoices.create({
       customer: customerId,
       currency: priced[0].currency,
       collection_method: 'send_invoice',
       days_until_due: INVOICE_DUE_DAYS,
       auto_advance: false,
-      description: INVOICE_MEMO[invoiceLocale] ?? INVOICE_MEMO.sv,
+      // Betalningsanvisningen först: memot står direkt under beloppet, och det
+      // är där mottagarens ekonomiavdelning letar efter bankgiro och OCR.
+      description: `${instructions.memo}\n\n${INVOICE_MEMO[invoiceLocale] ?? INVOICE_MEMO.sv}`,
       // Stripe defaultar till US Letter för allt utom japansk lokal. En svensk
       // leverantörsfaktura ska vara A4 — den arkiveras och skrivs ut.
       rendering: { pdf: { page_size: 'a4' } },
@@ -703,11 +725,17 @@ export async function POST(request: NextRequest) {
       ],
       // Betalningsvillkoren är desamma som köpvillkoren på sajten (§4), och
       // står på fakturan därför att det är där kunden faktiskt läser dem.
-      footer: [t.terms.section4Text2, t.terms.section4Text3, sellerFooterLine(invoiceLocale, accountTaxIds.length > 0)].join(' '),
+      footer: [
+        instructions.footer,
+        t.terms.section4Text2,
+        t.terms.section4Text3,
+        sellerFooterLine(invoiceLocale, accountTaxIds.length > 0),
+      ].join(' '),
       metadata: {
         linnevik_order_id: String(orderId),
         linnevik_shipping_minor: String(shipping.amountMinor),
         linnevik_tax_id: profile.organizationNumber,
+        linnevik_ocr: ocr,
         ...(reference ? { linnevik_reference: reference } : {}),
         linnevik_vat_mode: taxMode.kind,
       },
@@ -724,6 +752,7 @@ export async function POST(request: NextRequest) {
       shipping: { name: shipping.name, currency: shipping.currency, amountMinor: shipping.amountMinor },
       taxMode,
       notifyEmail: account.invoiceEmail,
+      payment,
     });
     invoiceSent = true;
     return NextResponse.json({
@@ -748,6 +777,17 @@ export async function POST(request: NextRequest) {
     }
     const message = error instanceof Error ? error.message : 'Invoice checkout failed.';
     if (error instanceof VatConfigurationError) return fail('NOT_CONFIGURED', 'Invoice checkout is not configured.', 503);
+    if (error instanceof InvoicePaymentConfigError) {
+      // Ett konfigurationsfel stoppar varje fakturaköp tills någon rättar det,
+      // så det ska inte bara ligga i en logg.
+      await raiseAlert({
+        kind: 'invoice.config',
+        key: 'invoice:payment-config',
+        subject: 'Fakturaköp stoppade: bankgiro/konto saknas eller är fel',
+        detail: { fel: error.message },
+      });
+      return fail('NOT_CONFIGURED', 'Invoice checkout is not configured.', 503);
+    }
     if (error instanceof InvoiceError) return fail(error.code, message, error.status);
     // Kortkassan hann först på den här korgversionen. Två betalbara objekt på
     // en order är ett dubbelsålt lager — försöket slutar här i stället för att

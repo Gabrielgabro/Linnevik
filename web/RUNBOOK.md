@@ -55,6 +55,54 @@ hand, och notera vilket i orderns interna notering.
 
 ---
 
+## 1c. Fakturabetalning via bank
+
+Företagskunder betalar fakturan till vårt bankgiro med OCR-nummer — Stripe
+kan inte ta emot svenska bankbetalningar. Pengarna landar på bolagets konto,
+och **ingenting i systemet vet om det förrän någon registrerar betalningen.**
+
+1. Se insättningen på kontot. OCR-numret i referensen pekar ut ordern:
+   ordernumret är allt utom de två sista siffrorna (OCR `1248` = order 12).
+2. /admin → Ordrar → ordern → **Fakturabetalning** → fyll i belopp och
+   betalningsdag → **Registrera bankbetalning**.
+3. Fakturan markeras betald i Stripe ("utanför Stripe"), ordern blir betald,
+   lagret plockas och kunden får orderbekräftelsen.
+
+Det systemet vägrar, och varför:
+
+- **Delbetalning** (mer än 1 kr för lite): fakturan blir inte betald. Vänta
+  på resten, eller kreditera mellanskillnaden i Stripe först om ni kommit
+  överens om ett lägre pris.
+- **Överbetalning**: registreras, men larmet *Fakturabetalning avviker* går
+  ut — mellanskillnaden ska tillbaka från bankkontot.
+- **Redan betald med kort**: kunden har betalat två gånger. Bankbeloppet ska
+  tillbaka.
+- **Makulerad eller avbeställd**: kan inte betalas. Betala tillbaka eller
+  lägg en ny order.
+
+Att markera en faktura betald direkt i Stripes kontrollpanel ("Mark as paid")
+fungerar också — webhooken gör ordern betald — men då står betalningsdag och
+belopp ingenstans hos oss. Använd orderkortet.
+
+**Förfallna fakturor makuleras inte automatiskt.** Avstämningen följer upp:
+larm dag 1 (kolla banken), vänlig påminnelse till kunden dag 7 (en gång),
+larm dag 14 (hör av er) och dag 45 (beslut: vänta eller avbeställ). Varorna
+är reserverade hela tiden. Avbeställ ordern för att makulera fakturan och
+släppa lagret. Påminnelse och faktura kan skickas om för hand från
+orderkortet.
+
+**Återbetalning av en bankbetald order** går inte via Stripe — det finns
+ingen kortbetalning att återbetala mot. Betala tillbaka från bankkontot och
+kreditera fakturan i Stripe: Kreditnota → "Återbetalt utanför Stripe".
+
+**Bankgirot** sätts i env (`INVOICE_BANKGIRO`, och/eller
+`INVOICE_BANK_CLEARING` + `INVOICE_BANK_ACCOUNT`). Saknas det, eller är
+numret felskrivet (kontrollsiffran stämmer inte), stoppas alla fakturaköp
+med larmet *Fakturainställning* — hellre det än en faktura som inte går att
+betala.
+
+---
+
 ## 2. "Betald order som inte går att skicka" (`stock_exception`)
 
 Ordern står röd i listan med etiketten **Lager saknas**, och larmet har gått ut.

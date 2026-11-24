@@ -8,6 +8,7 @@
 
 import { escapeHtml } from './mailer';
 import { formatMinor } from './money';
+import type { InvoicePaymentDetails } from './invoicePayment';
 
 const BRAND = '#0B3D2E';
 const BEIGE = '#FAF7F2';
@@ -204,28 +205,93 @@ export function shipmentEmail(
   };
 }
 
+/** Fakturans uppgifter som mejlen behöver: länk, nummer, förfallodag, betalning. */
+export type InvoiceEmailDetails = {
+  hostedUrl: string | null;
+  number: string | null;
+  dueDate: Date | null;
+  payment: InvoicePaymentDetails | null;
+  ocr: string;
+};
+
+function longDate(date: Date | null): string | null {
+  return date
+    ? new Intl.DateTimeFormat('sv-SE', { dateStyle: 'long', timeZone: 'Europe/Stockholm' }).format(date)
+    : null;
+}
+
+/**
+ * Betalningsrutan: det en ekonomiavdelning behöver för att lägga upp
+ * betalningen, i den ordning internetbanken och Fortnox frågar efter det.
+ */
+function paymentBox(
+  invoice: InvoiceEmailDetails,
+  amountMinor: number,
+  currency: string
+): string {
+  const due = longDate(invoice.dueDate);
+  const bank = invoice.payment?.bankAccount;
+  const rows: Array<[string, string]> = [
+    ...(invoice.payment?.bankgiro ? [['Bankgiro', invoice.payment.bankgiro] as [string, string]] : []),
+    ...(bank
+      ? [[invoice.payment?.bankgiro ? 'Eller bankkonto' : 'Bankkonto',
+          `${bank.bank ? `${bank.bank}, ` : ''}clearing ${bank.clearing}, konto ${bank.account}`] as [string, string]]
+      : []),
+    ['OCR-nummer', invoice.ocr],
+    ['Belopp', formatMinor(amountMinor, currency)],
+    ...(due ? [['Förfallodag', due] as [string, string]] : []),
+  ];
+  return `<div style="margin:18px 0;padding:14px 16px;background:${BEIGE};border-radius:8px;font-size:14px;line-height:1.6;color:${INK};">
+    <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#8A8A8A;margin-bottom:6px;">Betalning</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;">
+      ${rows
+        .map(
+          ([label, value]) => `<tr>
+        <td style="padding:2px 16px 2px 0;color:${INK_2};white-space:nowrap;">${escapeHtml(label)}</td>
+        <td style="padding:2px 0;color:${INK};font-weight:600;">${escapeHtml(value)}</td>
+      </tr>`
+        )
+        .join('')}
+    </table>
+    <div style="margin-top:8px;color:${INK_2};font-size:13px;">Ange OCR-numret som referens, så kopplas betalningen till rätt faktura.</div>
+  </div>`;
+}
+
+function invoiceButton(hostedUrl: string | null, label: string): string {
+  return hostedUrl
+    ? `<p style="margin:18px 0;"><a href="${escapeHtml(hostedUrl)}" style="display:inline-block;padding:11px 20px;background:${BRAND};color:#F5EFE7;text-decoration:none;border-radius:6px;font-size:15px;">${escapeHtml(label)}</a></p>`
+    : '';
+}
+
+function referenceLine(orderId: number, invoiceNumber: string | null): string {
+  return `<p style="margin:18px 0 0;color:#8A8A8A;font-size:13px;">
+    Ordernummer: <strong style="color:${INK};">#${orderId}</strong>${
+      invoiceNumber ? ` · Fakturanummer: <strong style="color:${INK};">${escapeHtml(invoiceNumber)}</strong>` : ''
+    }
+  </p>`;
+}
+
 /**
  * Fakturan är skapad och skickad.
  *
  * Skickas när fakturan lämnat oss, inte när den betalas — orderbekräftelsen
- * kommer först 30 dagar senare, och utan det här mejlet fick köparen ingenting
- * alls från oss vid köptillfället. Länken går till Stripes fakturasida, där
- * fakturan både kan läsas, laddas ned som pdf och betalas.
+ * kommer först när betalningen registrerats, och utan det här mejlet fick
+ * köparen ingenting alls från oss vid köptillfället. Bankgiro och OCR står i
+ * mejlet och inte bara på fakturan: det är ofta mejlet som vidarebefordras
+ * till ekonomiavdelningen.
  */
 export function invoiceCreatedEmail(
   order: EmailOrder,
-  invoice: { hostedUrl: string | null; number: string | null; dueDate: Date | null }
+  invoice: InvoiceEmailDetails
 ): { subject: string; html: string } {
   const greeting = order.customerName ? `Hej ${escapeHtml(order.customerName)},` : 'Hej,';
-  const due = invoice.dueDate
-    ? new Intl.DateTimeFormat('sv-SE', { dateStyle: 'long' }).format(invoice.dueDate)
-    : null;
+  const due = longDate(invoice.dueDate);
 
   return {
     subject: `Faktura${invoice.number ? ` ${invoice.number}` : ''} · order #${order.id}`,
     html: layout({
       title: `Din faktura för order #${order.id}`,
-      preheader: `${formatMinor(order.totalMinor, order.currency)}${due ? ` att betala senast ${due}` : ''}.`,
+      preheader: `${formatMinor(order.totalMinor, order.currency)}${due ? ` att betala senast ${due}` : ''}. OCR ${invoice.ocr}.`,
       body: `
         <p style="margin:0 0 8px;">${greeting}</p>
         <p style="margin:0 0 8px;color:${INK_2};">
@@ -233,19 +299,48 @@ export function invoiceCreatedEmail(
           till dig${due ? `, med betalning senast <strong style="color:${INK};">${escapeHtml(due)}</strong>` : ''}.
           Ordern plockas och skickas enligt överenskommelse.
         </p>
-        ${
-          invoice.hostedUrl
-            ? `<p style="margin:18px 0;"><a href="${escapeHtml(invoice.hostedUrl)}" style="display:inline-block;padding:11px 20px;background:${BRAND};color:#F5EFE7;text-decoration:none;border-radius:6px;font-size:15px;">Öppna fakturan</a></p>`
-            : ''
-        }
+        ${paymentBox(invoice, order.totalMinor, order.currency)}
+        ${invoiceButton(invoice.hostedUrl, 'Öppna fakturan (pdf)')}
         ${lineTable(order.items, order.currency)}
         ${totalsTable(order)}
         ${addressBlock(order.shippingAddress, order.customerName)}
-        <p style="margin:18px 0 0;color:#8A8A8A;font-size:13px;">
-          Ordernummer: <strong style="color:${INK};">#${order.id}</strong>${
-            invoice.number ? ` · Fakturanummer: <strong style="color:${INK};">${escapeHtml(invoice.number)}</strong>` : ''
-          }
-        </p>`,
+        ${referenceLine(order.id, invoice.number)}`,
+    }),
+  };
+}
+
+/**
+ * Betalningspåminnelse för en förfallen faktura.
+ *
+ * Vänlig och utan avgift: de flesta sena betalningar är en faktura som fastnat
+ * i ett attestflöde, inte en kund som vägrar betala. Har betalningen redan
+ * gått i väg ska mottagaren inte behöva göra något — det står uttryckligen.
+ */
+export function invoiceReminderEmail(
+  order: EmailOrder,
+  invoice: InvoiceEmailDetails & { amountDueMinor: number }
+): { subject: string; html: string } {
+  const greeting = order.customerName ? `Hej ${escapeHtml(order.customerName)},` : 'Hej,';
+  const due = longDate(invoice.dueDate);
+  return {
+    subject: `Påminnelse: faktura${invoice.number ? ` ${invoice.number}` : ''} · order #${order.id}`,
+    html: layout({
+      title: `Påminnelse om betalning, order #${order.id}`,
+      preheader: `${formatMinor(invoice.amountDueMinor, order.currency)} förföll${due ? ` ${due}` : ''}. OCR ${invoice.ocr}.`,
+      body: `
+        <p style="margin:0 0 8px;">${greeting}</p>
+        <p style="margin:0 0 8px;color:${INK_2};">
+          Enligt våra noteringar har vi ännu inte fått betalt för fakturan nedan${
+            due ? `, som förföll <strong style="color:${INK};">${escapeHtml(due)}</strong>` : ''
+          }. Det är säkert bara ett förbiseende — vi skulle uppskatta om ni betalar den så snart som möjligt.
+        </p>
+        ${paymentBox(invoice, invoice.amountDueMinor, order.currency)}
+        ${invoiceButton(invoice.hostedUrl, 'Öppna fakturan (pdf)')}
+        <p style="margin:0 0 8px;color:${INK_2};">
+          Har ni redan betalat kan ni bortse från det här mejlet — betalningar kan ta
+          några bankdagar att nå oss. Hör gärna av er om något är fel med fakturan.
+        </p>
+        ${referenceLine(order.id, invoice.number)}`,
     }),
   };
 }

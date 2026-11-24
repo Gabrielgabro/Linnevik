@@ -30,7 +30,10 @@ export type AlertKind =
   | 'order.refund_outside_admin'
   | 'order.credit_note_failed'
   | 'email.failed'
-  | 'inventory.low_stock';
+  | 'inventory.low_stock'
+  | 'invoice.config'
+  | 'invoice.overdue'
+  | 'invoice.payment_mismatch';
 
 /** Hur länge samma nyckel tystas efter ett utskickat mejl. */
 const DEDUPE_MINUTES = 60;

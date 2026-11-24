@@ -14,7 +14,13 @@
 import { sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { sendEmail, mailConfigured } from '@/lib/mailer';
-import { invoiceCreatedEmail, orderConfirmationEmail, shipmentEmail } from '@/lib/emailTemplates';
+import {
+  invoiceCreatedEmail,
+  invoiceReminderEmail,
+  orderConfirmationEmail,
+  shipmentEmail,
+  type InvoiceEmailDetails,
+} from '@/lib/emailTemplates';
 import { raiseAlert } from '@/lib/opsAlerts';
 import { getOrderById, getOrderBySession } from '@/lib/ordersDb';
 
@@ -36,7 +42,7 @@ async function record(
 
 async function deliver(
   orderId: number,
-  template: 'order.confirmation' | 'order.shipped' | 'order.invoice',
+  template: 'order.confirmation' | 'order.shipped' | 'order.invoice' | 'order.invoice_reminder',
   to: string,
   message: { subject: string; html: string }
 ): Promise<boolean> {
@@ -53,6 +59,7 @@ async function deliver(
     'order.confirmation': `Orderbekräftelsen för order ${orderId} gick inte fram`,
     'order.shipped': `Leveransaviseringen för order ${orderId} gick inte fram`,
     'order.invoice': `Fakturamejlet för order ${orderId} gick inte fram`,
+    'order.invoice_reminder': `Betalningspåminnelsen för order ${orderId} gick inte fram`,
   };
   await raiseAlert({
     kind: 'email.failed',
@@ -121,7 +128,7 @@ export async function sendOrderConfirmation(sessionId: string): Promise<boolean>
  */
 export async function sendInvoiceCreatedNotice(
   sessionId: string,
-  invoice: { hostedUrl: string | null; number: string | null; dueDate: Date | null },
+  invoice: InvoiceEmailDetails,
   /**
    * Företagets fakturabrevlåda (`clients.invoice_email`), när den är ifylld.
    *
@@ -129,7 +136,9 @@ export async function sendInvoiceCreatedNotice(
    * anställda som beställde. Ordern hänger kvar på kontots egen adress — det
    * är identiteten — men brevet går dit fakturan ska behandlas.
    */
-  invoiceEmail?: string | null
+  invoiceEmail?: string | null,
+  /** Admin skickar om fakturan med flit — då gäller inte spärren nedan. */
+  options: { force?: boolean } = {}
 ): Promise<boolean> {
   if (!mailConfigured()) return false;
   try {
@@ -149,7 +158,7 @@ export async function sendInvoiceCreatedNotice(
         and detail->>'template' = 'order.invoice'
       limit 1
     `);
-    if (alreadySent.rows.length > 0) return true;
+    if (alreadySent.rows.length > 0 && !options.force) return true;
     return await deliver(
       order.id,
       'order.invoice',
@@ -173,6 +182,85 @@ export async function sendInvoiceCreatedNotice(
     );
   } catch (error) {
     console.error('[orderEmails] Fakturamejlet misslyckades:', error);
+    return false;
+  }
+}
+
+/**
+ * Vart fakturapost för en order ska: företagets fakturabrevlåda när
+ * kundregistret har en, annars kontots egen adress. Samma regel som när
+ * fakturan skapades, så att påminnelsen hamnar där fakturan hamnade.
+ */
+export async function invoiceRecipientForOrder(orderId: number): Promise<string | null> {
+  const result = await getDb().execute(sql`
+    select coalesce(nullif(trim(cl.invoice_email), ''), o.email) as recipient
+    from orders o
+    left join customers c on c.id = o.customer_id
+    left join clients cl on cl.id = c.client_id
+    where o.id = ${orderId}
+  `);
+  const row = result.rows[0] as { recipient: string | null } | undefined;
+  return row?.recipient ?? null;
+}
+
+/** Har ordern redan fått en påminnelse som gick fram? */
+export async function invoiceReminderSent(orderId: number): Promise<boolean> {
+  const result = await getDb().execute(sql`
+    select 1 from order_events
+    where order_id = ${orderId} and kind = 'email.sent'
+      and detail->>'template' = 'order.invoice_reminder'
+    limit 1
+  `);
+  return result.rows.length > 0;
+}
+
+/**
+ * Betalningspåminnelse. Anropas av avstämningen när en faktura legat
+ * förfallen en vecka, och av admin för hand.
+ *
+ * Avstämningen skickar högst en automatiskt (se `invoiceReminderSent`); fler
+ * än så är ett beslut någon ska fatta, inte något ett schema gör.
+ */
+export async function sendInvoiceReminder(
+  orderId: number,
+  invoice: InvoiceEmailDetails & { amountDueMinor: number }
+): Promise<boolean> {
+  if (!mailConfigured()) return false;
+  try {
+    const order = await getOrderById(orderId);
+    const recipient = await invoiceRecipientForOrder(orderId);
+    if (!order || !recipient) {
+      if (order) {
+        await record(order.id, 'email.failed', {
+          template: 'order.invoice_reminder',
+          error: 'Ordern saknar e-postadress.',
+        });
+      }
+      return false;
+    }
+    return await deliver(
+      order.id,
+      'order.invoice_reminder',
+      recipient,
+      invoiceReminderEmail(
+        {
+          id: order.id,
+          currency: order.currency,
+          customerName: order.customerName,
+          subtotalMinor: order.subtotalMinor,
+          discountMinor: order.discountMinor,
+          discountCode: order.discountCode,
+          shippingMinor: order.shippingMinor,
+          taxMinor: order.taxMinor,
+          totalMinor: order.totalMinor,
+          shippingAddress: order.shippingAddress ?? null,
+          items: order.items,
+        },
+        invoice
+      )
+    );
+  } catch (error) {
+    console.error('[orderEmails] Betalningspåminnelsen misslyckades:', error);
     return false;
   }
 }

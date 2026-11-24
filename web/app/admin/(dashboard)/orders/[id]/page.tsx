@@ -1,15 +1,44 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import OrderActions from '@/components/admin/OrderActions';
+import InvoicePaymentPanel, { type InvoiceSummary } from '@/components/admin/InvoicePaymentPanel';
+import { invoicePaymentDetailsOrNull, ocrForOrder } from '@/lib/invoicePayment';
+import { getStripe, stripeConfigured } from '@/lib/stripe';
 import { Tag } from '@/components/admin/ui';
 import { getOrderById } from '@/lib/ordersDb';
 import { formatMinor } from '@/lib/money';
 
 export const dynamic = 'force-dynamic';
+
+const stockholmDay = (date: Date) =>
+  new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm' }).format(date);
+
+/**
+ * Fakturan som Stripe ser den: förfallodag, återstående belopp och status
+ * finns bara där. Ett fel här får inte fälla orderkortet — rutan säger då
+ * att uppgifterna inte gick att läsa.
+ */
+async function invoiceSummary(reference: string): Promise<InvoiceSummary | null> {
+  if (!reference.startsWith('in_') || !stripeConfigured()) return null;
+  try {
+    const invoice = await getStripe().invoices.retrieve(reference);
+    return {
+      number: invoice.number ?? null,
+      status: invoice.status ?? null,
+      dueDate: invoice.due_date ? stockholmDay(new Date(invoice.due_date * 1000)) : null,
+      amountRemainingMinor: invoice.amount_remaining,
+      hostedUrl: invoice.hosted_invoice_url ?? null,
+    };
+  } catch (error) {
+    console.error('[admin] Could not read the Stripe invoice:', error);
+    return null;
+  }
+}
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   const order = Number.isInteger(id) ? await getOrderById(id) : null;
   if (!order) notFound();
+  const invoice = order.paymentMethod === 'invoice' ? await invoiceSummary(order.stripeSessionId) : null;
   // Bara krediteringar som faktiskt gått igenom (eller är på väg) vänder moms.
   const refundedTaxMinor = order.refunds
     .filter(refund => refund.status === 'pending' || refund.status === 'succeeded')
@@ -97,6 +126,20 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           </dl>
         )}
       </section>
+      {order.paymentMethod === 'invoice' && (() => {
+        const payment = invoicePaymentDetailsOrNull();
+        const bank = payment?.bankAccount;
+        return (
+          <InvoicePaymentPanel
+            order={order}
+            invoice={invoice}
+            ocr={ocrForOrder(order.id)}
+            bankgiro={payment?.bankgiro ?? null}
+            bankAccount={bank ? `${bank.bank ? `${bank.bank}, ` : ''}${bank.clearing}-${bank.account}` : null}
+            today={stockholmDay(new Date())}
+          />
+        );
+      })()}
       <OrderActions order={order} />
       <section><h2 className="mb-3 font-heading text-xl">Historik</h2><ul className="grid gap-2 text-sm">{order.events.map(event => <li key={event.id}>{event.createdAt.toLocaleString('sv-SE')} · {event.kind} · {event.actor}</li>)}</ul></section>
     </>

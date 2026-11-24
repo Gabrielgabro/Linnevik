@@ -43,6 +43,11 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
   const lastEmail = order.events.find(
     event => event.kind === 'email.sent' || event.kind === 'email.failed'
   );
+  // En faktura betald via bankgiro har ingen betalning i Stripe att
+  // återbetala mot — pengarna går tillbaka från bankkontot.
+  const paidByBank = order.paymentMethod === 'invoice' && !order.stripePaymentIntentId
+    && ['paid', 'partially_refunded'].includes(order.paymentStatus);
+  const isPaid = ['paid', 'partially_refunded', 'refunded'].includes(order.paymentStatus);
   const hasShipment = order.fulfillments.some(
     fulfillment => fulfillment.status === 'shipped' || fulfillment.status === 'delivered'
   );
@@ -115,6 +120,17 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
           </div>
         )}
       </form>
+      {paidByBank ? (
+        <div className="grid content-start gap-4">
+          <h2 className="font-heading text-xl">Återbetalning</h2>
+          <Notice tone="info" title="Betald via bank">
+            Ordern betalades till bankgirot, inte i Stripe, så det finns ingen
+            kortbetalning att återbetala mot. Betala tillbaka från bankkontot och
+            kreditera sedan fakturan i Stripe: Fakturan → Kreditnota → välj
+            &quot;Återbetalt utanför Stripe&quot;.
+          </Notice>
+        </div>
+      ) : (
       <form className="grid gap-4" onSubmit={async event => {
         const values = formValues(event.currentTarget);
         if (refunding) return event.preventDefault();
@@ -134,6 +150,7 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
           {refunding ? 'Återbetalar…' : 'Återbetala via Stripe'}
         </Button>
       </form>
+      )}
 
       <div className="grid gap-4">
         <h2 className="font-heading text-xl">Leverans</h2>
@@ -301,7 +318,7 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
           <Button
             type="button"
             variant="secondary"
-            disabled={!order.email || sending !== null}
+            disabled={!order.email || !isPaid || sending !== null}
             onClick={() => resend('confirmation')}
           >
             {sending === 'confirmation' ? 'Skickar…' : 'Skicka om orderbekräftelsen'}

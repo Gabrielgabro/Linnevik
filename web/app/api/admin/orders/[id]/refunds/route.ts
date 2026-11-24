@@ -15,6 +15,17 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
+  // En faktura betald via bankgiro har ingen betalning i Stripe att
+  // återbetala mot. Pengarna går tillbaka samma väg de kom: från bankkontot.
+  if (!order.stripePaymentIntentId && order.paymentMethod === 'invoice'
+    && ['paid', 'partially_refunded'].includes(order.paymentStatus)) {
+    return NextResponse.json(
+      {
+        error: 'Ordern betalades via bank, inte i Stripe. Betala tillbaka från bankkontot och kreditera fakturan i Stripe (Kreditnota → "Återbetalt utanför Stripe").',
+      },
+      { status: 409 }
+    );
+  }
   if (!order.stripePaymentIntentId || order.paymentStatus === 'pending') {
     return NextResponse.json({ error: 'Order has no refundable payment.' }, { status: 409 });
   }

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
 import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
 import { getOrderById } from '@/lib/ordersDb';
-import { sendOrderConfirmation, sendShipmentNotice } from '@/lib/orderEmails';
+import { invoiceRecipientForOrder, sendInvoiceCreatedNotice, sendInvoiceReminder, sendOrderConfirmation, sendShipmentNotice } from '@/lib/orderEmails';
+import { getStripe, stripeConfigured } from '@/lib/stripe';
+import { invoiceEmailDetails } from '@/lib/stripeInvoices';
 
 export const runtime = 'nodejs';
 
@@ -39,7 +41,35 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const template = String(body.template ?? 'confirmation');
 
   let sent = false;
-  if (template === 'confirmation') {
+  let recipient: string | null = order.email;
+  if (template === 'invoice' || template === 'invoice_reminder') {
+    // Fakturan och påminnelsen gäller bara en obetald, skickad faktura. Hos en
+    // betald order är påminnelsen fel och fakturan finns redan som kvitto i
+    // orderbekräftelsen.
+    if (order.paymentMethod !== 'invoice' || !order.stripeSessionId.startsWith('in_') || !stripeConfigured()) {
+      return NextResponse.json({ error: 'Ordern har ingen faktura att skicka.' }, { status: 409 });
+    }
+    if (order.paymentStatus !== 'pending' || order.status === 'cancelled') {
+      return NextResponse.json({ error: 'Fakturan är inte längre obetald — inget att påminna om.' }, { status: 409 });
+    }
+    const invoice = await getStripe().invoices.retrieve(order.stripeSessionId);
+    if (invoice.status !== 'open') {
+      return NextResponse.json({ error: `Fakturan är inte öppen i Stripe (status ${invoice.status}).` }, { status: 409 });
+    }
+    const details = invoiceEmailDetails(invoice, order.id);
+    recipient = await invoiceRecipientForOrder(order.id);
+    sent = template === 'invoice'
+      ? await sendInvoiceCreatedNotice(order.stripeSessionId, details, recipient, { force: true })
+      : await sendInvoiceReminder(order.id, { ...details, amountDueMinor: invoice.amount_remaining });
+  } else if (template === 'confirmation') {
+    // Bekräftelsen säger "vi har tagit emot din betalning". Till en kund med
+    // en obetald faktura är det fel, och kan få dem att låta bli att betala.
+    if (!['paid', 'partially_refunded', 'refunded'].includes(order.paymentStatus)) {
+      return NextResponse.json(
+        { error: 'Ordern är inte betald — orderbekräftelsen säger att betalningen tagits emot.' },
+        { status: 409 }
+      );
+    }
     sent = await sendOrderConfirmation(order.stripeSessionId);
   } else if (template === 'shipment') {
     // Den senaste försändelsen är den kunden frågar om. Äldre aviseringar
@@ -66,6 +96,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     );
   }
 
-  await record(auth.user, 'order.email_resent', String(id), { mall: template, till: order.email });
+  await record(auth.user, 'order.email_resent', String(id), { mall: template, till: recipient });
   return NextResponse.json({ ok: true });
 }

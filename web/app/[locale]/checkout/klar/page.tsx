@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 import { LocaleLink } from '@/components/LocaleLink';
 import { getOrderBySession } from '@/lib/ordersDb';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
+import { invoicePaymentDetailsOrNull, ocrForOrder } from '@/lib/invoicePayment';
 
 type Props = {
     params: Promise<{ locale: string }>;
@@ -42,6 +43,12 @@ export default async function CheckoutCompletePage({ params, searchParams }: Pro
 
     const isPaid = order.status === 'paid';
     const isInvoice = order.paymentMethod === 'invoice';
+    // En företagskund som just lagt en fakturaorder ska kunna lägga upp
+    // betalningen direkt härifrån, utan att leta upp mejlet.
+    const invoicePayment = isInvoice && !isPaid && order.paymentStatus === 'pending'
+        ? invoicePaymentDetailsOrNull()
+        : null;
+    const bankAccount = invoicePayment?.bankAccount;
 
     return (
         <main className="min-h-screen bg-white dark:bg-[#111827]">
@@ -85,6 +92,38 @@ export default async function CheckoutCompletePage({ params, searchParams }: Pro
                         </div>
                     )}
                 </div>
+
+                {invoicePayment && (
+                    <div className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                        <p className="text-sm font-semibold text-primary">{t.checkout.complete.invoicePaymentTitle}</p>
+                        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+                            {invoicePayment.bankgiro && (
+                                <>
+                                    <dt className="text-gray-500 dark:text-gray-400">{t.checkout.complete.bankgiro}</dt>
+                                    <dd className="font-mono text-gray-900 dark:text-gray-100">{invoicePayment.bankgiro}</dd>
+                                </>
+                            )}
+                            {bankAccount && (
+                                <>
+                                    <dt className="text-gray-500 dark:text-gray-400">{t.checkout.complete.bankAccount}</dt>
+                                    <dd className="font-mono text-gray-900 dark:text-gray-100">
+                                        {bankAccount.bank ? `${bankAccount.bank}, ` : ''}
+                                        {bankAccount.clearing}-{bankAccount.account}
+                                    </dd>
+                                </>
+                            )}
+                            <dt className="text-gray-500 dark:text-gray-400">{t.checkout.complete.ocr}</dt>
+                            <dd className="font-mono text-gray-900 dark:text-gray-100">{ocrForOrder(order.id)}</dd>
+                            <dt className="text-gray-500 dark:text-gray-400">{t.checkout.complete.amountDue}</dt>
+                            <dd className="text-gray-900 dark:text-gray-100">
+                                {formatAmount(order.totalMinor, order.currency, locale)}
+                            </dd>
+                        </dl>
+                        <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
+                            {t.checkout.complete.invoicePaymentHint}
+                        </p>
+                    </div>
+                )}
 
                 <LocaleLink
                     href="/collections"

@@ -28,6 +28,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Invalid order status.' }, { status: 400 });
   }
   const notes = body.notes === undefined ? undefined : String(body.notes).trim() || null;
+  // "paid" i statuslistan är till för att släppa en betald order ur
+  // `stock_exception` när lagret lösts. Den får inte göra en obetald order
+  // betald: då står ordern som betald utan pengar, utan orderbekräftelse och
+  // med en öppen faktura kvar i Stripe som kunden kan få påminnelser om.
+  if (status === 'paid') {
+    const current = await getOrderById(id);
+    if (current && !['paid', 'partially_refunded', 'refunded'].includes(current.paymentStatus)) {
+      return NextResponse.json(
+        {
+          error: current.paymentMethod === 'invoice'
+            ? 'Ordern har ingen registrerad betalning. Har pengarna kommit in på kontot: använd "Registrera bankbetalning".'
+            : 'Ordern har ingen registrerad betalning och kan inte sättas som betald för hand.',
+        },
+        { status: 409 }
+      );
+    }
+  }
   let order;
   try {
     order = await updateOrderManagement(id, { status, notes }, auth.user);

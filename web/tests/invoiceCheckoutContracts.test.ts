@@ -13,6 +13,8 @@ const orderEmails = readFileSync(resolve('src/lib/orderEmails.ts'), 'utf8');
 const creditNotes = readFileSync(resolve('src/lib/creditNotes.ts'), 'utf8');
 const adminRefunds = readFileSync(resolve('app/api/admin/orders/[id]/refunds/route.ts'), 'utf8');
 const stripeRefunds = readFileSync(resolve('src/lib/stripeRefunds.ts'), 'utf8');
+const adminOrderRoute = readFileSync(resolve('app/api/admin/orders/[id]/route.ts'), 'utf8');
+const adminEmails = readFileSync(resolve('app/api/admin/orders/[id]/emails/route.ts'), 'utf8');
 const creditNoteMigration = readFileSync(resolve('drizzle/0037_refund_credit_notes.sql'), 'utf8');
 
 describe('Stripe invoice checkout contracts', () => {
@@ -59,11 +61,10 @@ describe('Stripe invoice checkout contracts', () => {
     expect(invoiceRoute).toMatch(/'RATE_LIMITED', .*, 429/);
   });
 
-  it('settles only from Stripe invoice events and handles invoice expiry before stock release', () => {
+  it('settles only from Stripe invoice events and never lets expiry release invoice stock', () => {
     expect(webhook).toContain("case 'invoice.paid':");
     expect(webhook).toContain("case 'invoice.voided':");
     expect(webhook).toContain("case 'invoice.marked_uncollectible':");
-    expect(invoices).toContain('invoices.voidInvoice(invoice.id)');
     expect(inventory).toContain("o.payment_method <> 'invoice'");
     expect(invoices).toContain("invoice.status === 'draft'");
     expect(invoices).toContain('invoices.del(invoice.id)');
@@ -199,5 +200,41 @@ describe('Credit notes on refunded invoices', () => {
     expect(creditNoteMigration).toContain('WHERE "stripe_credit_note_id" IS NOT NULL');
     expect(creditNotes).toContain("kind, actor, detail");
     expect(creditNotes).toContain("'credit_note.created'");
+  });
+
+  it('follows up an overdue invoice instead of voiding it', () => {
+    // Order #12 voidades natten efter förfallodagen medan kunden betalade via
+    // bankgiro. Att makulera är ett beslut i admin, aldrig något schemat gör.
+    expect(invoices).not.toContain('invoices.voidInvoice');
+    expect(invoices).toContain('followUpOverdueInvoice(orderId, invoice)');
+    expect(invoices).toContain('INVOICE_REMINDER_AFTER_DAYS = 7');
+    expect(invoices).toContain('invoiceReminderSent(orderId)');
+    // Ingen åldersgräns på öppna fakturor: en sen betalning ska fortfarande fångas.
+    const attachedQuery = invoices.slice(invoices.indexOf('const attached'), invoices.indexOf('const references'));
+    expect(attachedQuery).not.toContain('interval');
+  });
+
+  it('puts bankgiro and OCR on the invoice and refuses to send one without', () => {
+    expect(invoiceRoute).toContain('const payment = invoicePaymentDetails();');
+    expect(invoiceRoute).toContain('paymentInstructions(payment, ocr, invoiceLocale)');
+    expect(invoiceRoute).toContain('instructions.memo');
+    expect(invoiceRoute).toContain('instructions.footer');
+    expect(invoiceRoute).toContain('linnevik_ocr: ocr');
+    expect(invoiceRoute).toContain('error instanceof InvoicePaymentConfigError');
+    // Kontrollen sker före ordern och reservationen.
+    expect(invoiceRoute.indexOf('invoicePaymentDetails();')).toBeLessThan(invoiceRoute.indexOf('createPendingOrder('));
+  });
+
+  it('registers a bank payment as paid out of band and then takes the normal paid path', () => {
+    expect(invoices).toContain('paid_out_of_band: true');
+    expect(invoices).toContain('linnevik_invoice_bank_');
+    expect(invoices).toMatch(/registerBankPayment[\s\S]*applyStripeInvoice\(paidInvoice\)[\s\S]*sendOrderConfirmation/);
+    expect(invoices).toContain("assessment.kind === 'under'");
+  });
+
+  it('does not let admin mark an unpaid order paid by status, or refund a bank payment through Stripe', () => {
+    expect(adminOrderRoute).toMatch(/status === 'paid'[\s\S]*Registrera bankbetalning/);
+    expect(adminRefunds).toContain('Ordern betalades via bank');
+    expect(adminEmails).toContain("template === 'invoice_reminder'");
   });
 });
