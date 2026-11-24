@@ -112,7 +112,8 @@ export type OrderSnapshot = {
   customerNo?: string | null;
   paymentMethod?: 'checkout' | 'invoice';
   discount?: { id: number; code: string; amountMinor: number } | null;
-  shipping?: { id: number; name: string; amountMinor: number } | null;
+  /** `id` är null för en frakt som satts för hand på en manuell faktura. */
+  shipping?: { id: number | null; name: string; amountMinor: number } | null;
   /** Hur momsen räknades vid köpet. Se lib/vat.ts och migration 0021. */
   vat?: { mode: 'explicit' | 'automatic'; bps: number; rateId: string | null } | null;
 };

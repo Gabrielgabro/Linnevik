@@ -126,7 +126,9 @@ describe('§1.4 admin raderar på båda nivåerna', () => {
 });
 
 describe('fakturan ställs ut på organisationen, personen är referens', () => {
-  const invoiceRoute = readFileSync(resolve('app/api/invoice/route.ts'), 'utf8');
+  const invoiceRoute =
+    readFileSync(resolve('app/api/invoice/route.ts'), 'utf8') +
+    readFileSync(resolve('src/lib/invoiceIssue.ts'), 'utf8');
   const companyProfile = readFileSync(resolve('src/lib/companyProfile.ts'), 'utf8');
 
   it('hämtar mottagarnamn och adress ur företagsposten, inte ur webbkontot', () => {

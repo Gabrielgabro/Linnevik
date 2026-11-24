@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import clsx from 'clsx';
-import { Search, ShoppingCart } from 'lucide-react';
+import { FilePlus2, Search, ShoppingCart } from 'lucide-react';
 import {
   EmptyState,
   Notice,
@@ -9,6 +9,7 @@ import {
   TableShell,
   Td,
   Th,
+  buttonClass,
 } from '@/components/admin/ui';
 import ClickableTableRow from '@/components/admin/ui/ClickableTableRow';
 import { accentFor } from '../nav';
@@ -120,6 +121,12 @@ export default async function OrdersPage({
         title="Ordrar"
         accent={accentFor('/admin/orders')}
         description="Betalning, rabatt, frakt, återbetalning och fulfillment i ett orderregister."
+        actions={
+          <Link href="/admin/orders/ny-faktura" className={buttonClass('primary')}>
+            <FilePlus2 size={15} strokeWidth={2} aria-hidden />
+            Ny faktura
+          </Link>
+        }
       />
 
       {blocked.length > 0 && (

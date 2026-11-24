@@ -84,6 +84,14 @@ Att markera en faktura betald direkt i Stripes kontrollpanel ("Mark as paid")
 fungerar också — webhooken gör ordern betald — men då står betalningsdag och
 belopp ingenstans hos oss. Använd orderkortet.
 
+**Faktura för hand** (t.ex. en beställning per telefon eller mejl): /admin →
+Ordrar → **Ny faktura**. Välj kunden ur registret, lägg till rader (eget
+styckpris går att sätta per rad; tomt = katalogpris) och frakt. Det blir en
+vanlig fakturaorder: lagret reserveras, fakturan skapas i Stripe med bankgiro
+och OCR och mejlas direkt, och betalningen registreras på orderkortet som ovan.
+Org.nr och adress som saknades på kundkortet sparas dit. Ångra genom att
+avbeställa ordern.
+
 **Förfallna fakturor makuleras inte automatiskt.** Avstämningen följer upp:
 larm dag 1 (kolla banken), vänlig påminnelse till kunden dag 7 (en gång),
 larm dag 14 (hör av er) och dag 45 (beslut: vänta eller avbeställ). Varorna

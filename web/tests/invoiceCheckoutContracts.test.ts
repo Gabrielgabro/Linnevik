@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const invoiceRoute = readFileSync(resolve('app/api/invoice/route.ts'), 'utf8');
+// Kassans fakturaväg och det delade utställandet i lib/invoiceIssue är en
+// helhet: rutten bestämmer vem och vad, modulen hur fakturan ser ut.
+const invoiceRoute =
+  readFileSync(resolve('app/api/invoice/route.ts'), 'utf8') +
+  readFileSync(resolve('src/lib/invoiceIssue.ts'), 'utf8');
 const invoices = readFileSync(resolve('src/lib/stripeInvoices.ts'), 'utf8');
 const webhook = readFileSync(resolve('app/api/stripe/webhook/route.ts'), 'utf8');
 const inventory = readFileSync(resolve('src/lib/inventoryDb.ts'), 'utf8');
@@ -30,7 +34,8 @@ describe('Stripe invoice checkout contracts', () => {
 
   it('creates a 30-day Stripe send-invoice flow from server-priced cart data', () => {
     expect(invoiceRoute).toContain("collection_method: 'send_invoice'");
-    expect(invoiceRoute).toContain('days_until_due: INVOICE_DUE_DAYS');
+    expect(invoiceRoute).toContain('daysUntilDue: INVOICE_DUE_DAYS');
+    expect(invoiceRoute).toContain('days_until_due: input.daysUntilDue');
     expect(invoiceRoute).toContain('reserveOrderStockStrict(orderId, \'invoice\', expiresAt)');
     expect(invoiceRoute).not.toMatch(/body\.(amount|price|unitAmount)/);
     expect(invoiceRoute).toContain('linnevik_invoice_item_');

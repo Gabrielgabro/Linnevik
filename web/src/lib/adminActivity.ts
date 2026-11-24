@@ -53,6 +53,7 @@ export type AdminAction =
   | 'sample_request.updated'
   | 'order.email_resent'
   | 'order.bank_payment_registered'
+  | 'order.invoice_created'
   | 'alert.acknowledged'
   | 'export.downloaded'
   | 'pricing_config.updated';
@@ -95,6 +96,7 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'sample_request.updated': 'Hanterade provförfrågan',
   'order.email_resent': 'Skickade om ett ordermejl',
   'order.bank_payment_registered': 'Registrerade bankbetalning',
+  'order.invoice_created': 'Skapade en faktura för hand',
   'alert.acknowledged': 'Kvitterade ett driftlarm',
   'export.downloaded': 'Laddade ner en export',
   'pricing_config.updated': 'Ändrade mängdrabatten',

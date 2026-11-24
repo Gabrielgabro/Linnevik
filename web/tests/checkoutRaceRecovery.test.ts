@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 const ordersDb = readFileSync(resolve('src/lib/ordersDb.ts'), 'utf8');
 const checkout = readFileSync(resolve('app/api/checkout/route.ts'), 'utf8');
-const invoice = readFileSync(resolve('app/api/invoice/route.ts'), 'utf8');
+const invoice =
+  readFileSync(resolve('app/api/invoice/route.ts'), 'utf8') +
+  readFileSync(resolve('src/lib/invoiceIssue.ts'), 'utf8');
 const invoices = readFileSync(resolve('src/lib/stripeInvoices.ts'), 'utf8');
 const inventory = readFileSync(resolve('src/lib/inventoryDb.ts'), 'utf8');
 const operations = readFileSync(resolve('src/lib/commerceOperations.ts'), 'utf8');

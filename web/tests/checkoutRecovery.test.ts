@@ -3,7 +3,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const checkout = readFileSync(resolve('app/api/checkout/route.ts'), 'utf8');
-const invoice = readFileSync(resolve('app/api/invoice/route.ts'), 'utf8');
+const invoice =
+  readFileSync(resolve('app/api/invoice/route.ts'), 'utf8') +
+  readFileSync(resolve('src/lib/invoiceIssue.ts'), 'utf8');
 const operations = readFileSync(resolve('src/lib/commerceOperations.ts'), 'utf8');
 const accountActions = readFileSync(resolve('app/[locale]/account/actions.ts'), 'utf8');
 
