@@ -95,7 +95,7 @@ orderkortet.
 ingen kortbetalning att återbetala mot. Betala tillbaka från bankkontot och
 kreditera fakturan i Stripe: Kreditnota → "Återbetalt utanför Stripe".
 
-**Bankgirot** sätts i env (`INVOICE_BANKGIRO`, och/eller
+**Bankgirot** är **5673-8776** (Linneviken AB). Det sätts i env (`INVOICE_BANKGIRO`, och/eller
 `INVOICE_BANK_CLEARING` + `INVOICE_BANK_ACCOUNT`). Saknas det, eller är
 numret felskrivet (kontrollsiffran stämmer inte), stoppas alla fakturaköp
 med larmet *Fakturainställning* — hellre det än en faktura som inte går att
