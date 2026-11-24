@@ -1,0 +1,1 @@
+Linnevik got in contact with Béranger! Are they a good partner for producing our soap and other amenities?
