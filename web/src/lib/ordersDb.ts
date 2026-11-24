@@ -3,7 +3,8 @@
  * kassan och webhooken skriver här, och adminvyn läser.
  */
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, notInArray, or, sql } from 'drizzle-orm';
+import type { OrderSearch } from '@/lib/orderSearch';
 import { getDb } from '@/lib/db';
 import {
   fulfillments,
@@ -559,6 +560,55 @@ export async function getOrderByCartVersion(
 
 export async function listRecentOrders(limit = 50): Promise<OrderRow[]> {
   return getDb().select().from(orders).orderBy(desc(orders.createdAt)).limit(limit);
+}
+
+/**
+ * Sökning i orderlistan: ordernummer eller OCR-nummer exakt, och namn,
+ * e-post, fakturamejl eller org-/momsnummer som delsträng. Söker i alla
+ * ordrar, inte bara de senaste som listan annars visar.
+ */
+export async function searchOrders(search: OrderSearch, limit = 200): Promise<OrderRow[]> {
+  const conditions = [
+    ilike(orders.email, search.pattern),
+    ilike(orders.customerName, search.pattern),
+    ilike(orders.taxIdValue, search.pattern),
+  ];
+  if (search.ids.length > 0) conditions.push(inArray(orders.id, search.ids));
+  return getDb()
+    .select()
+    .from(orders)
+    .where(or(...conditions))
+    .orderBy(desc(orders.createdAt))
+    .limit(limit);
+}
+
+/**
+ * Fakturaordrar där pengarna inte kommit in: obetalda och inte avbeställda.
+ * Samma urval som avstämningen följer upp, så listan och larmen säger samma
+ * sak. Äldst först — det är den som legat längst som brådskar.
+ */
+const unpaidInvoiceWhere = () =>
+  and(
+    eq(orders.paymentMethod, 'invoice'),
+    eq(orders.paymentStatus, 'pending'),
+    notInArray(orders.status, ['cancelled', 'expired', 'failed'])
+  );
+
+export async function listUnpaidInvoiceOrders(limit = 200): Promise<OrderRow[]> {
+  return getDb()
+    .select()
+    .from(orders)
+    .where(unpaidInvoiceWhere())
+    .orderBy(asc(orders.createdAt))
+    .limit(limit);
+}
+
+export async function countUnpaidInvoiceOrders(): Promise<number> {
+  const [row] = await getDb()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(orders)
+    .where(unpaidInvoiceWhere());
+  return Number(row?.count ?? 0);
 }
 
 export async function getOrderById(id: number): Promise<OrderDetail | null> {
