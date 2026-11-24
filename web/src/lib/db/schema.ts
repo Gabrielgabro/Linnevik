@@ -99,6 +99,9 @@ export type PricingConfigRow = typeof pricingConfig.$inferSelect;
 // `client_contacts` — ett företag kan ha flera kontaktpersoner, vilket är
 // hela poängen med att dela upp det. `customerNo` är kundnumret från
 // tvätteriets arkivlista och är det vi känner igen en kund på utifrån.
+/** Tvätterikund på ringlistan, eller kund som köper av oss. */
+export type ClientKind = 'lead' | 'customer';
+
 export const clients = pgTable(
   'clients',
   {
@@ -107,6 +110,9 @@ export const clients = pgTable(
     name: text('name').notNull(),
     segment: text('segment'),
     status: text('status').notNull().default('Tvätterikund'),
+    // `lead` är tvätteriets kund på ringlistan, `customer` köper av oss och
+    // kan faktureras. Se 0042 och CLIENT_KINDS.
+    kind: text('kind').$type<ClientKind>().notNull().default('lead'),
     priority: text('priority'),
     // Påminnelseavgiften ur arkivlistan. numeric för att ören inte ska
     // vandra iväg i flyttal; drizzle ger den som sträng.
@@ -136,6 +142,8 @@ export const clients = pgTable(
     // på samma kundpost. Inte unikt — se 0035 om varför.
     index('clients_org_number_idx').on(table.orgNumber).where(isNotNull(table.orgNumber)),
     check('clients_country_check', sql`${table.country} ~ '^[A-Z]{2}$'`),
+    check('clients_kind_check', sql`${table.kind} in ('lead', 'customer')`),
+    index('clients_kind_idx').on(table.kind),
   ]
 );
 

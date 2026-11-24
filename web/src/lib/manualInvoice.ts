@@ -68,7 +68,8 @@ export type InvoiceClientOption = {
 export async function listInvoiceClients(): Promise<InvoiceClientOption[]> {
   const db = getDb();
   const [clientRows, contactRows, accountRows] = await Promise.all([
-    db.select().from(clients).orderBy(asc(clients.name)),
+    // Bara kundregistret: tvätterikunderna på ringlistan köper inte av oss.
+    db.select().from(clients).where(eq(clients.kind, 'customer')).orderBy(asc(clients.name)),
     db
       .select({
         clientId: clientContacts.clientId,
@@ -315,6 +316,9 @@ export async function createManualInvoice(input: ManualInvoiceInput, actor: stri
 
   const [client] = await getDb().select().from(clients).where(eq(clients.id, input.clientId)).limit(1);
   if (!client) throw new ManualInvoiceError('Kunden finns inte.', 404);
+  if (client.kind !== 'customer') {
+    throw new ManualInvoiceError('Företaget ligger under Tvätterikunder. Gör det till kund från kundkortet först.');
+  }
 
   const resolved = resolveCompanyProfile({
     email: input.recipient.email,

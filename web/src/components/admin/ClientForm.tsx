@@ -8,11 +8,11 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
-import { CLIENT_STATUSES, PRIORITIES, SEGMENTS } from '@/lib/clients';
-import type { ClientRow } from '@/lib/db/schema';
+import { CLIENT_KIND_HREF, CLIENT_STATUSES, PRIORITIES, SEGMENTS } from '@/lib/clients';
+import type { ClientKind, ClientRow } from '@/lib/db/schema';
 
 type Props =
-  | { mode: 'create'; suggestedCustomerNo: string }
+  | { mode: 'create'; suggestedCustomerNo: string; kind: ClientKind }
   | { mode: 'edit'; client: ClientRow };
 
 export default function ClientForm(props: Props) {
@@ -22,6 +22,7 @@ export default function ClientForm(props: Props) {
   const [saved, setSaved] = useState(false);
 
   const client = props.mode === 'edit' ? props.client : null;
+  const kind: ClientKind = props.mode === 'edit' ? props.client.kind : props.kind;
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -35,7 +36,7 @@ export default function ClientForm(props: Props) {
       {
         method: client ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify(client ? values : { ...values, kind }),
       }
     );
     const data = await response.json().catch(() => ({}));
@@ -51,7 +52,7 @@ export default function ClientForm(props: Props) {
       setBusy(false);
       router.refresh();
     } else {
-      router.push(`/admin/clients/${data.client.id}`);
+      router.push(`${CLIENT_KIND_HREF[kind]}/${data.client.id}`);
       router.refresh();
     }
   };
@@ -77,7 +78,7 @@ export default function ClientForm(props: Props) {
       setBusy(false);
       return;
     }
-    router.push('/admin/clients');
+    router.push(CLIENT_KIND_HREF[kind]);
     router.refresh();
   };
 
@@ -100,7 +101,7 @@ export default function ClientForm(props: Props) {
           label="Kundstatus"
           name="status"
           options={CLIENT_STATUSES}
-          defaultValue={client?.status ?? 'Tvätterikund'}
+          defaultValue={client?.status ?? (kind === 'customer' ? 'Aktiv kund' : 'Tvätterikund')}
           required
         />
         <Select

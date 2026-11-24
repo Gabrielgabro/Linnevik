@@ -236,7 +236,7 @@ export default function ManualInvoiceForm({
                 <div className="text-[14px]">
                   <span className="font-medium text-ink">{client.name}</span>{' '}
                   <span className="text-ink-3">· kundnr {client.customerNo}</span>{' '}
-                  <Link href={`/admin/clients/${client.id}`} className="text-[12.5px] text-brand-text hover:underline">
+                  <Link href={`/admin/customers/${client.id}`} className="text-[12.5px] text-brand-text hover:underline">
                     Öppna kundkortet
                   </Link>
                 </div>
@@ -278,10 +278,10 @@ export default function ManualInvoiceForm({
                 {clientQuery.trim() && clientMatches.length === 0 && (
                   <p className="mt-2 text-[12.5px] text-ink-3">
                     Ingen kund matchar.{' '}
-                    <Link href="/admin/clients/new" className="text-brand-text hover:underline">
+                    <Link href="/admin/customers/new" className="text-brand-text hover:underline">
                       Lägg till kunden
                     </Link>{' '}
-                    först.
+                    under Kunder först, eller gör om en tvätterikund till kund från dess kundkort.
                   </p>
                 )}
               </div>

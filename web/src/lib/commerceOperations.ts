@@ -668,6 +668,7 @@ async function ensureClientForCommerceCustomer(
         customerNo,
         name,
         status: input.status === 'active' ? 'Aktiv kund' : 'Vilande',
+        kind: 'customer',
         ...clientProfileColumns(input),
       })
       .onConflictDoNothing()
@@ -686,6 +687,17 @@ async function ensureClientForCommerceCustomer(
   }
 
   if (!client) throw new Error('Kunde inte koppla webbkontot till kundregistret.');
+
+  // Ett företag med webbkonto eller order köper av oss. Var det en
+  // tvätterikund på ringlistan har samtalet blivit en affär, och posten flyttar
+  // till kundregistret — där fakturorna ställs ut ur.
+  if (client.kind !== 'customer') {
+    [client] = await db
+      .update(clients)
+      .set({ kind: 'customer', updatedAt: new Date() })
+      .where(eq(clients.id, client.id))
+      .returning();
+  }
 
   client = await fillClientProfileGaps(client, input);
 

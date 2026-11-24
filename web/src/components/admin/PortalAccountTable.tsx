@@ -170,7 +170,7 @@ export default function PortalAccountTable({ accounts }: { accounts: PortalAccou
                   <Td>
                     {/* Kontot redigeras på företagets sida — det är där webbkontona bor. */}
                     <Link
-                      href={`/admin/clients/${account.clientId}`}
+                      href={`/admin/customers/${account.clientId}`}
                       className="text-brand-text hover:underline"
                     >
                       {account.clientName}

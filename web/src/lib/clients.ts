@@ -116,7 +116,23 @@ export type ClientWithCounts = ClientRow & {
   workedCount: number;
   commerceCustomerCount: number;
   orderCount: number;
+  /** Fakturaordrar som inte är betalda eller avbeställda. */
+  unpaidInvoiceCount: number;
+  /** Det obetalda beloppet inkl. moms, i ören. */
+  unpaidInvoiceMinor: number;
   lastContactedAt: string | null;
+};
+
+/** Vilket register en företagspost hör till. Se 0042. */
+export const CLIENT_KINDS = ['lead', 'customer'] as const;
+export const CLIENT_KIND_LABEL: Record<(typeof CLIENT_KINDS)[number], string> = {
+  lead: 'Tvätterikund',
+  customer: 'Kund',
+};
+/** Listan och kortet för varje register. */
+export const CLIENT_KIND_HREF: Record<(typeof CLIENT_KINDS)[number], string> = {
+  lead: '/admin/clients',
+  customer: '/admin/customers',
 };
 
 export function contactName(contact: { firstName: string; lastName: string | null }): string {

@@ -4,14 +4,17 @@ import { isUniqueViolation, readBody, requireAdmin } from '@/lib/adminRoute';
 import { listClients } from '@/lib/clientsDb';
 import { InputError, parseClientInput } from '@/lib/clientsInput';
 import { getDb } from '@/lib/db';
-import { clients } from '@/lib/db/schema';
+import { clients, type ClientKind } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
-  return NextResponse.json({ clients: await listClients() });
+  const kind = request.nextUrl.searchParams.get('kind');
+  return NextResponse.json({
+    clients: await listClients(kind === 'lead' || kind === 'customer' ? kind : undefined),
+  });
 }
 
 /** Lägg till en kund. Kundnumret måste vara ledigt. */
@@ -20,8 +23,13 @@ export async function POST(request: NextRequest) {
   if ('response' in auth) return auth.response;
 
   let input;
+  let kind: ClientKind;
   try {
-    input = parseClientInput(await readBody(request));
+    const body = await readBody(request);
+    input = parseClientInput(body);
+    // Vilket register posten läggs i: Kunder (som kan faktureras) eller
+    // ringlistan Tvätterikunder. Ringlistan är förvalet, som förut.
+    kind = body.kind === 'customer' ? 'customer' : 'lead';
   } catch (error) {
     const message = error instanceof InputError ? error.message : 'Kunde inte läsa förfrågan.';
     return NextResponse.json({ error: message }, { status: 400 });
@@ -29,7 +37,10 @@ export async function POST(request: NextRequest) {
 
   let row;
   try {
-    [row] = await getDb().insert(clients).values(input).returning();
+    [row] = await getDb()
+      .insert(clients)
+      .values({ ...input, kind, ...(kind === 'customer' && input.status === 'Tvätterikund' ? { status: 'Aktiv kund' } : {}) })
+      .returning();
   } catch (error) {
     // Unikt index på kundnummer. Två personer kan lägga till samtidigt, så
     // kollisionen fångas här i stället för med en kontrollfråga före.
@@ -54,6 +65,7 @@ export async function POST(request: NextRequest) {
   await record(auth.user, 'client.created', String(row.id), {
     kundnr: row.customerNo,
     kund: row.name,
+    register: kind === 'customer' ? 'Kunder' : 'Tvätterikunder',
   });
 
   return NextResponse.json({ client: row }, { status: 201 });

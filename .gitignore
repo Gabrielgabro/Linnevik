@@ -6,3 +6,5 @@ beställningar/
 catalog/
 outputs/
 email_signatures/
+# Lokala databasbackuper (personuppgifter, aldrig i repot)
+backups/

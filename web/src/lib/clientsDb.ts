@@ -15,6 +15,7 @@ import {
   customers,
   orders,
   type ClientContactRow,
+  type ClientKind,
   type ClientRow,
   type CustomerRow,
   type OrderRow,
@@ -29,8 +30,13 @@ export function clientsConfigured(): boolean {
  * i stället för med en fråga per kund — listan är ett par hundra rader och
  * ska renderas i ett svep.
  */
-export async function listClients(): Promise<ClientWithCounts[]> {
+export async function listClients(kind?: ClientKind): Promise<ClientWithCounts[]> {
   if (!clientsConfigured()) return [];
+  // Samma urval som Ordrar → Obetalda fakturor och avstämningen.
+  const unpaidInvoices = sql`
+    from ${orders} o inner join ${customers} c on c.id = o.customer_id
+    where c.client_id = ${clients.id} and o.payment_method = 'invoice'
+      and o.payment_status = 'pending' and o.status not in ('cancelled', 'expired', 'failed')`;
   const rows = await getDb()
     .select({
       client: clients,
@@ -44,10 +50,13 @@ export async function listClients(): Promise<ClientWithCounts[]> {
         inner join ${customers} c on c.id = o.customer_id
         where c.client_id = ${clients.id}
       )`,
+      unpaidInvoiceCount: sql<number>`(select count(*)::int ${unpaidInvoices})`,
+      unpaidInvoiceMinor: sql<number>`(select coalesce(sum(o.total_minor), 0)::int ${unpaidInvoices})`,
       lastContactedAt: sql<string | null>`max(${clientContacts.lastContactedAt})::text`,
     })
     .from(clients)
     .leftJoin(clientContacts, eq(clientContacts.clientId, clients.id))
+    .where(kind ? eq(clients.kind, kind) : undefined)
     .groupBy(clients.id)
     .orderBy(asc(clients.name));
 
@@ -57,6 +66,8 @@ export async function listClients(): Promise<ClientWithCounts[]> {
     workedCount: r.workedCount,
     commerceCustomerCount: r.commerceCustomerCount,
     orderCount: r.orderCount,
+    unpaidInvoiceCount: r.unpaidInvoiceCount,
+    unpaidInvoiceMinor: r.unpaidInvoiceMinor,
     lastContactedAt: r.lastContactedAt,
   }));
 }

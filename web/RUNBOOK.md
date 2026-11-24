@@ -85,7 +85,8 @@ fungerar också — webhooken gör ordern betald — men då står betalningsdag
 belopp ingenstans hos oss. Använd orderkortet.
 
 **Faktura för hand** (t.ex. en beställning per telefon eller mejl): /admin →
-Ordrar → **Ny faktura**. Välj kunden ur registret, lägg till rader (eget
+Ordrar → **Ny faktura**. Välj kunden ur **Kunder** (tvätterikunderna på
+ringlistan går inte att fakturera — gör om en till kund från kundkortet först), lägg till rader (eget
 styckpris går att sätta per rad; tomt = katalogpris) och frakt. Det blir en
 vanlig fakturaorder: lagret reserveras, fakturan skapas i Stripe med bankgiro
 och OCR och mejlas direkt, och betalningen registreras på orderkortet som ovan.

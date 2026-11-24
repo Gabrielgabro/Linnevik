@@ -22,12 +22,12 @@ export default async function NewClientPage() {
             Tvätterikunder
           </Link>
         }
-        title="Lägg till kund"
+        title="Lägg till tvätterikund"
         accent={accentFor('/admin/clients')}
         description="Kontaktpersoner läggs till på kunden när den är sparad."
       />
 
-      <ClientForm mode="create" suggestedCustomerNo={suggestedCustomerNo} />
+      <ClientForm mode="create" suggestedCustomerNo={suggestedCustomerNo} kind="lead" />
     </>
   );
 }
