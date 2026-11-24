@@ -296,10 +296,17 @@ type InvoiceLine = {
 async function stripeProductIdsForVariants(variantIds: number[]): Promise<Map<number, string | null>> {
   if (!variantIds.length) return new Map();
   const rows = await getDb()
-    .select({ variantId: productVariants.id, stripeProductId: products.stripeProductId })
+    .select({
+      variantId: productVariants.id,
+      handle: products.handle,
+      stripeProductId: products.stripeProductId,
+    })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
     .where(inArray(productVariants.id, variantIds));
+  // Id:t ska vara detsamma som första försöket skickade, men produkten bakom
+  // det ska finnas i nyckelns läge — annars vägrar Stripe priset.
+  await ensureStripeProducts(rows.filter(row => row.stripeProductId).map(row => row.handle));
   return new Map(rows.map(row => [row.variantId, row.stripeProductId]));
 }
 

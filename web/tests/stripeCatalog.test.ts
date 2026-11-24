@@ -36,16 +36,39 @@ describe('ensureStripeProducts', () => {
     );
   });
 
-  it('leaves an existing active product alone and remembers it', async () => {
+  it('leaves an existing active product alone but checks it on every checkout', async () => {
     stripe.products.retrieve.mockResolvedValue({ id: 'linnevik_morgonrock_gap', active: true });
     const { ensureStripeProducts } = await import('@/lib/stripeCatalog');
 
     await ensureStripeProducts(['morgonrock-gap']);
     await ensureStripeProducts(['morgonrock-gap']);
 
-    expect(stripe.products.retrieve).toHaveBeenCalledTimes(1);
+    expect(stripe.products.retrieve).toHaveBeenCalledTimes(2);
     expect(stripe.products.create).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('reactivates a product archived in Stripe', async () => {
+    stripe.products.retrieve.mockResolvedValue({ id: 'linnevik_morgonrock_gap', active: false });
+    const { ensureStripeProducts } = await import('@/lib/stripeCatalog');
+
+    await ensureStripeProducts(['morgonrock-gap']);
+
+    expect(stripe.products.update).toHaveBeenCalledWith(
+      'linnevik_morgonrock_gap',
+      expect.objectContaining({ active: true })
+    );
+  });
+
+  it('creates and links a brand-new product that was never pushed to Stripe', async () => {
+    stripe.products.retrieve.mockRejectedValue(missing);
+    const { ensureStripeProducts } = await import('@/lib/stripeCatalog');
+
+    await ensureStripeProducts(['morgonrock-gap']);
+
+    expect(stripe.products.create).toHaveBeenCalledTimes(1);
+    // Andra anropet är skrivningen av id:t tillbaka till produkten.
+    expect(execute).toHaveBeenCalledTimes(2);
   });
 
   it('does not mask other Stripe failures as a missing product', async () => {

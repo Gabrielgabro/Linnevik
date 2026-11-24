@@ -107,17 +107,8 @@ async function linkWhere(condition: ReturnType<typeof sql>): Promise<LinkResult>
     update products set stripe_product_id = ${id}, updated_at = now()
     where id = ${Number(row.id)} and stripe_product_id is distinct from ${id}
   `);
-  verified.add(id);
-
   return { stripeProductId: id, created };
 }
-
-/**
- * Id:n som den här processen redan sett finnas i Stripe, med den nyckel som
- * gäller nu. Nyckeln byts bara med en ny deploy, och en ny deploy är en ny
- * process — så mängden kan inte överleva ett lägesbyte.
- */
-const verified = new Set<string>();
 
 /**
  * Ser till att varje produkt i kassan finns i Stripe innan sessionen skapas,
@@ -125,6 +116,10 @@ const verified = new Set<string>();
  *
  * Utan det här räckte det att katalogen kopplats i testläge för att varje
  * skarpt köp skulle stoppas av Stripe med "No such product".
+ *
+ * Kontrolleras vid varje köp, utan minne mellan anropen: en produkt som
+ * arkiveras eller raderas i Stripes kontrollpanel ska fångas här, inte i
+ * Stripes svar på sessionen. Det kostar ett parallellt anrop per vara.
  */
 export async function ensureStripeProducts(handles: string[]): Promise<Map<string, string>> {
   const stripe = getStripe();
@@ -132,15 +127,12 @@ export async function ensureStripeProducts(handles: string[]): Promise<Map<strin
   await Promise.all(
     [...new Set(handles)].map(async handle => {
       const id = stripeProductIdFor(handle);
-      if (!verified.has(id)) {
-        try {
-          const product = await stripe.products.retrieve(id);
-          if (!product.active) await linkProductToStripeByHandle(handle);
-        } catch (error) {
-          if (!isMissing(error)) throw error;
-          await linkProductToStripeByHandle(handle);
-        }
-        verified.add(id);
+      try {
+        const product = await stripe.products.retrieve(id);
+        if (!product.active) await linkProductToStripeByHandle(handle);
+      } catch (error) {
+        if (!isMissing(error)) throw error;
+        await linkProductToStripeByHandle(handle);
       }
       ids.set(handle, id);
     })

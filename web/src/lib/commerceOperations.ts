@@ -269,7 +269,17 @@ export async function resolveShipping(input: {
 
 export async function ensureStripeCoupon(discount: AppliedDiscount): Promise<string | null> {
   if (discount.kind === 'free_shipping') return null;
-  if (discount.stripeCouponId) return discount.stripeCouponId;
+  if (discount.stripeCouponId) {
+    // Id:t i databasen kan höra till det andra Stripe-läget: en kod som
+    // använts i testläge har en kupong som inte finns för live-nyckeln, och då
+    // vägrar Stripe hela kassan. Kontrolleras därför vid varje köp.
+    try {
+      const existing = await getStripe().coupons.retrieve(discount.stripeCouponId);
+      if (existing.valid) return discount.stripeCouponId;
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== 'resource_missing') throw error;
+    }
+  }
   const row = await getDb().query.discountCodes.findFirst({
     where: eq(discountCodes.id, discount.id),
   });
@@ -283,7 +293,12 @@ export async function ensureStripeCoupon(discount: AppliedDiscount): Promise<str
         : { amount_off: row.value, currency: row.currency }),
       metadata: { linnevik_discount_id: String(row.id) },
     },
-    { idempotencyKey: `linnevik_discount_${row.id}_${row.updatedAt.getTime()}` }
+    // Nyckeln bär den kupong som ersätts, så att en ny kupong kan skapas när
+    // den gamla saknas eller blivit ogiltig — med samma nyckel hade Stripe
+    // bara spelat upp den gamla kupongen igen.
+    {
+      idempotencyKey: `linnevik_discount_${row.id}_${row.updatedAt.getTime()}_${discount.stripeCouponId ?? 'new'}`,
+    }
   );
   await getDb()
     .update(discountCodes)
