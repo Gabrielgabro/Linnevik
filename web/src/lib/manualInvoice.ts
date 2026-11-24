@@ -56,6 +56,8 @@ export type InvoiceClientOption = {
   id: number;
   customerNo: string;
   name: string;
+  /** 'lead' = Tvätterikund; görs till kund när den väljs i formuläret. */
+  kind: 'lead' | 'customer';
   orgNumber: string | null;
   invoiceEmail: string | null;
   address: { line1: string; line2: string; postalCode: string; city: string; country: string };
@@ -68,8 +70,9 @@ export type InvoiceClientOption = {
 export async function listInvoiceClients(): Promise<InvoiceClientOption[]> {
   const db = getDb();
   const [clientRows, contactRows, accountRows] = await Promise.all([
-    // Bara kundregistret: tvätterikunderna på ringlistan köper inte av oss.
-    db.select().from(clients).where(eq(clients.kind, 'customer')).orderBy(asc(clients.name)),
+    // Båda registren: en tvätterikund som ska faktureras görs till kund när
+    // den väljs. Formuläret visar kunderna först.
+    db.select().from(clients).orderBy(asc(clients.name)),
     db
       .select({
         clientId: clientContacts.clientId,
@@ -107,6 +110,7 @@ export async function listInvoiceClients(): Promise<InvoiceClientOption[]> {
       id: client.id,
       customerNo: client.customerNo,
       name: client.name,
+      kind: client.kind === 'customer' ? ('customer' as const) : ('lead' as const),
       orgNumber: client.orgNumber,
       invoiceEmail: client.invoiceEmail,
       address: {

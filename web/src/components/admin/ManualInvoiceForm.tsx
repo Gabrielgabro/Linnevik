@@ -60,7 +60,29 @@ export default function ManualInvoiceForm({
   const [reference, setReference] = useState('');
   const [purchaseOrder, setPurchaseOrder] = useState('');
 
-  function chooseClient(next: InvoiceClientOption) {
+  const [promoting, setPromoting] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  async function chooseClient(option: InvoiceClientOption) {
+    let next = option;
+    if (option.kind === 'lead') {
+      // En tvätterikund som faktureras har blivit en kund: flytta den till
+      // kundregistret först, annars vägrar servern fakturan.
+      setPromoting(true);
+      setClientError(null);
+      const response = await fetch(`/api/admin/clients/${option.id}/kind`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'customer' }),
+      }).catch(() => null);
+      setPromoting(false);
+      if (!response?.ok) {
+        const data = response ? await response.json().catch(() => ({})) : {};
+        setClientError(data.error ?? `Kunde inte göra ${option.name} till kund.`);
+        return;
+      }
+      next = { ...option, kind: 'customer' };
+    }
     setClient(next);
     setClientQuery('');
     setCompanyName(next.name);
@@ -77,6 +99,7 @@ export default function ManualInvoiceForm({
     if (!clientQuery.trim()) return [];
     return clients
       .filter(option => matches(`${option.name} ${option.customerNo} ${option.orgNumber ?? ''} ${option.emails.join(' ')}`, clientQuery))
+      .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'customer' ? -1 : 1))
       .slice(0, 8);
   }, [clients, clientQuery]);
 
@@ -264,9 +287,15 @@ export default function ManualInvoiceForm({
                         <button
                           type="button"
                           onClick={() => chooseClient(option)}
+                          disabled={promoting}
                           className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-[13.5px] hover:bg-plane"
                         >
-                          <span className="text-ink">{option.name}</span>
+                          <span className="text-ink">
+                            {option.name}
+                            {option.kind === 'lead' && (
+                              <span className="ml-2 text-[11.5px] text-ink-3">Tvätterikund · blir kund när du väljer den</span>
+                            )}
+                          </span>
                           <span className="font-mono text-[11.5px] text-ink-3">
                             {option.orgNumber ?? 'org.nr saknas'} · {option.customerNo}
                           </span>
@@ -275,13 +304,15 @@ export default function ManualInvoiceForm({
                     ))}
                   </ul>
                 )}
+                {promoting && <p className="mt-2 text-[12.5px] text-ink-3">Gör om till kund…</p>}
+                {clientError && <ErrorNote>{clientError}</ErrorNote>}
                 {clientQuery.trim() && clientMatches.length === 0 && (
                   <p className="mt-2 text-[12.5px] text-ink-3">
                     Ingen kund matchar.{' '}
                     <Link href="/admin/customers/new" className="text-brand-text hover:underline">
                       Lägg till kunden
                     </Link>{' '}
-                    under Kunder först, eller gör om en tvätterikund till kund från dess kundkort.
+                    under Kunder först.
                   </p>
                 )}
               </div>
