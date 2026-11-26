@@ -571,6 +571,9 @@ export const orders = pgTable(
     paymentStatus: text('payment_status').notNull().default('pending'),
     fulfillmentStatus: text('fulfillment_status').notNull().default('unfulfilled'),
     customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+    // Företaget ordern hör till, direkt och inte via ett webbkonto (0047). En
+    // manuell faktura har inget webbkonto (§10.8).
+    clientId: integer('client_id').references(() => clients.id, { onDelete: 'set null' }),
     email: text('email'),
     customerName: text('customer_name'),
     // Sparad som den kom från Stripe: en adress ska visa vad kunden angav vid
@@ -1037,7 +1040,80 @@ export const analyticsEvents = pgTable(
   ]
 );
 
+/** En part på fakturan, som den stod när fakturan gjordes. */
+export type InvoiceParty = {
+  name: string;
+  orgNumber: string | null;
+  vatNumber: string | null;
+  address: { line1: string; line2: string | null; postalCode: string; city: string; country: string };
+  email?: string | null;
+};
+export type InvoiceSeller = InvoiceParty & {
+  fTax: boolean;
+  seat: string | null;
+  bankgiro: string | null;
+  bankAccount: string | null;
+  contactEmail: string | null;
+};
+export type InvoiceBuyer = InvoiceParty & {
+  customerNo: string | null;
+  reference: string | null;
+  purchaseOrder: string | null;
+};
+export type InvoiceLineSnapshot = {
+  title: string;
+  sku: string | null;
+  quantity: number;
+  unitAmountMinor: number;
+  amountMinor: number;
+};
+
+// Egna fakturor och kreditfakturor (§9, 0047). Allt som står på fakturan är
+// en ögonblicksbild: den ändras aldrig efter att den gjorts (§9.6).
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    number: integer('number').notNull(),
+    kind: text('kind').$type<'invoice' | 'credit'>().notNull(),
+    orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+    creditsInvoiceId: integer('credits_invoice_id'),
+    refundId: integer('refund_id').references(() => refunds.id, { onDelete: 'restrict' }),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+    dueOn: date('due_on', { mode: 'string' }),
+    currency: text('currency').notNull(),
+    seller: jsonb('seller').$type<InvoiceSeller>().notNull(),
+    buyer: jsonb('buyer').$type<InvoiceBuyer>().notNull(),
+    lines: jsonb('lines').$type<InvoiceLineSnapshot[]>().notNull(),
+    goodsMinor: integer('goods_minor').notNull(),
+    discountMinor: integer('discount_minor').notNull().default(0),
+    shippingMinor: integer('shipping_minor').notNull().default(0),
+    netMinor: integer('net_minor').notNull(),
+    vatBps: integer('vat_bps').notNull(),
+    taxMinor: integer('tax_minor').notNull(),
+    totalMinor: integer('total_minor').notNull(),
+    ocr: text('ocr'),
+    memo: text('memo'),
+    pdfBase64: text('pdf_base64'),
+    voidedAt: timestamp('voided_at', { withTimezone: true }),
+    voidedBy: text('voided_by'),
+    emailedTo: text('emailed_to'),
+    emailedAt: timestamp('emailed_at', { withTimezone: true }),
+    createdBy: text('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('invoices_number_key').on(table.number),
+    uniqueIndex('invoices_refund_id_key').on(table.refundId),
+    uniqueIndex('invoices_one_open_per_order')
+      .on(table.orderId)
+      .where(sql`${table.kind} = 'invoice' and ${table.voidedAt} is null`),
+    index('invoices_order_idx').on(table.orderId),
+  ]
+);
+
 export type ProductRow = typeof products.$inferSelect;
+export type InvoiceRow = typeof invoices.$inferSelect;
 export type ProductVariantRow = typeof productVariants.$inferSelect;
 export type ProductImageRow = typeof productImages.$inferSelect;
 export type CollectionRow = typeof collections.$inferSelect;
