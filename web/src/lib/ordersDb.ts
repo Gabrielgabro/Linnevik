@@ -338,6 +338,11 @@ export async function markOrderPaid(input: {
   linkAccount?: boolean;
   /** Vem som registrerade betalningen, för orderns historik. */
   actor?: string;
+  /**
+   * Betalningsdagen som svensk kalenderdag (ÅÅÅÅ-MM-DD), när den är känd:
+   * dagen admin angav för en bankbetalning. Annars i dag (§16.2).
+   */
+  paidOn?: string;
 }): Promise<{ orderId: number; stockReady: boolean; newlyPaid: boolean }> {
   const [target] = await getDb()
     .select({
@@ -408,6 +413,12 @@ export async function markOrderPaid(input: {
       update orders set
         status = ${stockReady ? 'paid' : 'stock_exception'},
         payment_status = case when refunded_minor > 0 then payment_status else 'paid' end,
+        -- Betalningsdagen, i svensk tid. Exporten räknar ordern hit (§16.2).
+        paid_on = coalesce(
+          orders.paid_on,
+          ${input.paidOn ?? null}::date,
+          (now() at time zone 'Europe/Stockholm')::date
+        ),
         -- Utan kontokoppling behåller ordern den kund den redan har.
         customer_id = coalesce(${customerId}, customer_id),
         stripe_payment_intent_id = ${input.paymentIntentId},

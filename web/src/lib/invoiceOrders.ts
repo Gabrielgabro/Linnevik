@@ -267,6 +267,7 @@ export async function registerBankPayment(input: {
     currency: order.currency,
     linkAccount: false,
     actor: input.actor,
+    paidOn: paidOn.date,
   });
   if (paid.newlyPaid) await sendOrderConfirmation(order.stripeSessionId);
 

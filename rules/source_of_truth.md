@@ -783,7 +783,7 @@ A17 *Rättad.* §9. **Fakturorna görs i Stripe.** Stripe ger numret, gör pdf:e
     det ersätts av egna pdf:er med egen nummerserie, och Stripe används
     bara för kort.
 
-A18 §16.2. Exporten tar ordrar efter skapad dag, inte betalningsdag, och
+A18 *Rättad* av `drizzle/0049`. §16.2. Exporten tar ordrar efter skapad dag, inte betalningsdag, och
     räknar i UTC (`bookkeepingExport.ts:57`).
 
 A19 *Rättad.* §9.2. Villkorstexten säger alltid "30 dagar netto", även när

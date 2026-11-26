@@ -634,6 +634,8 @@ export const orders = pgTable(
     // appen står i när någon läser raden.
     testMode: boolean('test_mode').notNull().default(false),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    // Den svenska kalenderdag då ordern blev betald (§16.2). Sätts en gång.
+    paidOn: date('paid_on', { mode: 'string' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
