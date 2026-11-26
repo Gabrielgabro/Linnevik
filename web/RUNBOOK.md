@@ -42,10 +42,12 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
   https://www.linnevik.se/api/cron/commerce-reconcile
 ```
 
-Den läser om alla `pending`-ordrar från de tre senaste dygnen mot Stripe,
-skriver dem som betalda, skickar orderbekräftelsen och släpper utgångna
-reservationer. Svaret säger hur många som lagades. Går det inte igenom svarar
-den 207 med en `failures`-lista.
+Den körs annars av sig själv varje natt kl 03:00. Den hanterar först om
+Stripe-händelser som fastnade halvvägs (`stuckEvents`), läser sedan om alla
+obetalda kortordrar från de tre senaste dygnen mot Stripe, skriver dem som
+betalda, skickar orderbekräftelsen, läser om återbetalningar och tvister och
+släpper utgångna reservationer. Svaret säger hur många som lagades. Går det
+inte igenom svarar den 207 med en `failures`-lista och ett driftlarm.
 
 **1b. Ingen order alls.** Larmet *Betalning utan order hos oss* ska ha gått ut.
 Det betyder att pengar tagits emot för något vi inte kan koppla till en order —

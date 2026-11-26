@@ -19,8 +19,6 @@ import {
  */
 
 const ordersDb = readFileSync(resolve('src/lib/ordersDb.ts'), 'utf8');
-const webhook = readFileSync(resolve('app/api/stripe/webhook/route.ts'), 'utf8');
-const stripeRefunds = readFileSync(resolve('src/lib/stripeRefunds.ts'), 'utf8');
 const checkout = readFileSync(resolve('app/api/checkout/route.ts'), 'utf8');
 const variantRoute = readFileSync(resolve('app/api/admin/variants/[id]/route.ts'), 'utf8');
 
@@ -73,31 +71,7 @@ describe('återbetalningar räknas likadant överallt', () => {
   });
 });
 
-describe('webhooken täcker de vägar där pengar lämnar oss', () => {
-  it('speglar återbetalningar oavsett var de startade', () => {
-    expect(webhook).toContain("case 'refund.created'");
-    expect(webhook).toContain("case 'refund.updated'");
-    expect(webhook).toContain("case 'charge.refunded'");
-    expect(webhook).toContain('syncStripeRefund');
-  });
-
-  it('hanterar tvister', () => {
-    expect(webhook).toContain("case 'charge.dispute.created'");
-    expect(webhook).toContain("case 'charge.dispute.closed'");
-    expect(webhook).toContain('syncStripeDispute');
-  });
-
-  it('larmar när en händelse faller i stället för att bara logga', () => {
-    expect(webhook).toContain('raiseAlert');
-    expect(webhook).toContain('releaseStripeEvent');
-  });
-
-  it('skapar en lokal rad för en återbetalning gjord i Stripes kontrollpanel', () => {
-    expect(stripeRefunds).toContain('recordRefund');
-    expect(stripeRefunds).toContain('refundVatMinor');
-    expect(stripeRefunds).toContain("actor: 'stripe'");
-  });
-});
+// Webhooken och avstämningen körs på riktigt i tests/db/stripeEvents.test.ts (§17.2).
 
 describe('lagret hålls sant', () => {
   it('släpper utgångna reservationer när någon står i kassan', () => {

@@ -891,6 +891,10 @@ export const stripeWebhookEvents = pgTable(
     status: text('status').notNull().default('processing'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     processedAt: timestamp('processed_at', { withTimezone: true }),
+    // När någon senast tog sig an händelsen. Ett gammalt anspråk är övergivet
+    // och tas över (§17.2, drizzle/0050).
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
+    attempts: integer('attempts').notNull().default(1),
   },
   table => [index('stripe_webhook_events_status_idx').on(table.status, table.createdAt)]
 );

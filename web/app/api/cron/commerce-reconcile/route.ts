@@ -23,6 +23,7 @@ import { stripeConfigured } from '@/lib/stripe';
 import { checkStripeKey } from '@/lib/stripeHealth';
 import { reconcileRecentCheckoutSessions } from '@/lib/stripeCheckout';
 import { reconcileOpenInvoices } from '@/lib/invoiceOrders';
+import { reconcileRefundsAndDisputes, retryStuckStripeEvents } from '@/lib/stripeReconcile';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,7 +50,20 @@ export async function GET(request: NextRequest) {
       { status: 503 }
     );
   }
+  // Fastnade händelser först: en av dem kan vara betalningen som annars
+  // skulle stämmas av nedan.
+  const stuckEvents = await retryStuckStripeEvents();
   const result = await reconcileRecentCheckoutSessions();
+  const moneyBack = await reconcileRefundsAndDisputes();
+  const stripeFailures = [...stuckEvents.failures, ...moneyBack.failures];
+  if (stripeFailures.length) {
+    await raiseAlert({
+      kind: 'reconcile.failed',
+      key: 'reconcile:events',
+      subject: `Avstämningen av händelser, återbetalningar och tvister föll på ${stripeFailures.length} punkter`,
+      detail: { fel: stripeFailures.slice(0, 10) },
+    });
+  }
 
   // Lagerkollen åker med samma körning. Den hör inte ihop med avstämningen,
   // men den vill ha exakt samma egenskap: en gång per dygn, utan att någon
@@ -84,12 +98,15 @@ export async function GET(request: NextRequest) {
     {
       runAt: new Date().toISOString(),
       ...result,
+      stuckEvents,
+      refunds: moneyBack.refunds,
+      disputes: moneyBack.disputes,
       invoices: invoiceResult,
       lowStock: lowStock.length,
       prunedBuckets,
       prunedVisits,
       visitRetentionDays: RETENTION_DAYS,
     },
-    { status: result.failures.length || invoiceResult.failures.length ? 207 : 200 }
+    { status: result.failures.length || invoiceResult.failures.length || stripeFailures.length ? 207 : 200 }
   );
 }

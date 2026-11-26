@@ -93,6 +93,20 @@ function body(input: AlertInput): string {
 }
 
 /**
+ * Har ett larm med den här nyckeln skrivits någon gång? Nattens avstämning
+ * använder det för att inte larma varje natt om samma sak som redan är känd.
+ */
+export async function alertRaisedBefore(key: string): Promise<boolean> {
+  if (!alertsConfigured()) return false;
+  try {
+    const result = await getDb().execute(sql`select 1 from ops_alerts where dedupe_key = ${key} limit 1`);
+    return result.rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Skriver larmet och mejlar det om spärren tillåter.
  *
  * Insert och spärrbeslut sker i samma sats: två samtidiga larm med samma

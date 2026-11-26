@@ -729,7 +729,7 @@ A5  *Rättad.* §8.6. **Ett lagerundantag kan inte skickas**, inte ens när lagr
 A6  *Rättad.* §8.7. En betalning som kommer in precis när reservationen går ut blir
     lagerundantag även om lagret räcker (`inventoryDb.ts:157`).
 
-A7  §17.2. Ett besked från Stripe som fastnar halvvägs, till exempel vid en
+A7  *Rättad* av `drizzle/0050`. §17.2. Ett besked från Stripe som fastnar halvvägs, till exempel vid en
     timeout, blir liggande som "processing". Varje nytt försök besvaras med
     "duplicate". Återbetalningar och tvister har ingen nattlig avstämning.
 
