@@ -8,11 +8,16 @@ import { invoicePaymentDetailsOrNull } from '@/lib/invoicePayment';
 import { listInvoiceClients, listInvoiceVariants } from '@/lib/manualInvoice';
 import { ownedCommerceEnabled } from '@/lib/commerceConfig';
 import { stripeConfigured } from '@/lib/stripe';
+import { checkStripeKey } from '@/lib/stripeHealth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewInvoicePage() {
-  const [clients, variants] = await Promise.all([listInvoiceClients(), listInvoiceVariants()]);
+  const [clients, variants, stripeKey] = await Promise.all([
+    listInvoiceClients(),
+    listInvoiceVariants(),
+    checkStripeKey(),
+  ]);
   const payment = invoicePaymentDetailsOrNull();
   const ready = ownedCommerceEnabled() && stripeConfigured();
 
@@ -30,6 +35,14 @@ export default async function NewInvoicePage() {
         description="En faktura till en kund i registret. Blir en vanlig fakturaorder: lagret reserveras, fakturan skapas i Stripe med bankgiro och OCR, och betalningen registreras på orderkortet."
       />
 
+      {ready && !stripeKey.ok && (
+        <Notice tone="danger" title={stripeKey.message}>
+          {stripeKey.reason === 'unreachable'
+            ? 'Försök igen om en stund. Ingen faktura kan skapas medan Stripe inte svarar.'
+            : 'Skapa en ny hemlig nyckel i Stripe och sätt STRIPE_SECRET_KEY i Vercel (Production), deploya om. Larmet Stripe-nyckel har gått ut.'}
+        </Notice>
+      )}
+
       {!ready && (
         <Notice tone="danger" title="Stripe eller den egna kassan är inte konfigurerad">
           Fakturor kan inte skapas förrän STRIPE_SECRET_KEY och OWNED_COMMERCE_ENABLED är satta.
@@ -41,6 +54,7 @@ export default async function NewInvoicePage() {
         variants={variants}
         defaultDueDays={INVOICE_DUE_DAYS}
         bankgiro={payment?.bankgiro ?? (payment?.bankAccount ? 'bankkonto' : null)}
+        stripe={stripeKey.ok ? stripeKey.mode : null}
       />
     </>
   );

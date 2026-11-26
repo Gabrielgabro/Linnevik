@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { reportStripeKeyError } from '@/lib/stripeHealth';
 import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
 import { ensureStripeProducts } from '@/lib/stripeCatalog';
 import {
@@ -502,6 +503,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (error) {
     console.error('[Checkout] Failed to create session:', error);
+    await reportStripeKeyError(error, 'kortkassan');
     const ambiguousStripeFailure = stripeFailureIsAmbiguous(error);
     // A session that exists must keep its reservation: the customer may
     // already have received its URL and metadata reconciliation can repair the

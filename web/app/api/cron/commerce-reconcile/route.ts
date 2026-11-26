@@ -20,6 +20,7 @@ import { raiseAlert } from '@/lib/opsAlerts';
 import { pruneAnalyticsEvents, RETENTION_DAYS } from '@/lib/analyticsDb';
 import { pruneRateLimits } from '@/lib/rateLimit';
 import { stripeConfigured } from '@/lib/stripe';
+import { checkStripeKey } from '@/lib/stripeHealth';
 import { reconcileRecentCheckoutSessions } from '@/lib/stripeCheckout';
 import { reconcileRecentStripeInvoices } from '@/lib/stripeInvoices';
 
@@ -38,6 +39,13 @@ export async function GET(request: NextRequest) {
   }
   if (!stripeConfigured()) {
     return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 });
+  }
+
+  // Nyckeln först. En utgången nyckel larmar här, en gång per natt, i stället
+  // för att märkas först när en kund försöker betala.
+  const stripeKey = await checkStripeKey({ fresh: true });
+  if (!stripeKey.ok && stripeKey.reason !== 'unreachable') {
+    return NextResponse.json({ error: stripeKey.message }, { status: 503 });
   }
 
   const invoiceResult = await reconcileRecentStripeInvoices();

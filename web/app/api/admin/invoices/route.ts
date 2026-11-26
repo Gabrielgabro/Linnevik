@@ -9,6 +9,7 @@ import { raiseAlert } from '@/lib/opsAlerts';
 import { PaymentMethodConflictError } from '@/lib/ordersDb';
 import { stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
 import { VatConfigurationError } from '@/lib/vat';
+import { reportStripeKeyError } from '@/lib/stripeHealth';
 
 export const runtime = 'nodejs';
 
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof PaymentMethodConflictError) return NextResponse.json({ error: error.message }, { status: 409 });
     console.error('[admin] createManualInvoice failed:', error);
+    await reportStripeKeyError(error, 'Ny faktura i admin');
     if (stripeFailureIsAmbiguous(error)) {
       // Fakturan kan ha skapats ändå. Ordern och lagret står kvar bundna, och
       // avstämningen i natt reder ut vilket det blev — ett nytt försök nu

@@ -46,6 +46,7 @@ const KIND_LABEL: Record<string, string> = {
   'invoice.config': 'Fakturainställning',
   'invoice.overdue': 'Förfallen faktura',
   'invoice.payment_mismatch': 'Fakturabetalning avviker',
+  'stripe.key': 'Stripe-nyckel',
 };
 
 /** Larm som betyder att pengar eller lager står fel just nu. */
@@ -61,6 +62,8 @@ const CRITICAL = new Set([
   'invoice.config',
   // En överbetalning ska tillbaka till kunden.
   'invoice.payment_mismatch',
+  // Ingen betalning, faktura eller återbetalning fungerar utan nyckeln.
+  'stripe.key',
 ]);
 
 function detailText(detail: Record<string, unknown>): string {

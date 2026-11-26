@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { reportStripeKeyError } from '@/lib/stripeHealth';
 import { eq } from 'drizzle-orm';
 import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
 import { ensureStripeProducts } from '@/lib/stripeCatalog';
@@ -466,6 +467,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[Invoice] Failed to create invoice:', error);
+    await reportStripeKeyError(error, 'fakturakassan');
     const ambiguousStripeFailure = stripeFailureIsAmbiguous(error);
     // A lost response can mean Stripe created/sent the invoice already. Keep
     // the order and stock bound; retry/reconciliation can recover it. Deleting

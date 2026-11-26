@@ -27,6 +27,7 @@ import { resolveShipping, upsertCustomerFromCheckout } from '@/lib/commerceOpera
 import { invoicePaymentDetails } from '@/lib/invoicePayment';
 import { INVOICE_COUNTRY, resolveCompanyProfile, STRIPE_TAX_ID_TYPE, type CompanyProfileGap } from '@/lib/companyProfile';
 import { createInvoiceDraft, finishInvoice, syncStripeInvoiceCustomer } from '@/lib/invoiceIssue';
+import { checkStripeKey } from '@/lib/stripeHealth';
 import {
   manualInvoiceReference,
   type ManualInvoiceInput,
@@ -317,6 +318,10 @@ export async function createManualInvoice(input: ManualInvoiceInput, actor: stri
   // Först: utan bankgiro går fakturan inte att betala. Kastar
   // InvoicePaymentConfigError, som rutten gör om till ett larm och 503.
   const payment = invoicePaymentDetails();
+  // Och nyckeln ska fungera innan något skrivs: en utgången nyckel ska stoppa
+  // här, inte efter att ordern skapats och lagret reserverats.
+  const stripe = await checkStripeKey({ fresh: true });
+  if (!stripe.ok) throw new ManualInvoiceError(`${stripe.message} Ingenting skapades.`, 503);
 
   const [client] = await getDb().select().from(clients).where(eq(clients.id, input.clientId)).limit(1);
   if (!client) throw new ManualInvoiceError('Kunden finns inte.', 404);

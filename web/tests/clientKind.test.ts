@@ -28,9 +28,11 @@ describe('Tvätterikunder och Kunder är två register', () => {
     expect(commerce).toContain("if (client.kind !== 'customer') {");
   });
 
-  it('fakturerar bara kunder, aldrig ringlistan', () => {
+  it('fakturerar bara kunder: en tvätterikund görs till kund innan fakturan skapas', () => {
     const manual = read('src/lib/manualInvoice.ts');
-    expect(manual).toContain(".where(eq(clients.kind, 'customer'))");
+    // Formuläret listar båda registren och flyttar en vald tvätterikund till
+    // Kunder; servern vägrar ändå fakturera något som inte är kund.
+    expect(manual).toContain("kind: client.kind === 'customer'");
     expect(manual).toContain("if (client.kind !== 'customer') {");
   });
 

@@ -33,7 +33,8 @@ export type AlertKind =
   | 'inventory.low_stock'
   | 'invoice.config'
   | 'invoice.overdue'
-  | 'invoice.payment_mismatch';
+  | 'invoice.payment_mismatch'
+  | 'stripe.key';
 
 /** Hur länge samma nyckel tystas efter ett utskickat mejl. */
 const DEDUPE_MINUTES = 60;
