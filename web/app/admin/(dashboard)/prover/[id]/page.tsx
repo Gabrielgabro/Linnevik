@@ -5,7 +5,7 @@ import SampleRequestActions from '@/components/admin/SampleRequestActions';
 import Comments from '@/components/admin/Comments';
 import { listComments } from '@/lib/adminComments';
 import { getSampleRequestById } from '@/lib/sampleRequestsDb';
-import { STATUS_LABEL } from '../page';
+import { SAMPLE_STATUS_LABEL as STATUS_LABEL } from '@/lib/adminLabels';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +27,7 @@ export default async function SampleRequestPage({
           style={{ color: 'var(--viz-ink-3)' }}
         >
           <span>
-            Provförfrågan #{request.id} · {STATUS_LABEL[request.status] ?? request.status}
+            Provbeställning #{request.id} · {STATUS_LABEL[request.status] ?? request.status}
           </span>
           {!request.emailed && <Tag color="var(--adm-danger)">ej aviserad</Tag>}
         </p>

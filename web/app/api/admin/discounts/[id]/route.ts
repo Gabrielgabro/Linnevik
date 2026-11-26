@@ -9,10 +9,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
   const id = routeId((await params).id);
-  if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
+  if (id === null) return NextResponse.json({ error: 'Ogiltigt id.' }, { status: 400 });
   try {
     const discount = await updateDiscountCode(id, parseDiscountInput(await readBody(request)));
-    if (!discount) return NextResponse.json({ error: 'Discount not found.' }, { status: 404 });
+    if (!discount) return NextResponse.json({ error: 'Rabattkoden finns inte.' }, { status: 404 });
     await record(auth.user, 'discount.updated', String(id), { code: discount.code });
     return NextResponse.json({ discount });
   } catch (error) {

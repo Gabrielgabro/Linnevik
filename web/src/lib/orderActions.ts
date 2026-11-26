@@ -22,6 +22,7 @@ import { getDb } from '@/lib/db';
 import { orderEvents, orders } from '@/lib/db/schema';
 import { reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { getOrderById, updateOrderManagement } from '@/lib/ordersDb';
+import { orderStatusLabel } from '@/lib/adminLabels';
 import { refundOrder } from '@/lib/orderRefunds';
 
 export class OrderActionError extends Error {
@@ -77,7 +78,7 @@ export async function applyOrderAction(input: {
   const order = await getOrderById(input.orderId);
   if (!order) throw new OrderActionError('Ordern finns inte.', 404);
   if (!allowedOrderActions(order).includes(input.action)) {
-    throw new OrderActionError(`${ORDER_ACTION_LABEL[input.action]} går inte när ordern är ${order.status}.`);
+    throw new OrderActionError(`${ORDER_ACTION_LABEL[input.action]} går inte när ordern är ${orderStatusLabel(order.status).toLowerCase()}.`);
   }
   const note = input.note?.trim() || undefined;
 

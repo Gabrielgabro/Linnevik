@@ -7,6 +7,13 @@ import Notice from '@/components/admin/ui/Notice';
 import { formatMinor, toMinor } from '@/lib/money';
 import { allowedOrderActions, ORDER_ACTION_LABEL, type OrderAction } from '@/lib/orderActionRules';
 import type { OrderDetail } from '@/lib/ordersDb';
+import { FULFILLMENT_STATUS_LABEL, paymentStatusLabel } from '@/lib/adminLabels';
+
+const REFUND_REASON_LABEL: Record<string, string> = {
+  requested_by_customer: 'Kunden bad om det',
+  duplicate: 'Dubbel betalning',
+  fraudulent: 'Bedrägeri',
+};
 
 // Select bär bara en lista med strängar, så alternativets text *är* dess
 // värde. Namnet står här för att jämförelsen nedan inte ska hänga på att två
@@ -162,7 +169,7 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
         )}
         <Field label="Belopp (kr)" name="amount" type="number" step="0.01" required />
         {!paidByBank && (
-          <Select label="Orsak" name="reason" required options={['requested_by_customer', 'duplicate', 'fraudulent']} />
+          <Select label="Orsak" name="reason" required options={['requested_by_customer', 'duplicate', 'fraudulent']} labels={REFUND_REASON_LABEL} />
         )}
         <TextArea label="Intern notering" name="note" />
         <Button type="submit" disabled={refunding}>
@@ -174,7 +181,7 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
         <h2 className="font-heading text-xl">Leverans</h2>
         {!canFulfill ? (
           <Notice tone="warn" title="Ordern kan inte levereras">
-            Bara betalda ordrar med reserverat lager kan levereras. Nuvarande betalstatus är {order.paymentStatus}.
+            Bara betalda ordrar med reserverat lager kan levereras. Nuvarande betalstatus: {paymentStatusLabel(order.paymentStatus)}.
           </Notice>
         ) : fullyFulfilled ? (
           // Allt är utlevererat: servern hade nekat en till försändelse ändå
@@ -240,12 +247,12 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
                 />
               ))}
             </div>
-            <Select label="Status" name="status" required options={['shipped', 'delivered']} />
+            <Select label="Status" name="status" required options={['shipped', 'delivered']} labels={FULFILLMENT_STATUS_LABEL} />
             <Field label="Transportör" name="carrier" />
             <Field label="Spårningsnummer" name="trackingNumber" />
             <Field label="Spårningslänk" name="trackingUrl" type="url" />
             <TextArea label="Intern notering" name="note" />
-            <Button type="submit">Skapa fulfillment</Button>
+            <Button type="submit">Registrera leverans</Button>
           </form>
         )}
       </div>

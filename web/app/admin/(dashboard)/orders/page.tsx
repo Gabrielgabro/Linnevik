@@ -22,6 +22,7 @@ import {
 import { ocrForOrder } from '@/lib/invoicePayment';
 import { parseOrderSearch } from '@/lib/orderSearch';
 import { formatMinor } from '@/lib/money';
+import { fulfillmentStatusLabel, orderStatusLabel, paymentStatusLabel } from '@/lib/adminLabels';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ const ATTENTION: Record<string, { label: string; color: string }> = {
   on_hold: { label: 'Pausad', color: 'var(--adm-warn)' },
   closed: { label: 'Avslutad', color: 'var(--viz-ink-3)' },
   failed: { label: 'Misslyckad', color: 'var(--adm-danger)' },
-  cancelled: { label: 'Makulerad', color: 'var(--viz-ink-3)' },
+  cancelled: { label: 'Avbokad', color: 'var(--viz-ink-3)' },
   expired: { label: 'Utgången', color: 'var(--viz-ink-3)' },
 };
 
@@ -195,7 +196,7 @@ export default async function OrdersPage({
           </Link>
           {isUnpaidInvoice(ocrHit)
             ? ' och registrera betalningen under Fakturabetalning.'
-            : ` — fakturan är inte obetald (betalning: ${ocrHit.paymentStatus}, status: ${ocrHit.status}).`}
+            : ` — fakturan är inte obetald (betalning: ${paymentStatusLabel(ocrHit.paymentStatus)}, status: ${orderStatusLabel(ocrHit.status)}).`}
         </Notice>
       )}
 
@@ -256,10 +257,10 @@ export default async function OrdersPage({
                 </Td>
                 <Td className="text-ink">{order.customerName ?? order.email ?? '—'}</Td>
                 <Td>
-                  <Tag color={tone(order.paymentStatus)}>{order.paymentStatus}</Tag>
+                  <Tag color={tone(order.paymentStatus)}>{paymentStatusLabel(order.paymentStatus)}</Tag>
                 </Td>
                 <Td>
-                  <Tag color={tone(order.fulfillmentStatus)}>{order.fulfillmentStatus}</Tag>
+                  <Tag color={tone(order.fulfillmentStatus)}>{fulfillmentStatusLabel(order.fulfillmentStatus)}</Tag>
                 </Td>
                 <Td numeric align="right">
                   {formatMinor(order.totalMinor, order.currency)}

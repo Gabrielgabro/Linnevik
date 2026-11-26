@@ -63,7 +63,7 @@ export default async function AdminFranzenPricingPage() {
           </>
         }
         actions={
-          <Link href="/admin" className={buttonClass('secondary', 'sm')}>
+          <Link href="/admin/priser" className={buttonClass('secondary', 'sm')}>
             Prisbild – egna produkter
           </Link>
         }

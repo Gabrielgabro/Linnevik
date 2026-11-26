@@ -916,11 +916,11 @@ export async function createFulfillment(input: {
   items: Array<{ orderItemId: number; quantity: number }>;
   actor: string;
 }): Promise<number> {
-  if (!input.items.length) throw new Error('At least one fulfillment item is required.');
+  if (!input.items.length) throw new Error('Välj minst en rad att leverera.');
   const requested = new Map<number, number>();
   for (const item of input.items) {
     if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-      throw new Error('Fulfillment quantities must be positive integers.');
+      throw new Error('Antalen att leverera måste vara hela tal större än noll.');
     }
     requested.set(item.orderItemId, (requested.get(item.orderItemId) ?? 0) + item.quantity);
   }
@@ -1033,7 +1033,7 @@ export async function createFulfillment(input: {
     select id from new_fulfillment
   `);
   const row = result.rows[0] as { id: number } | undefined;
-  if (!row) throw new Error('Order could not be fulfilled.');
+  if (!row) throw new Error('Ordern kan inte levereras: den är inte betald, är pausad eller saknar lagerreservation.');
   const fulfillmentId = Number(row.id);
   return fulfillmentId;
 }
@@ -1049,11 +1049,11 @@ export async function returnOrderItems(input: {
   actor: string;
   note?: string | null;
 }): Promise<void> {
-  if (!input.items.length) throw new Error('At least one return item is required.');
+  if (!input.items.length) throw new Error('Välj minst en rad att returnera.');
   const requested = new Map<number, number>();
   for (const item of input.items) {
     if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-      throw new Error('Return quantities must be positive integers.');
+      throw new Error('Antalen att returnera måste vara hela tal större än noll.');
     }
     requested.set(item.orderItemId, (requested.get(item.orderItemId) ?? 0) + item.quantity);
   }
@@ -1128,6 +1128,6 @@ export async function returnOrderItems(input: {
     select id from event
   `);
   if (!result.rows.length) {
-    throw new Error('Return quantity exceeds the fulfilled quantity that has not already been returned.');
+    throw new Error('Det går inte att returnera fler än som har levererats och inte redan returnerats.');
   }
 }

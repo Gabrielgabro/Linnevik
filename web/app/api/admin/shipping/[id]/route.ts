@@ -9,10 +9,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
   const id = routeId((await params).id);
-  if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
+  if (id === null) return NextResponse.json({ error: 'Ogiltigt id.' }, { status: 400 });
   try {
     const shippingRule = await updateShippingRule(id, parseShippingInput(await readBody(request)));
-    if (!shippingRule) return NextResponse.json({ error: 'Shipping rule not found.' }, { status: 404 });
+    if (!shippingRule) return NextResponse.json({ error: 'Fraktregeln finns inte.' }, { status: 404 });
     await record(auth.user, 'shipping.updated', String(id), { name: shippingRule.name });
     return NextResponse.json({ shippingRule });
   } catch (error) {

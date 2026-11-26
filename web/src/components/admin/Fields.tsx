@@ -147,6 +147,7 @@ export function Select({
   label,
   name,
   options,
+  labels,
   defaultValue,
   blankLabel = '—',
   required,
@@ -156,6 +157,8 @@ export function Select({
   label: string;
   name: string;
   options: readonly string[];
+  /** Det som visas för varje värde, när värdet är en databasnyckel (§15.4). */
+  labels?: Record<string, string>;
   defaultValue?: string | null;
   blankLabel?: string;
   required?: boolean;
@@ -182,7 +185,7 @@ export function Select({
         {!required && <option value="">{blankLabel}</option>}
         {options.map(option => (
           <option key={option} value={option}>
-            {option}
+            {labels?.[option] ?? option}
           </option>
         ))}
       </select>

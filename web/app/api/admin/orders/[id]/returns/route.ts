@@ -8,7 +8,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
   const orderId = routeId((await params).id);
-  if (orderId === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
+  if (orderId === null) return NextResponse.json({ error: 'Ogiltigt id.' }, { status: 400 });
   const parsed = await readJson(request);
   if ('response' in parsed) return parsed.response;
   const body = parsed.body;
@@ -28,6 +28,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Return failed.' }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Returen kunde inte registreras.' }, { status: 400 });
   }
 }

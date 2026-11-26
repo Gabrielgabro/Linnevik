@@ -1163,7 +1163,7 @@ export default function VariantPricing({
         const response = await fetch(`/api/admin/variants/${v.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ priceMinor: Math.round(priceOf(v) * 100) }),
+          body: JSON.stringify({ priceMinor: Math.round(priceOf(v) * 100), priceSource: 'Prisbild' }),
         });
         if (!response.ok) {
           const body = await response.json().catch(() => ({}));
@@ -1197,7 +1197,7 @@ export default function VariantPricing({
       const response = await fetch(`/api/admin/variants/${variant.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceMinor: Math.round(priceSek * 100) }),
+        body: JSON.stringify({ priceMinor: Math.round(priceSek * 100), priceSource: 'Prisbild' }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));

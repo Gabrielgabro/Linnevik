@@ -15,18 +15,18 @@ export async function GET(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
   const id = routeId((await params).id);
-  if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
+  if (id === null) return NextResponse.json({ error: 'Ogiltigt id.' }, { status: 400 });
   const sampleRequest = await getSampleRequestById(id);
   return sampleRequest
     ? NextResponse.json({ request: sampleRequest })
-    : NextResponse.json({ error: 'Sample request not found.' }, { status: 404 });
+    : NextResponse.json({ error: 'Provbeställningen finns inte.' }, { status: 404 });
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
   const id = routeId((await params).id);
-  if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
+  if (id === null) return NextResponse.json({ error: 'Ogiltigt id.' }, { status: 400 });
 
   const parsed = await readJson(request);
   if ('response' in parsed) return parsed.response;

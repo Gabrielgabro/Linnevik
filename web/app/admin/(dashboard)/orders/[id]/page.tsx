@@ -9,6 +9,7 @@ import { invoicesForOrder } from '@/lib/invoicesDb';
 import { Tag } from '@/components/admin/ui';
 import { getOrderById } from '@/lib/ordersDb';
 import { formatMinor } from '@/lib/money';
+import { fulfillmentStatusLabel, orderEventLabel, orderStatusLabel, paymentStatusLabel } from '@/lib/adminLabels';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +46,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
     <>
       <header className="border-t-2 pt-5" style={{ borderColor: 'var(--viz-ink)' }}>
         <p className="flex items-center gap-2 font-mono text-xs uppercase" style={{ color: 'var(--viz-ink-3)' }}>
-          <span>Order #{order.id} · {order.paymentStatus} · {order.fulfillmentStatus}</span>
+          <span>Order #{order.id} · {paymentStatusLabel(order.paymentStatus)} · {fulfillmentStatusLabel(order.fulfillmentStatus)} · {orderStatusLabel(order.status)}</span>
           {order.testMode && <Tag color="var(--adm-warn)">TEST</Tag>}
         </p>
         <h1 className="mt-2 font-heading text-4xl">{order.customerName ?? order.email ?? 'Okänd kund'}</h1>
@@ -140,7 +141,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       })()}
       <OrderActions order={order} />
       <Comments subject="order" subjectId={order.id} comments={comments} />
-      <section><h2 className="mb-3 font-heading text-xl">Historik</h2><ul className="grid gap-2 text-sm">{order.events.map(event => <li key={event.id}>{event.createdAt.toLocaleString('sv-SE')} · {event.kind} · {event.actor}</li>)}</ul></section>
+      <section><h2 className="mb-3 font-heading text-xl">Historik</h2><ul className="grid gap-2 text-sm">{order.events.map(event => <li key={event.id}>{event.createdAt.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' })} · {orderEventLabel(event.kind)} · {event.actor}</li>)}</ul></section>
     </>
   );
 }

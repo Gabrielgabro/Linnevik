@@ -4,6 +4,7 @@ import {
   Building2,
   Download,
   FolderTree,
+  LayoutDashboard,
   LineChart,
   Package,
   PackageOpen,
@@ -32,24 +33,27 @@ export type NavGroup = {
   items: NavItem[];
 };
 
+/**
+ * Varje sak har ett hem i admin, och bara ett (source_of_truth §15.3).
+ */
 export const NAV: NavGroup[] = [
   {
-    // Mängdrabatten hör ihop med prisbilden, inte med försäljningen: båda är
-    // underlag för att bestämma pris, inte något som körs i den dagliga driften.
     items: [
+      // Det som väntar på någon: ordrar att skicka, lagerundantag, förfallna
+      // fakturor, nya provbeställningar och öppna driftlarm.
+      { href: '/admin', label: 'Översikt', icon: LayoutDashboard, accent: 'var(--adm-brand)' },
+    ],
+  },
+  {
+    label: 'Försäljning',
+    items: [
+      { href: '/admin/orders', label: 'Ordrar', icon: ShoppingCart, accent: 'var(--viz-s2)' },
       {
-        href: '/admin',
-        label: 'Prisbild - egna produkter',
-        icon: LineChart,
-        accent: 'var(--adm-info)',
+        href: '/admin/prover',
+        label: 'Provbeställningar',
+        icon: PackageOpen,
+        accent: 'var(--viz-s3)',
       },
-      {
-        href: '/admin/franzen',
-        label: 'Prisbild - Franzén',
-        icon: LineChart,
-        accent: 'var(--viz-s2)',
-      },
-      { href: '/admin/pricing', label: 'Mängdrabatt', icon: Percent, accent: 'var(--viz-s1)' },
     ],
   },
   {
@@ -65,36 +69,42 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    label: 'Försäljning',
+    // Underlaget för att bestämma pris. Ett föreslaget pris kan tillämpas
+    // härifrån (§4.15); annars ändras priset på produkten.
+    label: 'Priser',
     items: [
-      { href: '/admin/orders', label: 'Ordrar', icon: ShoppingCart, accent: 'var(--viz-s2)' },
       {
-        href: '/admin/prover',
-        label: 'Provbeställningar',
-        icon: PackageOpen,
-        accent: 'var(--viz-s3)',
+        href: '/admin/priser',
+        label: 'Egna produkter',
+        icon: LineChart,
+        accent: 'var(--adm-info)',
       },
-      { href: '/admin/commerce', label: 'Handel', icon: Settings2, accent: 'var(--adm-warn)' },
-      { href: '/admin/export', label: 'Export', icon: Download, accent: 'var(--viz-s4)' },
+      { href: '/admin/franzen', label: 'Franzén', icon: LineChart, accent: 'var(--viz-s2)' },
+      { href: '/admin/pricing', label: 'Mängdrabatt', icon: Percent, accent: 'var(--viz-s1)' },
+      {
+        href: '/admin/commerce',
+        label: 'Rabattkoder och frakt',
+        icon: Settings2,
+        accent: 'var(--adm-warn)',
+      },
     ],
   },
   {
-    label: 'Publik',
-    items: [
-      // Besökssidan står för sig: den räknar folk som ännu inte är kunder, och
-      // hör därför inte hemma bland ordrarna eller i kundregistret.
-      { href: '/admin/analytics', label: 'Besökare', icon: Users2, accent: 'var(--viz-s3)' },
-    ],
-  },
-  {
-    label: 'Kundregister',
+    label: 'Kunder',
     items: [
       // Ett enda register (§11.4). Tvätterikunderna är ett filter där, och
       // webbkontona hör till företagen.
       { href: '/admin/clients', label: 'Företag', icon: Building2, accent: 'var(--viz-s1)' },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      // Besökssidan räknar folk som ännu inte är kunder.
+      { href: '/admin/analytics', label: 'Besökare', icon: Users2, accent: 'var(--viz-s3)' },
+      { href: '/admin/export', label: 'Export', icon: Download, accent: 'var(--viz-s4)' },
       { href: '/admin/activity', label: 'Aktivitet', icon: Activity, accent: 'var(--viz-ink-3)' },
-      // Sist i menyn men först i uppmärksamhet när siffran på den är röd:
-      // driftlarmen är det enda i /admin som betyder "titta nu".
+      // Driftlarmen är det enda i /admin som betyder "titta nu".
       { href: '/admin/alerts', label: 'Driftlarm', icon: BellRing, accent: 'var(--adm-danger)' },
     ],
   },

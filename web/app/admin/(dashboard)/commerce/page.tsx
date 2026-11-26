@@ -10,7 +10,7 @@ export default async function CommercePage() {
     <>
       <PageHeader
         kicker={`${discounts.length} rabattkoder · ${shippingRules.length} fraktregler`}
-        title="Handelsregler"
+        title="Rabattkoder och frakt"
         accent={accentFor('/admin/commerce')}
         description="Rabattkoder och fraktregler som prissätts och fryses i den egna ordern innan
           Stripe Checkout öppnas."

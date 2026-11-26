@@ -10,11 +10,11 @@ export async function GET(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
   const id = routeId((await params).id);
-  if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
+  if (id === null) return NextResponse.json({ error: 'Ogiltigt id.' }, { status: 400 });
   const order = await getOrderById(id);
   return order
     ? NextResponse.json({ order })
-    : NextResponse.json({ error: 'Order not found.' }, { status: 404 });
+    : NextResponse.json({ error: 'Ordern finns inte.' }, { status: 404 });
 }
 
 /**

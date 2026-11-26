@@ -9,13 +9,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
   const orderId = routeId((await params).id);
-  if (orderId === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
+  if (orderId === null) return NextResponse.json({ error: 'Ogiltigt id.' }, { status: 400 });
   const parsed = await readJson(request);
   if ('response' in parsed) return parsed.response;
   const body = parsed.body;
   const status = String(body.status ?? 'shipped');
   if (!['shipped', 'delivered'].includes(status)) {
-    return NextResponse.json({ error: 'Invalid fulfillment status.' }, { status: 400 });
+    return NextResponse.json({ error: 'Ogiltig leveransstatus.' }, { status: 400 });
   }
   if (!Array.isArray(body.items)) {
     return NextResponse.json({ error: 'items must be an array.' }, { status: 400 });
@@ -40,6 +40,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     const emailed = await sendShipmentNotice(orderId, fulfillmentId);
     return NextResponse.json({ fulfillmentId, emailed }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Fulfillment failed.' }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Leveransen kunde inte registreras.' }, { status: 400 });
   }
 }

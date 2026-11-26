@@ -39,7 +39,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } catch (error) {
     console.error('[admin] registerBankPayment failed:', error);
     return NextResponse.json(
-      { error: 'Betalningen kunde inte registreras. Kontrollera ordern och fakturan i Stripe innan du försöker igen.' },
+      { error: 'Betalningen kunde inte registreras. Kontrollera ordern och fakturan innan du försöker igen.' },
       { status: 502 }
     );
   }

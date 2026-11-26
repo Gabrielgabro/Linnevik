@@ -39,6 +39,7 @@ export type AdminAction =
   | 'product.image_removed'
   | 'variant.created'
   | 'variant.updated'
+  | 'variant.price_changed'
   | 'variant.deleted'
   | 'collection.created'
   | 'collection.updated'
@@ -83,6 +84,7 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'product.image_removed': 'Tog bort produktbild',
   'variant.created': 'La till variant',
   'variant.updated': 'Ändrade variant',
+  'variant.price_changed': 'Ändrade listpris',
   'variant.deleted': 'Tog bort variant',
   'collection.created': 'La till kategori',
   'collection.updated': 'Ändrade kategori',
@@ -130,6 +132,7 @@ const STOREFRONT_ACTIONS: ReadonlySet<AdminAction> = new Set<AdminAction>([
   'product.image_removed',
   'variant.created',
   'variant.updated',
+  'variant.price_changed',
   'variant.deleted',
   'collection.created',
   'collection.updated',
@@ -170,4 +173,30 @@ export async function list(limit = 200): Promise<AdminActivityRow[]> {
     .from(adminActivity)
     .orderBy(desc(adminActivity.createdAt), desc(adminActivity.id))
     .limit(limit);
+}
+
+/**
+ * Sidorna ett listpris kan ändras från (§4.15): produkten, eller prisanalysen
+ * för egna produkter eller för Franzén. Alla skriver samma fält.
+ */
+export const PRICE_SOURCES = ['Produkt', 'Prisbild', 'Franzén'] as const;
+export type PriceSource = (typeof PRICE_SOURCES)[number];
+
+export function parsePriceSource(value: unknown): PriceSource {
+  return (PRICE_SOURCES as readonly unknown[]).includes(value) ? (value as PriceSource) : 'Produkt';
+}
+
+const kr = (minor: number) => (minor / 100).toFixed(2).replace('.', ',');
+
+/** En ändring av listpriset: vem, när, gammalt och nytt pris och från vilken sida. */
+export async function recordPriceChange(
+  actor: string,
+  change: { variantId: number; sku: string; beforeMinor: number; afterMinor: number; source: PriceSource }
+): Promise<void> {
+  await record(actor, 'variant.price_changed', String(change.variantId), {
+    sku: change.sku,
+    före: kr(change.beforeMinor),
+    efter: kr(change.afterMinor),
+    sida: change.source,
+  });
 }
