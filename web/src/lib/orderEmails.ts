@@ -18,6 +18,7 @@ import { invoicePdf } from '@/lib/invoicesDb';
 import { invoicePaymentDetailsOrNull } from '@/lib/invoicePayment';
 import { sendEmail, mailConfigured } from '@/lib/mailer';
 import {
+  creditNoteEmail,
   invoiceCreatedEmail,
   invoiceReminderEmail,
   orderConfirmationEmail,
@@ -45,7 +46,7 @@ async function record(
 
 async function deliver(
   orderId: number,
-  template: 'order.confirmation' | 'order.shipped' | 'order.invoice' | 'order.invoice_reminder',
+  template: 'order.confirmation' | 'order.shipped' | 'order.invoice' | 'order.invoice_reminder' | 'order.credit_note',
   to: string,
   message: { subject: string; html: string },
   attachments?: Array<{ filename: string; content: Uint8Array; contentType: string }>
@@ -64,6 +65,7 @@ async function deliver(
     'order.shipped': `Leveransaviseringen för order ${orderId} gick inte fram`,
     'order.invoice': `Fakturamejlet för order ${orderId} gick inte fram`,
     'order.invoice_reminder': `Betalningspåminnelsen för order ${orderId} gick inte fram`,
+    'order.credit_note': `Kreditfakturan för order ${orderId} gick inte fram`,
   };
   await raiseAlert({
     kind: 'email.failed',
@@ -149,7 +151,8 @@ export async function sendInvoiceEmail(
   options: { reminder?: boolean; force?: boolean } = {}
 ): Promise<boolean> {
   if (!mailConfigured()) return false;
-  const template = options.reminder ? 'order.invoice_reminder' : 'order.invoice';
+  const credit = invoice.kind === 'credit';
+  const template = credit ? 'order.credit_note' : options.reminder ? 'order.invoice_reminder' : 'order.invoice';
   try {
     const order = await getOrderById(invoice.orderId);
     const recipient = invoiceRecipient(invoice);
@@ -173,12 +176,28 @@ export async function sendInvoiceEmail(
       items: order.items,
     };
     const details = invoiceEmailDetails(invoice);
-    const message = options.reminder
-      ? invoiceReminderEmail(emailOrder, { ...details, amountDueMinor: invoice.totalMinor })
-      : invoiceCreatedEmail(emailOrder, details);
+    let message: { subject: string; html: string };
+    if (credit) {
+      const [credited] = await getDb()
+        .select({ number: invoices.number })
+        .from(invoices)
+        .where(eq(invoices.id, invoice.creditsInvoiceId!));
+      message = creditNoteEmail({
+        orderId: order.id,
+        customerName: emailOrder.customerName,
+        number: invoice.number,
+        creditsNumber: credited?.number ?? 0,
+        totalMinor: invoice.totalMinor,
+        currency: invoice.currency,
+      });
+    } else {
+      message = options.reminder
+        ? invoiceReminderEmail(emailOrder, { ...details, amountDueMinor: invoice.totalMinor })
+        : invoiceCreatedEmail(emailOrder, details);
+    }
     const pdf = await invoicePdf(invoice);
     const sent = await deliver(order.id, template, recipient, message, [
-      { filename: `faktura-${invoice.number}.pdf`, content: pdf, contentType: 'application/pdf' },
+      { filename: `${credit ? 'kreditfaktura' : 'faktura'}-${invoice.number}.pdf`, content: pdf, contentType: 'application/pdf' },
     ]);
     if (sent && !options.reminder) {
       await getDb()

@@ -288,3 +288,81 @@ export async function voidInvoiceForOrder(orderId: number, actor: string): Promi
     .returning({ id: invoices.id });
   return rows.length > 0;
 }
+
+/**
+ * Kreditfakturan för en återbetalning av en fakturaorder (§8.11, §9.8).
+ *
+ * Den hänvisar till fakturan den krediterar och får nästa nummer i samma
+ * serie (§9.5). En hel återbetalning krediterar fakturans alla rader. En
+ * delåterbetalning blir en rad med beloppet, och momsen räknas i samma
+ * proportion som återbetalningen (`refundVatMinor`). Samma återbetalning ger
+ * aldrig två kreditfakturor (unikt `refund_id`).
+ */
+export async function issueCreditNote(input: {
+  refundId: number;
+  amountMinor: number;
+  taxMinor: number;
+  actor: string;
+}): Promise<InvoiceRow> {
+  const db = getDb();
+  const [existing] = await db.select().from(invoices).where(eq(invoices.refundId, input.refundId));
+  if (existing) return existing;
+
+  const [refund] = await db.execute(sql`select order_id from refunds where id = ${input.refundId}`).then(r => r.rows as Array<{ order_id: number }>);
+  if (!refund) throw new InvoiceError('Återbetalningen finns inte.', 404);
+  const orderId = Number(refund.order_id);
+  const credited = await currentInvoiceForOrder(orderId);
+  if (!credited) throw new InvoiceError('Ordern har ingen gällande faktura att kreditera.');
+  if (input.amountMinor < 1 || input.amountMinor > credited.totalMinor) {
+    throw new InvoiceError('Beloppet ryms inte i fakturan.', 400);
+  }
+
+  const full = input.amountMinor === credited.totalMinor;
+  const netMinor = input.amountMinor - input.taxMinor;
+  const lines: InvoiceLineSnapshot[] = full
+    ? credited.lines
+    : [{ title: `Kreditering av faktura ${credited.number}`, sku: null, quantity: 1, unitAmountMinor: netMinor, amountMinor: netMinor }];
+  const amounts = full
+    ? {
+        goods: credited.goodsMinor,
+        discount: credited.discountMinor,
+        shipping: credited.shippingMinor,
+        net: credited.netMinor,
+        tax: credited.taxMinor,
+        total: credited.totalMinor,
+      }
+    : { goods: netMinor, discount: 0, shipping: 0, net: netMinor, tax: input.taxMinor, total: input.amountMinor };
+
+  let result;
+  try {
+    result = await db.execute(sql`
+      with next as (
+        update invoice_numbers set last_number = last_number + 1 where id returning last_number
+      )
+      insert into invoices (
+        number, kind, order_id, credits_invoice_id, refund_id, currency, seller, buyer, lines,
+        goods_minor, discount_minor, shipping_minor, net_minor, vat_bps, tax_minor, total_minor, created_by
+      )
+      select next.last_number, 'credit', ${orderId}, ${credited.id}, ${input.refundId}, ${credited.currency},
+        ${JSON.stringify(credited.seller)}::jsonb, ${JSON.stringify(credited.buyer)}::jsonb, ${JSON.stringify(lines)}::jsonb,
+        ${amounts.goods}, ${amounts.discount}, ${amounts.shipping}, ${amounts.net}, ${credited.vatBps},
+        ${amounts.tax}, ${amounts.total}, ${input.actor}
+      from next
+      returning id
+    `);
+  } catch (error) {
+    if (!isUniqueViolation(error, 'invoices_refund_id_key')) throw error;
+    result = null;
+  }
+  const id = (result?.rows[0] as { id: number } | undefined)?.id;
+  const row = id
+    ? await invoiceById(Number(id))
+    : (await db.select().from(invoices).where(eq(invoices.refundId, input.refundId)))[0] ?? null;
+  if (!row) throw new InvoiceError('Kreditfakturan kunde inte skapas.', 500);
+  try {
+    await invoicePdf(row);
+  } catch (error) {
+    console.error(`[Invoice] Could not render the pdf for credit note ${row.number}:`, error);
+  }
+  return (await invoiceById(row.id))!;
+}

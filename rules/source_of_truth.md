@@ -777,13 +777,11 @@ A15 *Rättad.* §11.2, §11.3, §11.10.
 A16 §11.9. Ett inaktivt webbkonto kan logga in och betala med kort. Bara
     fakturaköp stoppas.
 
-A17 §9. **Fakturorna görs i Stripe.** Stripe ger numret, gör pdf:en, mejlar
+A17 *Rättad.* §9. **Fakturorna görs i Stripe.** Stripe ger numret, gör pdf:en, mejlar
     den och erbjuder kortbetalning på fakturans sida. Kreditfakturor görs
     i Stripe, och de som görs för hand där kommer aldrig in hos oss. Allt
     det ersätts av egna pdf:er med egen nummerserie, och Stripe används
-    bara för kort. Fakturorna, bankbetalningen, makuleringen och
-    påminnelserna är flyttade. Kvar: kreditfakturorna (§9.8) och exporten
-    (§16.3).
+    bara för kort.
 
 A18 §16.2. Exporten tar ordrar efter skapad dag, inte betalningsdag, och
     räknar i UTC (`bookkeepingExport.ts:57`).

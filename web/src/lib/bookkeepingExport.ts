@@ -61,7 +61,9 @@ export async function ordersCsv(period: ExportPeriod): Promise<string> {
            o.subtotal_minor, o.discount_minor, o.shipping_minor,
            o.tax_minor, o.total_minor, o.refunded_minor, o.currency,
            o.vat_mode, o.vat_bps, o.stripe_payment_intent_id,
-           o.billing_address ->> 'country' as billing_country
+           o.billing_address ->> 'country' as billing_country,
+           (select i.number from invoices i
+             where i.order_id = o.id and i.kind = 'invoice' and i.voided_at is null) as invoice_number
       from orders o
      where not o.test_mode
        and o.payment_status in ('paid', 'partially_refunded', 'refunded')
@@ -88,6 +90,7 @@ export async function ordersCsv(period: ExportPeriod): Promise<string> {
     'momslage',
     'momssats_procent',
     'stripe_betalning',
+    'fakturanr',
   ]);
 
   const rows = (result.rows as Array<Record<string, unknown>>).map(row =>
@@ -112,19 +115,25 @@ export async function ordersCsv(period: ExportPeriod): Promise<string> {
         ? ''
         : (Number(row.vat_bps) / 100).toFixed(2).replace('.', ','),
       row.stripe_payment_intent_id,
+      row.invoice_number,
     ])
   );
 
   return [header, ...rows].join('\r\n');
 }
 
-/** En rad per återbetalning i perioden, med sin egen momsdel. */
+/**
+ * En rad per återbetalning i perioden, med sin egen momsdel. En
+ * återbetalning av en fakturaorder har en kreditfaktura (§9.8, §16.3).
+ */
 export async function refundsCsv(period: ExportPeriod): Promise<string> {
   const result = await getDb().execute(sql`
     select r.id, r.created_at, r.order_id, r.amount_minor, r.tax_minor,
-           r.currency, r.reason, r.status, r.actor, r.stripe_refund_id
+           r.currency, r.reason, r.status, r.actor, r.stripe_refund_id,
+           i.number as credit_note_number
       from refunds r
       join orders o on o.id = r.order_id
+      left join invoices i on i.refund_id = r.id and i.kind = 'credit'
      where not o.test_mode
        and r.status in ('pending', 'succeeded')
        and r.created_at >= ${period.from}::date
@@ -143,6 +152,7 @@ export async function refundsCsv(period: ExportPeriod): Promise<string> {
     'status',
     'gjord_av',
     'stripe_refund',
+    'kreditfakturanr',
   ]);
 
   const rows = (result.rows as Array<Record<string, unknown>>).map(row =>
@@ -157,6 +167,7 @@ export async function refundsCsv(period: ExportPeriod): Promise<string> {
       row.status,
       row.actor,
       row.stripe_refund_id,
+      row.credit_note_number,
     ])
   );
 

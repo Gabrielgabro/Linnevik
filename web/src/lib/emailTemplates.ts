@@ -374,3 +374,33 @@ export function magicLinkEmail(url: string): { subject: string; html: string } {
     }),
   };
 }
+
+/**
+ * Kreditfakturan (§9.8). Ingen betalningsanvisning: pengarna går åt andra
+ * hållet, från oss till kunden.
+ */
+export function creditNoteEmail(input: {
+  orderId: number;
+  customerName: string | null;
+  number: number;
+  creditsNumber: number;
+  totalMinor: number;
+  currency: string;
+}): { subject: string; html: string } {
+  const greeting = input.customerName ? `Hej ${escapeHtml(input.customerName)},` : 'Hej,';
+  return {
+    subject: `Kreditfaktura ${input.number} · order #${input.orderId}`,
+    html: layout({
+      title: `Kreditfaktura för order #${input.orderId}`,
+      preheader: `${formatMinor(input.totalMinor, input.currency)} krediteras på faktura ${input.creditsNumber}.`,
+      body: `
+        <p style="margin:0 0 8px;">${greeting}</p>
+        <p style="margin:0 0 8px;color:${INK_2};">
+          Vi har krediterat <strong style="color:${INK};">${escapeHtml(formatMinor(input.totalMinor, input.currency))}</strong>
+          på faktura ${input.creditsNumber}. Beloppet betalas tillbaka till ert konto.
+        </p>
+        ${attachmentNote().replace('Fakturan', 'Kreditfakturan')}
+        ${referenceLine(input.orderId, String(input.number))}`,
+    }),
+  };
+}

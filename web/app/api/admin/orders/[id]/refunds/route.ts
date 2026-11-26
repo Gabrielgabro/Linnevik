@@ -3,29 +3,26 @@ import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
 import { claimRefundAmount, getOrderById, recordRefund, syncRefundedTotal } from '@/lib/ordersDb';
 import { getStripe, stripeConfigured } from '@/lib/stripe';
 import { refundVatMinor } from '@/lib/vat';
-import { ensureCreditNoteForRefund } from '@/lib/creditNotes';
+import { issueCreditNote } from '@/lib/invoicesDb';
+import { sendInvoiceEmail } from '@/lib/orderEmails';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
-  if (!stripeConfigured()) return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 });
   const id = routeId((await params).id);
   if (id === null) return NextResponse.json({ error: 'Invalid id.' }, { status: 400 });
   const order = await getOrderById(id);
   if (!order) return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
-  // En faktura betald via bankgiro har ingen betalning i Stripe att
-  // återbetala mot. Pengarna går tillbaka samma väg de kom: från bankkontot.
+  // En faktura betald via bankgiro har ingen betalning i Stripe. Pengarna går
+  // tillbaka samma väg de kom, från bankkontot, och admin registrerar det här.
+  // Kreditfakturan görs då automatiskt (§8.11, §9.8).
   if (!order.stripePaymentIntentId && order.paymentMethod === 'invoice'
     && ['paid', 'partially_refunded'].includes(order.paymentStatus)) {
-    return NextResponse.json(
-      {
-        error: 'Ordern betalades via bank, inte i Stripe. Betala tillbaka från bankkontot och kreditera fakturan i Stripe (Kreditnota → "Återbetalt utanför Stripe").',
-      },
-      { status: 409 }
-    );
+    return bankRefund(request, order, auth.user);
   }
+  if (!stripeConfigured()) return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 });
   if (!order.stripePaymentIntentId || order.paymentStatus === 'pending') {
     return NextResponse.json({ error: 'Order has no refundable payment.' }, { status: 409 });
   }
@@ -86,15 +83,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       note,
       actor: auth.user,
     });
-    // En faktura som återbetalas ska krediteras med en egen handling som
-    // hänvisar till den. Anropet sväljer sina fel med flit: pengarna är redan
-    // återbetalade, och ett fel här får inte få adminvyn att tro motsatsen.
-    const creditNoteId = await ensureCreditNoteForRefund({
-      stripeRefundId: stripeRefund.id,
-      status: stripeRefund.status ?? 'pending',
-      reason,
-    });
-    return NextResponse.json({ refund, creditNoteId }, { status: 201 });
+    return NextResponse.json({ refund }, { status: 201 });
   } catch (error) {
     // Stripe tog aldrig emot beloppet — släpp bokningen, annars ser ordern
     // för alltid ut att ha återbetalats mer än den har.
@@ -103,5 +92,63 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
     console.error('[Refund] Failed:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Refund failed.' }, { status: 502 });
+  }
+}
+
+/**
+ * En återbetalning av en fakturaorder som betalats via bank (§8.11). Admin
+ * har betalat tillbaka från bankkontot och registrerar det här. Beloppet
+ * bokas av på ordern först, så att två samtidiga registreringar aldrig
+ * återbetalar mer än det som betalades. Sedan görs kreditfakturan och mejlas.
+ */
+async function bankRefund(
+  request: NextRequest,
+  order: NonNullable<Awaited<ReturnType<typeof getOrderById>>>,
+  actor: string
+) {
+  const parsed = await readJson(request);
+  if ('response' in parsed) return parsed.response;
+  const body = parsed.body;
+  const amountMinor = Number(body.amountMinor);
+  const remaining = order.totalMinor - order.refundedMinor;
+  if (!Number.isInteger(amountMinor) || amountMinor < 1 || amountMinor > remaining) {
+    return NextResponse.json({ error: `Beloppet ska vara mellan 1 och ${remaining} öre.` }, { status: 400 });
+  }
+  const taxMinor = refundVatMinor({
+    refundMinor: amountMinor,
+    orderTaxMinor: order.taxMinor,
+    orderTotalMinor: order.totalMinor,
+  });
+  const note = body.note ? String(body.note).trim().slice(0, 2_000) : null;
+  const submittedKey = body.requestKey ? String(body.requestKey) : '';
+  const requestKey = /^[a-zA-Z0-9_-]{1,80}$/.test(submittedKey) ? submittedKey : crypto.randomUUID();
+  if (!(await claimRefundAmount(order.id, amountMinor))) {
+    return NextResponse.json(
+      { error: 'Beloppet överskrider vad som återstår att återbetala. Ladda om ordern.' },
+      { status: 409 }
+    );
+  }
+  try {
+    const refund = await recordRefund({
+      orderId: order.id,
+      // Ingen betalning i Stripe. Nyckeln gör ett omsänt anrop till samma rad.
+      stripeRefundId: `bank_${order.id}_${requestKey}`,
+      amountMinor,
+      taxMinor,
+      currency: order.currency,
+      reason: 'requested_by_customer',
+      status: 'succeeded',
+      note,
+      actor,
+    });
+    const creditNote = await issueCreditNote({ refundId: refund.id, amountMinor, taxMinor, actor });
+    await sendInvoiceEmail(creditNote);
+    return NextResponse.json({ refund, creditNoteNumber: creditNote.number }, { status: 201 });
+  } catch (error) {
+    await syncRefundedTotal(order.id).catch(releaseError => {
+      console.error('[Refund] Could not release the claimed amount:', releaseError);
+    });
+    console.error('[Refund] Bank refund failed:', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Återbetalningen misslyckades.' }, { status: 500 });
   }
 }
