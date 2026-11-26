@@ -159,8 +159,3 @@ export function parseManualInvoiceInput(body: unknown): ManualInvoiceInput {
   };
 }
 
-/** "Er referens" som på kassans fakturor: referens · Ert ordernr. */
-export function manualInvoiceReference(reference: string, purchaseOrder: string): string | null {
-  const parts = [reference, purchaseOrder ? `Ert ordernr ${purchaseOrder}` : ''].filter(Boolean);
-  return parts.length ? parts.join(' · ').slice(0, 140) : null;
-}

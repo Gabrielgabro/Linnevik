@@ -14,7 +14,6 @@ import { sendOrderConfirmation } from '@/lib/orderEmails';
 import { raiseAlert } from '@/lib/opsAlerts';
 import { claimStripeEvent, completeStripeEvent, releaseStripeEvent } from '@/lib/stripeWebhookDb';
 import { applyCheckoutSession, reconcileCheckoutSessionReference } from '@/lib/stripeCheckout';
-import { applyStripeInvoice, failStripeInvoice } from '@/lib/stripeInvoices';
 import { syncRefundsForCharge, syncStripeDispute, syncStripeRefund } from '@/lib/stripeRefunds';
 
 export const runtime = 'nodejs';
@@ -101,19 +100,8 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      // Stripe Invoicing is the pay-later checkout branch. A pending invoice
-      // never unlocks fulfilment; only invoice.paid takes the same paid path
-      // as a completed Checkout Session.
-      case 'invoice.paid': {
-        const result = await applyStripeInvoice(event.data.object);
-        if (result.newlyPaid) confirmationFor = event.data.object.id;
-        break;
-      }
-
-      case 'invoice.voided':
-      case 'invoice.marked_uncollectible':
-        await failStripeInvoice(event.data.object);
-        break;
+      // Fakturorna är våra egna sedan 0047 och syns aldrig i Stripe. En
+      // faktura är betald när admin har registrerat bankbetalningen (§17.1).
 
       default:
         break;

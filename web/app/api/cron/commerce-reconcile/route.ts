@@ -22,7 +22,7 @@ import { pruneRateLimits } from '@/lib/rateLimit';
 import { stripeConfigured } from '@/lib/stripe';
 import { checkStripeKey } from '@/lib/stripeHealth';
 import { reconcileRecentCheckoutSessions } from '@/lib/stripeCheckout';
-import { reconcileRecentStripeInvoices } from '@/lib/stripeInvoices';
+import { reconcileOpenInvoices } from '@/lib/invoiceOrders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,18 +37,18 @@ export async function GET(request: NextRequest) {
   if (!authorized(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
-  if (!stripeConfigured()) {
-    return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 });
-  }
+  // Fakturorna är våra egna och följs upp utan Stripe (§9.7).
+  const invoiceResult = await reconcileOpenInvoices();
 
-  // Nyckeln först. En utgången nyckel larmar här, en gång per natt, i stället
-  // för att märkas först när en kund försöker betala.
-  const stripeKey = await checkStripeKey({ fresh: true });
-  if (!stripeKey.ok && stripeKey.reason !== 'unreachable') {
-    return NextResponse.json({ error: stripeKey.message }, { status: 503 });
+  // Kortbetalningarna stäms av mot Stripe. Nyckeln först: en utgången nyckel
+  // larmar här, en gång per natt, i stället för när en kund försöker betala.
+  const stripeKey = stripeConfigured() ? await checkStripeKey({ fresh: true }) : null;
+  if (!stripeKey || (!stripeKey.ok && stripeKey.reason !== 'unreachable')) {
+    return NextResponse.json(
+      { error: stripeKey?.ok === false ? stripeKey.message : 'Stripe is not configured.', invoices: invoiceResult },
+      { status: 503 }
+    );
   }
-
-  const invoiceResult = await reconcileRecentStripeInvoices();
   const result = await reconcileRecentCheckoutSessions();
 
   // Lagerkollen åker med samma körning. Den hör inte ihop med avstämningen,

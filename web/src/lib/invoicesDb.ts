@@ -26,6 +26,17 @@ import { normalizeCompanyRegistrationNumber, swedishOrganizationNumber } from '@
 import { vatBps as currentVatBps } from '@/lib/vat';
 import { isUniqueViolation } from '@/lib/adminRoute';
 
+/** Betalningsvillkoret på sajten (köpvillkoren §4) och förvalet i admin. */
+export const INVOICE_DUE_DAYS = 30;
+
+/** Mottagaren som kassan och admin validerat (`resolveCompanyProfile`). */
+export type InvoiceProfile = {
+  email: string;
+  organizationNumber: string;
+  companyName: string;
+  address: { line1: string; line2?: string | null; postal_code: string; city: string; country?: string | null };
+};
+
 export class InvoiceError extends Error {
   constructor(
     message: string,

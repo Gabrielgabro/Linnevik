@@ -309,6 +309,21 @@ export default function AccountClient({
                                                     {t.account.orderNumber.replace('{number}', order.number.toString())}
                                                 </h3>
                                                 <p className="text-sm text-secondary">{orderDate}</p>
+                                                {order.invoices.length > 0 && (
+                                                    <p className="text-sm">
+                                                        {order.invoices.map(invoice => (
+                                                            <a
+                                                                key={invoice.number}
+                                                                href={`/api/account/invoices/${invoice.number}`}
+                                                                className="mr-3 text-[#0B3D2E] underline dark:text-[#379E7D]"
+                                                            >
+                                                                {(invoice.kind === 'credit' ? t.account.creditNoteLink : t.account.invoiceLink)
+                                                                    .replace('{number}', String(invoice.number))}
+                                                                {invoice.voided ? ` (${t.account.invoiceVoided})` : ''}
+                                                            </a>
+                                                        ))}
+                                                    </p>
+                                                )}
                                                 <div className="flex gap-2 mt-2">
                                                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${status.color}`}>
                                                         {orderStatusLabel(order.customerStatus)}

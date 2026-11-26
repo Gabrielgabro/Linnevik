@@ -152,7 +152,7 @@ describe('one set of rules for the whole invoice identity', () => {
   const account = readFileSync(resolve('app/[locale]/account/actions.ts'), 'utf8');
   const invoice =
     readFileSync(resolve('app/api/invoice/route.ts'), 'utf8') +
-    readFileSync(resolve('src/lib/invoiceIssue.ts'), 'utf8');
+    readFileSync(resolve('src/lib/invoicesDb.ts'), 'utf8');
   const register = readFileSync(resolve('app/[locale]/login/actions.ts'), 'utf8');
   const operations = readFileSync(resolve('src/lib/commerceOperations.ts'), 'utf8');
 
@@ -183,8 +183,4 @@ describe('one set of rules for the whole invoice identity', () => {
     expect(operations).toContain('if (!client.orgNumber && columns.orgNumber)');
   });
 
-  it('registers the VAT number with Stripe as a tax id, not only as a custom field', () => {
-    expect(invoice).toContain('customers.createTaxId');
-    expect(invoice).toContain('STRIPE_TAX_ID_TYPE');
-  });
 });

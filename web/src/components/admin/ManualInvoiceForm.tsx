@@ -155,15 +155,12 @@ export default function ManualInvoiceForm({
   variants,
   defaultDueDays,
   bankgiro,
-  stripe,
 }: {
   clients: InvoiceClientOption[];
   variants: InvoiceVariantOption[];
   defaultDueDays: number;
   /** Bankgirot som står på fakturan; null om det inte är inställt. */
   bankgiro: string | null;
-  /** Stripe-nyckelns läge när den fungerar; null när den inte gör det. */
-  stripe: 'live' | 'test' | null;
 }) {
   const router = useRouter();
 
@@ -319,7 +316,6 @@ export default function ManualInvoiceForm({
     : [];
 
   const blockers = [
-    !stripe && 'Stripe-nyckeln fungerar inte. Se larmet.',
     !bankgiro && 'Bankgirot är inte inställt (INVOICE_BANKGIRO).',
     !client && 'Välj en kund.',
     missingRecipient.length > 0 && `Fyll i ${missingRecipient.join(', ')}.`,
@@ -670,10 +666,9 @@ export default function ManualInvoiceForm({
           meta={
             quoting
               ? 'Räknar…'
-              : [
-                  stripe === 'live' ? 'Stripe live' : stripe === 'test' ? 'Stripe TESTLÄGE' : 'Stripe ur funktion',
-                  bankgiro ? `Bankgiro ${bankgiro}` : null,
-                ].filter(Boolean).join(' · ')
+              : bankgiro
+                ? `Bankgiro ${bankgiro}`
+                : undefined
           }
         >
           {quote ? (

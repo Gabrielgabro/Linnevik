@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import OrderActions from '@/components/admin/OrderActions';
 import InvoicePaymentPanel, { type InvoiceSummary } from '@/components/admin/InvoicePaymentPanel';
 import { invoicePaymentDetailsOrNull, ocrForOrder } from '@/lib/invoicePayment';
-import { getStripe, stripeConfigured } from '@/lib/stripe';
+import { invoicesForOrder } from '@/lib/invoicesDb';
 import { Tag } from '@/components/admin/ui';
 import { getOrderById } from '@/lib/ordersDb';
 import { formatMinor } from '@/lib/money';
@@ -13,32 +13,27 @@ export const dynamic = 'force-dynamic';
 const stockholmDay = (date: Date) =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm' }).format(date);
 
-/**
- * Fakturan som Stripe ser den: förfallodag, återstående belopp och status
- * finns bara där. Ett fel här får inte fälla orderkortet — rutan säger då
- * att uppgifterna inte gick att läsa.
- */
-async function invoiceSummary(reference: string): Promise<InvoiceSummary | null> {
-  if (!reference.startsWith('in_') || !stripeConfigured()) return null;
-  try {
-    const invoice = await getStripe().invoices.retrieve(reference);
-    return {
-      number: invoice.number ?? null,
-      status: invoice.status ?? null,
-      dueDate: invoice.due_date ? stockholmDay(new Date(invoice.due_date * 1000)) : null,
-      amountRemainingMinor: invoice.amount_remaining,
-      hostedUrl: invoice.hosted_invoice_url ?? null,
-    };
-  } catch (error) {
-    console.error('[admin] Could not read the Stripe invoice:', error);
-    return null;
-  }
+/** Orderns faktura som panelen visar den: den gällande, annars den senaste. */
+async function invoiceSummary(orderId: number, paid: boolean): Promise<InvoiceSummary | null> {
+  const all = await invoicesForOrder(orderId);
+  const invoice = all.filter(row => row.kind === 'invoice' && !row.voidedAt).at(-1)
+    ?? all.filter(row => row.kind === 'invoice').at(-1);
+  if (!invoice) return null;
+  return {
+    number: String(invoice.number),
+    status: invoice.voidedAt ? 'void' : paid ? 'paid' : 'open',
+    dueDate: invoice.dueOn,
+    amountRemainingMinor: paid || invoice.voidedAt ? 0 : invoice.totalMinor,
+    pdfUrl: `/api/admin/invoices/${invoice.number}/pdf`,
+  };
 }
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   const order = Number.isInteger(id) ? await getOrderById(id) : null;
   if (!order) notFound();
-  const invoice = order.paymentMethod === 'invoice' ? await invoiceSummary(order.stripeSessionId) : null;
+  const invoice = order.paymentMethod === 'invoice'
+    ? await invoiceSummary(order.id, ['paid', 'partially_refunded', 'refunded'].includes(order.paymentStatus))
+    : null;
   // Bara krediteringar som faktiskt gått igenom (eller är på väg) vänder moms.
   const refundedTaxMinor = order.refunds
     .filter(refund => refund.status === 'pending' || refund.status === 'succeeded')

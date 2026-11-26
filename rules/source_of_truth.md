@@ -751,7 +751,7 @@ A10 *Rättad.* §4.9. En procentkod drar av även på frakten hos Stripe, efters
 A11 §3.5. En helt återbetald order som inte har skickats behåller sin
     reservation.
 
-A12 §10.8. En manuell faktura skapar ett webbkonto för mottagarens e-post.
+A12 *Rättad.* §10.8. En manuell faktura skapar ett webbkonto för mottagarens e-post.
     Hör e-posten redan till ett webbkonto flyttas det kontot till
     fakturans företag (`commerceOperations.ts:354`).
 
@@ -781,12 +781,14 @@ A17 §9. **Fakturorna görs i Stripe.** Stripe ger numret, gör pdf:en, mejlar
     den och erbjuder kortbetalning på fakturans sida. Kreditfakturor görs
     i Stripe, och de som görs för hand där kommer aldrig in hos oss. Allt
     det ersätts av egna pdf:er med egen nummerserie, och Stripe används
-    bara för kort.
+    bara för kort. Fakturorna, bankbetalningen, makuleringen och
+    påminnelserna är flyttade. Kvar: kreditfakturorna (§9.8) och exporten
+    (§16.3).
 
 A18 §16.2. Exporten tar ordrar efter skapad dag, inte betalningsdag, och
     räknar i UTC (`bookkeepingExport.ts:57`).
 
-A19 §9.2. Villkorstexten säger alltid "30 dagar netto", även när
+A19 *Rättad.* §9.2. Villkorstexten säger alltid "30 dagar netto", även när
     förfallotiden är en annan (`invoiceIssue.ts:383`). Rättas i de egna
     pdf:erna (A17).
 

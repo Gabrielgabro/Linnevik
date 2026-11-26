@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
 import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
-import { stripeConfigured } from '@/lib/stripe';
-import { registerBankPayment } from '@/lib/stripeInvoices';
+import { registerBankPayment } from '@/lib/invoiceOrders';
 
 export const runtime = 'nodejs';
 
@@ -13,7 +12,6 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
-  if (!stripeConfigured()) return NextResponse.json({ error: 'Stripe är inte konfigurerat.' }, { status: 503 });
 
   const id = routeId((await params).id);
   if (id === null) return NextResponse.json({ error: 'Ogiltigt id.' }, { status: 400 });

@@ -11,7 +11,7 @@ import {
   paymentInstructions,
   validatePaidOn,
 } from '@/lib/invoicePayment';
-import { daysOverdue } from '@/lib/stripeInvoices';
+import { daysOverdue } from '@/lib/invoiceOrders';
 
 describe('Luhn (modulus 10)', () => {
   it('matches the standard test vector', () => {
@@ -108,12 +108,11 @@ describe('payment date', () => {
 });
 
 describe('days overdue', () => {
-  const due = Math.floor(Date.parse('2026-09-28T07:19:00Z') / 1000);
-  it('counts whole days after the due date', () => {
-    expect(daysOverdue(due, due - 10)).toBe(0);
-    expect(daysOverdue(due, due + 3600)).toBe(0);
-    expect(daysOverdue(due, due + 86400)).toBe(1);
-    expect(daysOverdue(due, due + 7 * 86400 + 5)).toBe(7);
-    expect(daysOverdue(null, due)).toBe(0);
+  it('counts whole days after the due date, in Swedish time', () => {
+    const at = (iso: string) => new Date(iso);
+    expect(daysOverdue('2026-09-28', at('2026-09-28T21:00:00Z'))).toBe(0);
+    expect(daysOverdue('2026-09-28', at('2026-09-28T22:30:00Z'))).toBe(1);
+    expect(daysOverdue('2026-09-28', at('2026-10-05T10:00:00Z'))).toBe(7);
+    expect(daysOverdue(null, at('2026-10-05T10:00:00Z'))).toBe(0);
   });
 });

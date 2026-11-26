@@ -3,23 +3,17 @@ import { ArrowLeft } from 'lucide-react';
 import ManualInvoiceForm from '@/components/admin/ManualInvoiceForm';
 import { Notice, PageHeader } from '@/components/admin/ui';
 import { accentFor } from '../../nav';
-import { INVOICE_DUE_DAYS } from '@/lib/invoiceIssue';
+import { INVOICE_DUE_DAYS } from '@/lib/invoicesDb';
 import { invoicePaymentDetailsOrNull } from '@/lib/invoicePayment';
 import { listInvoiceClients, listInvoiceVariants } from '@/lib/manualInvoice';
 import { ownedCommerceEnabled } from '@/lib/commerceConfig';
-import { stripeConfigured } from '@/lib/stripe';
-import { checkStripeKey } from '@/lib/stripeHealth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewInvoicePage() {
-  const [clients, variants, stripeKey] = await Promise.all([
-    listInvoiceClients(),
-    listInvoiceVariants(),
-    checkStripeKey(),
-  ]);
+  const [clients, variants] = await Promise.all([listInvoiceClients(), listInvoiceVariants()]);
   const payment = invoicePaymentDetailsOrNull();
-  const ready = ownedCommerceEnabled() && stripeConfigured();
+  const ready = ownedCommerceEnabled();
 
   return (
     <>
@@ -32,20 +26,12 @@ export default async function NewInvoicePage() {
         }
         title="Ny faktura"
         accent={accentFor('/admin/orders')}
-        description="En faktura till en kund i registret. Blir en vanlig fakturaorder: lagret reserveras, fakturan skapas i Stripe med bankgiro och OCR, och betalningen registreras på orderkortet."
+        description="En faktura till ett företag i registret. Blir en vanlig fakturaorder: lagret reserveras, fakturan får nästa nummer i serien och mejlas som pdf med bankgiro och OCR, och betalningen registreras på ordern."
       />
 
-      {ready && !stripeKey.ok && (
-        <Notice tone="danger" title={stripeKey.message}>
-          {stripeKey.reason === 'unreachable'
-            ? 'Försök igen om en stund. Ingen faktura kan skapas medan Stripe inte svarar.'
-            : 'Skapa en ny hemlig nyckel i Stripe och sätt STRIPE_SECRET_KEY i Vercel (Production), deploya om. Larmet Stripe-nyckel har gått ut.'}
-        </Notice>
-      )}
-
       {!ready && (
-        <Notice tone="danger" title="Stripe eller den egna kassan är inte konfigurerad">
-          Fakturor kan inte skapas förrän STRIPE_SECRET_KEY och OWNED_COMMERCE_ENABLED är satta.
+        <Notice tone="danger" title="Den egna kassan är inte påslagen">
+          Fakturor kan inte skapas förrän OWNED_COMMERCE_ENABLED är satt.
         </Notice>
       )}
 
@@ -54,7 +40,6 @@ export default async function NewInvoicePage() {
         variants={variants}
         defaultDueDays={INVOICE_DUE_DAYS}
         bankgiro={payment?.bankgiro ?? (payment?.bankAccount ? 'bankkonto' : null)}
-        stripe={stripeKey.ok ? stripeKey.mode : null}
       />
     </>
   );

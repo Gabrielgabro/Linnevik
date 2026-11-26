@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ManualInvoiceInputError,
-  manualInvoiceReference,
   parseManualInvoiceInput,
   parseManualInvoiceLines,
   parseManualInvoiceShipping,
@@ -81,34 +80,8 @@ describe('parseManualInvoiceShipping', () => {
   });
 });
 
-describe('manualInvoiceReference', () => {
-  it('prints reference and purchase order the way checkout invoices do', () => {
-    expect(manualInvoiceReference('Anna Ek', 'PO-991')).toBe('Anna Ek · Ert ordernr PO-991');
-    expect(manualInvoiceReference('', '')).toBeNull();
-  });
-});
-
-describe('manual invoices go the same way as checkout invoices', () => {
-  const manual = readFileSync(resolve('src/lib/manualInvoice.ts'), 'utf8');
+describe('manual invoices', () => {
   const route = readFileSync(resolve('app/api/admin/invoices/route.ts'), 'utf8');
-
-  it('uses the shared Stripe invoice builder, so the invoice looks the same', () => {
-    expect(manual).toContain('createInvoiceDraft({');
-    expect(manual).toContain('finishInvoice({');
-    expect(manual).toContain('syncStripeInvoiceCustomer({');
-  });
-
-  it('is an invoice order with a strict stock reservation', () => {
-    expect(manual).toContain("paymentMethod: 'invoice'");
-    expect(manual).toContain("reserveOrderStockStrict(orderId, 'admin_invoice', dueAt)");
-    expect(manual.indexOf('invoicePaymentDetails()')).toBeLessThan(manual.indexOf('createPendingOrder('));
-  });
-
-  it('cleans up only when Stripe definitely did not create the invoice', () => {
-    expect(manual).toContain('if (stripeInvoiceId && !sent && !ambiguous)');
-    expect(manual).toContain('if (orderId && !sent && !ambiguous)');
-    expect(route).toContain('stripeFailureIsAmbiguous(error)');
-  });
 
   it('is admin-only', () => {
     expect(route).toContain('requireAdmin(request)');

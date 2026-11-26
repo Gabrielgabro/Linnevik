@@ -24,10 +24,11 @@ import { FALLBACK_PRICING_VERSION } from '@/lib/commerceConfig';
 import { currentPricingVersion } from '@/lib/pricingConfigDb';
 import { vatOn } from '@/lib/vat';
 import { upsertCustomerFromCheckout } from '@/lib/commerceOperations';
-import { getStripe, stripeConfigured, stripeTestMode } from '@/lib/stripe';
+import { stripeTestMode } from '@/lib/stripe';
 import { releaseOrderStock, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { amountDrifted } from '@/lib/orderChecks';
 import { raiseAlert } from '@/lib/opsAlerts';
+import { voidInvoiceForOrder } from '@/lib/invoicesDb';
 
 export type OrderWithItems = OrderRow & { items: OrderItemRow[] };
 
@@ -253,7 +254,10 @@ export async function attachSession(orderId: number, sessionId: string): Promise
  */
 export async function setPendingOrderCustomerDetails(input: {
   orderId: number;
-  customerId: number;
+  /** Webbkontot, när det finns ett. En manuell faktura har inget (§10.8). */
+  customerId: number | null;
+  /** Företaget ordern hör till (0047). */
+  clientId: number;
   email: string;
   customerName: string;
   shippingAddress: Record<string, string | null>;
@@ -264,6 +268,7 @@ export async function setPendingOrderCustomerDetails(input: {
     .update(orders)
     .set({
       customerId: input.customerId,
+      clientId: input.clientId,
       email: input.email,
       customerName: input.customerName,
       shippingAddress: input.shippingAddress,
@@ -325,6 +330,14 @@ export async function markOrderPaid(input: {
   taxMinor: number;
   totalMinor: number;
   currency: string;
+  /**
+   * Koppla köparen till ett webbkonto. Kortkassan gör det (§6.6). En
+   * registrerad bankbetalning gör det inte: en manuell faktura skapar aldrig
+   * något webbkonto (§10.8).
+   */
+  linkAccount?: boolean;
+  /** Vem som registrerade betalningen, för orderns historik. */
+  actor?: string;
 }): Promise<{ orderId: number; stockReady: boolean; newlyPaid: boolean }> {
   const [target] = await getDb()
     .select({
@@ -377,7 +390,7 @@ export async function markOrderPaid(input: {
   // older session created before that policy, this makes one strict recovery
   // attempt. It either reserves every tracked line or none.
   const stockReady = await reserveOrderStockStrict(target.id, 'stripe', null);
-  const customerId = input.email
+  const customerId = input.email && input.linkAccount !== false
     ? await upsertCustomerFromCheckout({
         email: input.email,
         stripeCustomerId: input.stripeCustomerId,
@@ -394,7 +407,8 @@ export async function markOrderPaid(input: {
       update orders set
         status = ${stockReady ? 'paid' : 'stock_exception'},
         payment_status = case when refunded_minor > 0 then payment_status else 'paid' end,
-        customer_id = ${customerId},
+        -- Utan kontokoppling behåller ordern den kund den redan har.
+        customer_id = coalesce(${customerId}, customer_id),
         stripe_payment_intent_id = ${input.paymentIntentId},
         email = ${input.email},
         customer_name = ${input.customerName},
@@ -422,7 +436,7 @@ export async function markOrderPaid(input: {
       on conflict (order_id) do nothing
     ), event as (
       insert into order_events (order_id, kind, actor, detail)
-      select id, 'payment.paid', 'stripe',
+      select id, 'payment.paid', ${input.actor ?? 'stripe'},
              -- Explicit ::text: jsonb_build_object tar "any", och Postgres kan
              -- inte härleda typen på en obunden parameter där. Utan casten
              -- faller hela satsen på "could not determine data type".
@@ -658,35 +672,22 @@ export async function updateOrderManagement(
   patch: { status?: string; notes?: string | null },
   actor: string
 ): Promise<OrderRow | null> {
-  // Cancelling an invoice order has to void the Stripe receivable too. Done
-  // before the local write so a Stripe failure aborts the cancel cleanly and
-  // never leaves a live invoice behind a cancelled order. The `invoice.voided`
-  // webhook that follows is idempotent against the writes below.
+  // En avbokad fakturaorder makulerar sin faktura (§8.8). Fakturan står kvar
+  // med sitt nummer (§9.5). Görs före avbokningen, så att en avbokad order
+  // aldrig har en gällande faktura.
   if (patch.status === 'cancelled') {
     const [existing] = await getDb()
-      .select({
-        paymentMethod: orders.paymentMethod,
-        stripeSessionId: orders.stripeSessionId,
-        status: orders.status,
-      })
+      .select({ status: orders.status, paymentStatus: orders.paymentStatus })
       .from(orders)
       .where(eq(orders.id, id))
       .limit(1);
-    if (
-      existing &&
-      existing.status !== 'cancelled' &&
-      existing.paymentMethod === 'invoice' &&
-      existing.stripeSessionId.startsWith('in_') &&
-      stripeConfigured()
-    ) {
-      const invoice = await getStripe().invoices.retrieve(existing.stripeSessionId);
-      if (invoice.status === 'draft' || invoice.status === 'open') {
-        await getStripe().invoices.voidInvoice(existing.stripeSessionId);
+    if (existing && existing.status !== 'cancelled' && existing.paymentStatus === 'pending') {
+      if (await voidInvoiceForOrder(id, actor)) {
         await getDb().insert(orderEvents).values({
           orderId: id,
           kind: 'order.updated',
           actor,
-          detail: { stripeInvoiceVoided: existing.stripeSessionId },
+          detail: { invoiceVoided: true },
         });
       }
     }

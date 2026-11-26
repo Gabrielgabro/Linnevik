@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const checkout = readFileSync(resolve('app/api/checkout/route.ts'), 'utf8');
 const invoice =
   readFileSync(resolve('app/api/invoice/route.ts'), 'utf8') +
-  readFileSync(resolve('src/lib/invoiceIssue.ts'), 'utf8');
+  readFileSync(resolve('src/lib/invoicesDb.ts'), 'utf8');
 const operations = readFileSync(resolve('src/lib/commerceOperations.ts'), 'utf8');
 const accountActions = readFileSync(resolve('app/[locale]/account/actions.ts'), 'utf8');
 
@@ -31,12 +31,6 @@ describe('an interrupted checkout can be finished', () => {
     expect(checkout).toContain('expires_at: checkoutExpiresAtSeconds');
     expect(checkout).toContain('orderStillMatchesQuote(resumed, quote)');
     expect(checkout).toContain("fail('CART_REPRICED'");
-  });
-
-  it('finishes an interrupted invoice instead of answering 409 for a day', () => {
-    expect(invoice).toContain("invoice.status === 'draft'");
-    expect(invoice).toContain('await finishInvoice({');
-    expect(invoice).toContain('linnevik_invoice_send_${input.orderId}');
   });
 });
 
@@ -70,7 +64,6 @@ describe('identity is verified rather than trusted', () => {
     expect(operations).toContain('export async function usableStripeCustomerId');
     expect(operations).toContain("(error as { code?: unknown }).code !== 'resource_missing'");
     expect(checkout).toContain('usableStripeCustomerId({');
-    expect(invoice).toContain('usableStripeCustomerId({');
   });
 
   it('refuses card checkout for a deactivated account, as invoicing does', () => {
