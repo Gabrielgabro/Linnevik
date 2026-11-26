@@ -355,8 +355,12 @@ export async function upsertCustomerFromCheckout(input: {
       client_id = excluded.client_id,
       stripe_customer_id = coalesce(excluded.stripe_customer_id, customers.stripe_customer_id),
       customer_no = excluded.customer_no,
-      first_name = coalesce(excluded.first_name, customers.first_name),
-      last_name = coalesce(excluded.last_name, customers.last_name),
+      -- Webbkontots namn är personens namn och skrivs aldrig över
+      -- (source_of_truth §7.3). Fakturavägarna skickar firmanamnet här; att
+      -- skriva över gjorde personen till "firman" och stoppade nästa
+      -- fakturaköp (§7.2). Ett tomt namn fylls i, ett befintligt står kvar.
+      first_name = coalesce(customers.first_name, excluded.first_name),
+      last_name = coalesce(customers.last_name, excluded.last_name),
       company = excluded.company,
       phone = coalesce(excluded.phone, customers.phone),
       default_shipping_address = coalesce(excluded.default_shipping_address, customers.default_shipping_address),

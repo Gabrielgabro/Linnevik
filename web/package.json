@@ -8,6 +8,7 @@
     "migrate": "node scripts/migrate.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:db": "vitest run --config vitest.db.config.mts",
     "start": "next start",
     "lint": "eslint .",
     "check:localization": "node scripts/check-localization.mjs",

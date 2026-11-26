@@ -10,6 +10,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Databastesterna kräver en Neon-gren och körs med `npm run test:db`.
+    exclude: ['tests/db/**', 'node_modules/**'],
     restoreMocks: true,
   },
 });
