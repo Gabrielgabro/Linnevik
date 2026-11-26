@@ -799,7 +799,7 @@ A21 *Rättad.* §3.8. En lagerförd variant med noll i lager visar en köpknapp 
 A22 *Rättad.* §5.4. Produktsidan räknar steg från noll, servern från minsta antalet.
     Beställningsvaror visar steg 10, som ingen regel i servern har.
 
-A23 §6.4. Sidan efter betalningen visar "väntar" för betalda ordrar som har
+A23 *Rättad.* §6.4. Sidan efter betalningen visar "väntar" för betalda ordrar som har
     lagerundantag eller tvist, och uppdaterar sig aldrig.
 
 A24 §15.3.

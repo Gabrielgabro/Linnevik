@@ -938,6 +938,11 @@
       "invoicePaymentHint": "Ange OCR-numret som referens när du betalar, så kopplas betalningen till rätt faktura. Uppgifterna står också på fakturan.",
       "pendingTitle": "Betalningen behandlas",
       "pendingBody": "Din betalning är inte bekräftad ännu. Sidan uppdateras när den gått igenom.",
+      "pendingSlow": "Det tar längre tid än vanligt. Du får en bekräftelse per e-post när betalningen har gått igenom.",
+      "failedTitle": "Betalningen gick inte igenom",
+      "failedBody": "Ordern är inte lagd. Du kan försöka igen från varukorgen eller kontakta oss.",
+      "cancelledTitle": "Ordern är avbokad",
+      "cancelledBody": "Kontakta oss om du har frågor om ordern.",
       "orderNumber": "Ordernummer",
       "vat": "Varav moms",
       "total": "Totalt"
