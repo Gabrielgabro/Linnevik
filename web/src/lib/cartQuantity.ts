@@ -49,3 +49,19 @@ export function quantityControls(line: QuantityRules): QuantityControls {
     ceiling,
   };
 }
+
+/**
+ * Det minsta antal servern godtar som är minst `quantity` (§5.3, §5.4).
+ * Stegen räknas från det minsta antalet, som i `assertOrderable`: med minst 10
+ * och steg 4 är 10, 14 och 18 giltiga, inte 12. Produktsidan räknade förr
+ * från noll och föreslog antal som servern sedan nekade (A22).
+ */
+export function snapQuantity(
+  quantity: number,
+  rules: { minimumOrderQuantity: number; orderIncrement: number }
+): number {
+  const step = Math.max(1, Math.floor(rules.orderIncrement) || 1);
+  const floor = Math.max(1, Math.floor(rules.minimumOrderQuantity) || 1);
+  const wanted = Number.isFinite(quantity) ? Math.max(floor, Math.ceil(quantity)) : floor;
+  return floor + Math.ceil((wanted - floor) / step) * step;
+}

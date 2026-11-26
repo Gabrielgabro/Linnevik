@@ -211,7 +211,9 @@ export const products = pgTable(
     stripeProductId: text('stripe_product_id'),
     status: text('status').notNull().default('active'),
     publishedAt: timestamp('published_at', { withTimezone: true }),
-    active: boolean('active').notNull().default(true),
+    // Räknas ur `status` av databasen (0045) och kan aldrig skrivas: den
+    // fanns för att varukorgen och fakturan läste den, och de två gled isär.
+    active: boolean('active').notNull().generatedAlwaysAs(sql`status = 'active'`),
     source: text('source').notNull().default('linnevik'),
     sourceSyncedAt: timestamp('source_synced_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

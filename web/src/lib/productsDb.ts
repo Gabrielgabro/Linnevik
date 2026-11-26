@@ -340,13 +340,12 @@ export type ProductInput = Partial<
     | 'leadTime'
     | 'status'
     | 'publishedAt'
-    | 'active'
   >
 >;
 
 export async function createProduct(input: ProductInput & { title: string }): Promise<ProductRow> {
   const handle = input.handle ? slugify(input.handle) : await availableHandle(input.title);
-  const status = input.status ?? (input.active === false ? 'draft' : 'active');
+  const status = input.status ?? 'active';
   const [row] = await getDb()
     .insert(products)
     .values({
@@ -354,7 +353,6 @@ export async function createProduct(input: ProductInput & { title: string }): Pr
       handle,
       title: input.title,
       status,
-      active: status === 'active',
       publishedAt: status === 'active' ? (input.publishedAt ?? new Date()) : null,
       source: 'linnevik',
     })
@@ -370,7 +368,6 @@ export async function updateProduct(id: number, patch: ProductInput): Promise<Pr
   const statusPatch = patch.status
     ? {
         status: patch.status,
-        active: patch.status === 'active',
         ...(patch.status === 'active' ? { publishedAt: patch.publishedAt ?? new Date() } : {}),
       }
     : {};
@@ -832,7 +829,6 @@ export async function duplicateProduct(id: number): Promise<ProductRow> {
       seoDescriptionEn: source.seoDescriptionEn,
       leadTime: source.leadTime,
       status: 'draft',
-      active: false,
       source: 'linnevik',
     })
     .returning();

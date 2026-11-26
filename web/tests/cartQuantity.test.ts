@@ -114,3 +114,32 @@ describe('cart quantity stepping', () => {
     }
   });
 });
+
+describe('snapQuantity', () => {
+  it('räknar stegen från det minsta antalet, som servern', async () => {
+    const { snapQuantity } = await import('@/lib/cartQuantity');
+    const rules = { minimumOrderQuantity: 10, orderIncrement: 4 };
+    expect(snapQuantity(10, rules)).toBe(10);
+    expect(snapQuantity(11, rules)).toBe(14);
+    expect(snapQuantity(12, rules)).toBe(14);
+    expect(snapQuantity(14, rules)).toBe(14);
+    expect(snapQuantity(3, rules)).toBe(10);
+    expect(snapQuantity(Number.NaN, rules)).toBe(10);
+  });
+
+  it('ger ett antal som assertOrderable godtar', async () => {
+    const { snapQuantity } = await import('@/lib/cartQuantity');
+    const { assertOrderable } = await import('@/lib/cartRules');
+    for (const [minimumOrderQuantity, orderIncrement] of [[1, 1], [10, 4], [5, 5], [7, 3], [50, 10]]) {
+      for (let wanted = 0; wanted <= 120; wanted += 1) {
+        const quantity = snapQuantity(wanted, { minimumOrderQuantity, orderIncrement });
+        expect(() =>
+          assertOrderable(
+            { active: true, availableForSale: true, inventoryTracked: false, inventoryQuantity: 0, minimumOrderQuantity, orderIncrement, sku: 'X' },
+            quantity
+          )
+        ).not.toThrow();
+      }
+    }
+  });
+});

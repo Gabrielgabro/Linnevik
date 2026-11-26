@@ -81,6 +81,7 @@
     "leadTime": "Lead time",
     "informationHeading": "Product information",
     "unavailable": "Not available to order",
+    "soldOut": "Sold out",
     "pricingTableTitle": "Volume pricing",
     "pricingTableFrom": "Quantity",
     "pricingTableUnits": "units",

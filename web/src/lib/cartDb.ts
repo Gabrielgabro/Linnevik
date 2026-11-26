@@ -8,6 +8,7 @@ import { currentPricingVersion } from '@/lib/pricingConfigDb';
 import { priceOrder } from '@/lib/pricingRules';
 import { landedCostMinorForSku } from '@/lib/landedCostLookup';
 import { vatOn, vatPercent } from '@/lib/vat';
+import { reopenCartFromCheckout } from '@/lib/checkoutAttempts';
 
 export class CartError extends Error {
   constructor(
@@ -186,8 +187,14 @@ export async function getOwnedCart(id: string): Promise<OwnedCart | null> {
 }
 
 async function requireEditableCart(id: string) {
-  const cart = await getOwnedCart(id);
+  let cart = await getOwnedCart(id);
   if (!cart) throw new CartError('Korgen finns inte.', 404);
+  // Kunden kom tillbaka från Stripe och ändrar korgen: betalsidan stängs och
+  // korgen öppnas igen (§5.5, checkoutAttempts.ts).
+  if (cart.status === 'checkout_started' && (await reopenCartFromCheckout(id, cart.version))) {
+    cart = await getOwnedCart(id);
+    if (!cart) throw new CartError('Korgen finns inte.', 404);
+  }
   if (cart.status !== 'active') throw new CartError('Korgen kan inte längre ändras.', 409);
   return cart;
 }

@@ -267,6 +267,46 @@ export async function resolveShipping(input: {
     : null;
 }
 
+/**
+ * Kortkassans rabatt: en engångskupong på exakt det belopp ordern räknade ut,
+ * begränsad till orderns produkter (source_of_truth §4.9, A10).
+ *
+ * Kodens egen kupong (`ensureStripeCoupon`) gällde hela sessionen. När frakten
+ * skickas som en vanlig rad drog en procentkod då även på frakten, och Stripe
+ * tog ett annat belopp än ordern visade. Fraktraden har ingen egen produkt i
+ * katalogen och hamnar därför utanför `applies_to`.
+ *
+ * Nyckeln är ordern och beloppet, så att ett återupptaget försök får samma
+ * kupong och Stripe kan spela upp sessionen med identiska parametrar.
+ */
+export async function createCheckoutCoupon(input: {
+  orderId: number;
+  discountId: number;
+  amountMinor: number;
+  currency: string;
+  productIds: string[];
+}): Promise<string> {
+  const productIds = [...new Set(input.productIds)];
+  if (productIds.length === 0 || productIds.length > 100) {
+    // Stripe tar högst 100 produkter i `applies_to`. En tom lista skulle ge
+    // rabatt på allt, frakten inräknad.
+    throw new Error(`Cannot limit the discount to ${productIds.length} products.`);
+  }
+  const coupon = await getStripe().coupons.create(
+    {
+      name: `Rabatt order #${input.orderId}`,
+      duration: 'once',
+      max_redemptions: 1,
+      amount_off: input.amountMinor,
+      currency: input.currency,
+      applies_to: { products: productIds },
+      metadata: { linnevik_discount_id: String(input.discountId), linnevik_order_id: String(input.orderId) },
+    },
+    { idempotencyKey: `linnevik_checkout_coupon_${input.orderId}_${input.amountMinor}` }
+  );
+  return coupon.id;
+}
+
 export async function ensureStripeCoupon(discount: AppliedDiscount): Promise<string | null> {
   if (discount.kind === 'free_shipping') return null;
   if (discount.stripeCouponId) {

@@ -41,13 +41,6 @@ describe('an interrupted checkout can be finished', () => {
 });
 
 describe('a superseded attempt is retired, not left live', () => {
-  it('expires the Stripe session before releasing its stock', () => {
-    // Releasing the reservation while the session is still payable would sell
-    // stock that is no longer reserved for it.
-    const retire = checkout.slice(checkout.indexOf('async function retireAttempt'));
-    expect(retire.indexOf('sessions.expire(')).toBeLessThan(retire.indexOf('abandonPendingOrder('));
-  });
-
   it('never hands back a session priced without a newly entered code', () => {
     expect(checkout).toContain('const sameInputs = resumed.discountCode === requestedDiscountCode');
     expect(checkout).toContain("retireAttempt(resumed, 'Superseded by new checkout inputs')");

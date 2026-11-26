@@ -81,6 +81,7 @@
     "leadTime": "Leveranstid",
     "informationHeading": "Produktinformation",
     "unavailable": "Kan inte beställas",
+    "soldOut": "Slutsåld",
     "pricingTableTitle": "Priser per volym",
     "pricingTableFrom": "Antal",
     "pricingTableUnits": "st",

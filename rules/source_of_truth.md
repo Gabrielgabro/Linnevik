@@ -718,7 +718,7 @@ A3  §1.7, §1.11. **Engelska sidan halkar efter.** Ingenting i admin
     migrering 0040 går bara den första varianten att välja. De engelska
     brödsmulorna pekar på svenska kategoriadresser (`catalogDb.ts:86`).
 
-A4  §5.5. **Varukorgen töms när kunden avbryter hos Stripe.** Korgen står
+A4  *Rättad.* §5.5. **Varukorgen töms när kunden avbryter hos Stripe.** Korgen står
     kvar som "i kassan", `GET` svarar 404 och webbläsaren glömmer korgen
     (`CartContext.tsx:220`).
 
@@ -744,7 +744,7 @@ A9  §8.5, §8.8, §8.9.
     * Pausad och tvist hindrar inte att ordern skickas.
     * Att avboka en betald kortorder släpper lagret utan att återbetala.
 
-A10 §4.9. En procentkod drar av även på frakten hos Stripe, eftersom frakten
+A10 *Rättad.* §4.9. En procentkod drar av även på frakten hos Stripe, eftersom frakten
     skickas som en vanlig rad. Det Stripe tar avviker då från ordern
     (`checkout/route.ts:389`).
 
@@ -787,13 +787,13 @@ A19 §9.2. Villkorstexten säger alltid "30 dagar netto", även när
     förfallotiden är en annan (`invoiceIssue.ts:383`). Rättas i de egna
     pdf:erna (A17).
 
-A20 §1.9. `status` och `active` kan säga olika saker. Butiken läser
+A20 *Rättad* av `drizzle/0045`. §1.9. `status` och `active` kan säga olika saker. Butiken läser
     `status`, medan varukorgen och den manuella fakturan läser `active`.
 
-A21 §3.8. En lagerförd variant med noll i lager visar en köpknapp som
+A21 *Rättad.* §3.8. En lagerförd variant med noll i lager visar en köpknapp som
     servern sedan säger nej till.
 
-A22 §5.4. Produktsidan räknar steg från noll, servern från minsta antalet.
+A22 *Rättad.* §5.4. Produktsidan räknar steg från noll, servern från minsta antalet.
     Beställningsvaror visar steg 10, som ingen regel i servern har.
 
 A23 §6.4. Sidan efter betalningen visar "väntar" för betalda ordrar som har

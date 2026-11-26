@@ -10,10 +10,12 @@ import {
     priceLine,
     type PricingConfig,
 } from '@/lib/pricingRules';
+import { snapQuantity } from '@/lib/cartQuantity';
 
 type Variant = {
     id: string;
     availableForSale: boolean;
+    soldOut?: boolean;
     price: { amount: string; currencyCode: string };
     selectedOptions: { name: string; value: string }[];
     sku?: string | null;
@@ -79,7 +81,8 @@ export default function ProductForm({
     }, [variants, selected]);
 
     const unitPrice = active?.price?.amount ? Number(active.price.amount) : 0;
-    const totalUnits = packSize ? Math.ceil(qty / packSize) * packSize : qty;
+    // Samma trappa som servern: stegen räknas från det minsta antalet.
+    const totalUnits = snapQuantity(qty, { minimumOrderQuantity: minQty, orderIncrement: packSize || 1 });
 
     // Samma funktion som servern prissätter korgen och kassan med. Priset
     // räknas i ören för att undgå flyttalsdrift och visas i kronor.
@@ -187,7 +190,7 @@ export default function ProductForm({
                     <input
                         type="number"
                         min={minQty}
-                        step={packSize || (hasMTOTag ? 10 : 1)}
+                        step={packSize || 1}
                         value={qtyInput}
                         onChange={e => setQtyInput(e.target.value)}
                         onBlur={() => {
@@ -235,7 +238,7 @@ export default function ProductForm({
                         sajten. Säg i stället att varianten inte går att
                         beställa. */}
                     {!active?.availableForSale
-                        ? t.product.unavailable
+                        ? active?.soldOut ? t.product.soldOut : t.product.unavailable
                         : addingToCart
                             ? t.product.addingToCart
                             : t.product.addToCart}
