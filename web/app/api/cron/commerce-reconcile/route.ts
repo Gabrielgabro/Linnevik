@@ -1,12 +1,15 @@
 /**
- * Skyddsnätet under webhooken: läser om sena Stripe-sessioner och lagar
- * ordrar som blivit kvar i `pending` fast betalningen gick igenom.
+ * Skyddsnätet under webhooken (source_of_truth §17.1, §17.2). Varje natt kl
+ * 03:00 (vercel.json):
  *
- * Går en gång per dygn (03:00) därför att Hobby-planen inte tillåter tätare
- * cron. Webhooken är fortfarande den vanliga vägen och landar på sekunder —
- * det här fångar bara det den missade, och gör det inom ett dygn i stället
- * för inom tio minuter. Blir det Pro-plan är schemat i vercel.json den enda
- * ändring som behövs; ingenting här inne antar ett intervall.
+ * - händelser från Stripe som fastnade halvvägs hanteras igen
+ * - obetalda kortordrar stäms av mot sina Stripe-sessioner
+ * - återbetalningar och tvister läses om från Stripe
+ * - fakturor följs upp, och lågt lager larmar
+ *
+ * Webhooken är den vanliga vägen och landar på sekunder. Det här fångar det
+ * den missade, inom ett dygn. Allt läses sida för sida, så antalet rader
+ * begränsar inte vad som hinns med.
  *
  * Kan köras för hand om en betalning ser fast ut:
  *   curl -H "Authorization: Bearer $CRON_SECRET" \

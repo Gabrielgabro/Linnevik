@@ -134,10 +134,13 @@ export async function applyCheckoutSession(
   };
 }
 
+/** Hur långt bakåt nattens avstämning läser. Ett dygn mellan körningarna, och marginal. */
+const RECONCILE_WINDOW_DAYS = 3;
+
 /**
- * Backstop for lost/delayed webhooks and the session-attachment failure
- * window. It is intentionally bounded: recent unresolved orders plus the most
- * recent 100 Stripe sessions are enough for the scheduled ten-minute cadence.
+ * Skyddsnätet under webhooken för kortbetalningar. Går varje natt kl 03:00
+ * (§17.1) och läser alla obetalda kortordrar och alla Stripe-sessioner från
+ * de senaste dygnen, sida för sida.
  */
 export async function reconcileRecentCheckoutSessions(): Promise<{
   checked: number;
@@ -147,13 +150,15 @@ export async function reconcileRecentCheckoutSessions(): Promise<{
   releasedReservations: number;
   failures: string[];
 }> {
+  // Avstämningen går en gång per natt (§17.1), så den läser allt i fönstret,
+  // inte de första hundra. Stripes lista läses sida för sida av samma skäl.
   const pending = await getDb().execute(sql`
     select id, stripe_session_id
     from orders
     where payment_status = 'pending'
-      and created_at >= now() - interval '3 days'
+      and payment_method = 'checkout'
+      and created_at >= now() - make_interval(days => ${RECONCILE_WINDOW_DAYS})
     order by created_at desc
-    limit 100
   `);
   const rows = pending.rows as Array<{ id: number; stripe_session_id: string }>;
   const pendingIds = new Set(rows.map(row => Number(row.id)));
@@ -161,11 +166,11 @@ export async function reconcileRecentCheckoutSessions(): Promise<{
   const failures: string[] = [];
 
   try {
-    const recent = await getStripe().checkout.sessions.list({
-      created: { gte: Math.floor(Date.now() / 1000) - 3 * 24 * 60 * 60 },
+    const recent = getStripe().checkout.sessions.list({
+      created: { gte: Math.floor(Date.now() / 1000) - RECONCILE_WINDOW_DAYS * 24 * 60 * 60 },
       limit: 100,
     });
-    for (const session of recent.data) {
+    for await (const session of recent) {
       const metadataOrderId = orderIdFromMetadata(session);
       if (metadataOrderId && pendingIds.has(metadataOrderId)) sessions.set(session.id, session);
     }

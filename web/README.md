@@ -33,10 +33,14 @@ catalog, cart, checkout, and accounts use Postgres, Stripe, and magic links.
    ending in eight random letters. The default is `linnevik_owned_qhjmztka`.
 5. Use a separate restricted Stripe key for each environment and give it only
    the Checkout Session, Customer, Coupon and Refund permissions exercised by
-   this application. Store it as a sensitive Vercel environment variable.
-6. Set `CRON_SECRET`. `/api/cron/commerce-reconcile` runs every ten minutes,
-   repairs order/session links from metadata, applies delayed payment state,
-   and releases expired reservations. Checkout reserves all tracked inventory
+   this application, plus read access to Events and Disputes for the nightly
+   reconciliation. Store it as a sensitive Vercel environment variable.
+6. Set `CRON_SECRET`. `/api/cron/commerce-reconcile` runs once a night at
+   03:00 (`vercel.json`). It retries Stripe events whose handling got stuck
+   halfway, repairs order/session links from metadata, applies delayed
+   payment state, re-reads refunds and disputes from Stripe, and releases
+   expired reservations. Every list is paged through, so nothing is capped
+   at the first hundred rows. Checkout reserves all tracked inventory
    before Stripe can collect payment; `CHECKOUT_RESERVATION_MINUTES` defaults
    to 45 and is also used as the Stripe Session expiry.
 

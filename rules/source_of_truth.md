@@ -812,7 +812,7 @@ A24 §15.3.
 A25 §15.2. Statusändringar, återbetalningar, leveranser och returer på en
     order syns inte i Aktivitet.
 
-A26 §17.1. README och en kommentar säger att avstämningen körs var tionde
+A26 *Rättad.* §17.1. README och en kommentar säger att avstämningen körs var tionde
     minut. Den körs en gång per natt (`vercel.json`), och gränserna (100
     rader, ingen sidbrytning) är gjorda för tio minuter.
 
