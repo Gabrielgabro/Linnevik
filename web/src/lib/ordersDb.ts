@@ -390,7 +390,8 @@ export async function markOrderPaid(input: {
   // older session created before that policy, this makes one strict recovery
   // attempt. It either reserves every tracked line or none.
   const stockReady = await reserveOrderStockStrict(target.id, 'stripe', null);
-  const customerId = input.email && input.linkAccount !== false
+  const linkAccount = Boolean(input.email) && input.linkAccount !== false;
+  const customerId = linkAccount && input.email
     ? await upsertCustomerFromCheckout({
         email: input.email,
         stripeCustomerId: input.stripeCustomerId,
@@ -470,6 +471,20 @@ export async function markOrderPaid(input: {
     }
     throw new Error('Paid order could not be updated.');
   }
+  // Ett inaktivt webbkonto kan inte köpa (§11.9), och kassan stoppar det. Har
+  // Stripe ändå tagit betalt med kontots adress — en adress som angavs först
+  // hos Stripe, eller ett konto som gjordes inaktivt under köpet — kopplas
+  // ordern inte till kontot. Admin avgör om ordern skickas eller återbetalas.
+  if (linkAccount && customerId === null) {
+    await raiseAlert({
+      kind: 'order.inactive_account',
+      key: `order:${row.id}:inactive-account`,
+      subject: `Order ${row.id} betalades med e-posten för ett inaktivt webbkonto`,
+      detail: { order: Number(row.id), epost: input.email },
+      href: `/admin/orders/${row.id}`,
+    });
+  }
+
   // Debiterat belopp mot förväntat. En krona i glapp är avrundning mellan vår
   // momsberäkning och Stripes; mer än så betyder att något ändrats under
   // kassan — ett pris, en rabatt, en fraktregel — och då vill vi veta vilken

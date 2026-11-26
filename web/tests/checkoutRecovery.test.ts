@@ -66,9 +66,7 @@ describe('identity is verified rather than trusted', () => {
     expect(checkout).toContain('usableStripeCustomerId({');
   });
 
-  it('refuses card checkout for a deactivated account, as invoicing does', () => {
-    expect(checkout).toContain("account.status !== 'active'");
-  });
+  // Ett inaktivt webbkonto körs på riktigt i tests/db/inactiveAccount.test.ts (§11.9).
 });
 
 describe('one company-number rule across every entry point', () => {

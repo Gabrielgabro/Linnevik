@@ -43,6 +43,7 @@ import {
   claimDiscountCapacity,
   createCheckoutCoupon,
   DiscountError,
+  accountIsInactive,
   resolveDiscount,
   resolveShipping,
   usableStripeCustomerId,
@@ -159,15 +160,15 @@ export async function POST(request: NextRequest) {
     }
 
     const locale = await getServerLanguage();
+    // Ett inaktivt webbkonto kan inte köpa (§11.9). Sessionen räknar det redan
+    // som utloggat, så det som återstår är att samma adress anges som gäst.
     const account = await getCurrentCustomerFromCookies();
-    if (account && account.status !== 'active') {
-      // The invoice route already refuses a deactivated account. Card checkout
-      // let one through and stamped the order with its identity anyway.
-      return fail('ACCOUNT_INACTIVE', 'This account cannot check out. Contact us.', 403);
-    }
     // Only an authenticated account may select an existing Stripe Customer or
     // CRM customer number. A request body is not proof of either identity.
     const checkoutEmail = account?.email.trim().toLowerCase() || email;
+    if (checkoutEmail && (await accountIsInactive(checkoutEmail))) {
+      return fail('ACCOUNT_INACTIVE', 'This account cannot check out. Contact us.', 403);
+    }
     const customerNo = account?.customerNo ?? null;
     const currentCart = await getOwnedCart(ownedCartId);
     if (!currentCart) {

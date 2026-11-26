@@ -43,7 +43,7 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
                    cl.address_line1, cl.address_line2, cl.postal_code, cl.city, cl.country
             from customers c
             left join clients cl on cl.id = c.client_id
-            where c.id = ${customerId} limit 1
+            where c.id = ${customerId} and c.status = 'active' limit 1
         `);
         const row = result.rows[0] as
             | {
@@ -65,6 +65,8 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
                   country: string | null;
               }
             | undefined;
+        // Ett inaktivt webbkonto är inte inloggat (§11.9), även om det har en
+        // giltig session sedan tidigare. Det ser ut som utloggat överallt.
         if (!row) return null;
 
         const clientAddress = normalizeAddress({

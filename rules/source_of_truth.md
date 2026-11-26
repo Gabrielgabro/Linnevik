@@ -774,7 +774,7 @@ A15 *Rättad.* §11.2, §11.3, §11.10.
     * Kortkassan sparade Stripes momsnummer som det stod, så
       "5564813318" och "SE556481331801" blev två företag.
 
-A16 §11.9. Ett inaktivt webbkonto kan logga in och betala med kort. Bara
+A16 *Rättad.* §11.9. Ett inaktivt webbkonto kan logga in och betala med kort. Bara
     fakturaköp stoppas.
 
 A17 *Rättad.* §9. **Fakturorna görs i Stripe.** Stripe ger numret, gör pdf:en, mejlar

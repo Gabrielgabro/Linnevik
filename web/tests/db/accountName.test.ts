@@ -21,11 +21,11 @@ describe('webbkontots namn', () => {
     const email = `a1-${Date.now()}@test.linnevik.se`;
 
     // Kortköpet: Stripe ger personens namn.
-    const id = await upsertCustomerFromCheckout({
+    const id = (await upsertCustomerFromCheckout({
       email,
       name: 'Anna Svensson',
       taxId: { type: 'eu_vat', value: ORG },
-    });
+    })) as number;
     expect(await accountName(id)).toEqual({ first_name: 'Anna', last_name: 'Svensson' });
 
     // Fakturaköpet och betalningen av fakturan skickar firmanamnet som namn.
@@ -42,7 +42,7 @@ describe('webbkontots namn', () => {
 
   it('fylls i när kontot saknar namn', async () => {
     const email = `a1-tomt-${Date.now()}@test.linnevik.se`;
-    const id = await upsertCustomerFromCheckout({ email, name: null });
+    const id = (await upsertCustomerFromCheckout({ email, name: null })) as number;
     expect(await accountName(id)).toEqual({ first_name: null, last_name: null });
 
     await upsertCustomerFromCheckout({ email, name: 'Bo Ek' });

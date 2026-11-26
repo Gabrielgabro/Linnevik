@@ -357,8 +357,12 @@ export async function upsertCustomerFromCheckout(input: {
   shippingAddress?: Record<string, string | null> | null;
   billingAddress?: Record<string, string | null> | null;
   taxId?: { type: string; value: string } | null;
-}): Promise<number> {
+}): Promise<number | null> {
   const email = input.email.trim().toLowerCase();
+  // Ett inaktivt webbkonto kan inte köpa (§11.9). Kommer en betalning ändå,
+  // kopplas den inte till kontot, och varken kontot eller dess företag
+  // ändras. Den som anropar avgör vad som händer med ordern.
+  if (await accountIsInactive(email)) return null;
   const names = (input.name ?? '').trim().split(/\s+/).filter(Boolean);
   const firstName = names.shift() ?? null;
   const lastName = names.join(' ') || null;
@@ -414,6 +418,16 @@ export async function upsertCustomerFromCheckout(input: {
     returning id
   `);
   return Number((result.rows[0] as { id: number }).id);
+}
+
+/** Finns e-postadressen som ett inaktivt webbkonto (§11.9)? */
+export async function accountIsInactive(email: string): Promise<boolean> {
+  const result = await getDb().execute(sql`
+    select 1 from customers
+    where lower(email) = ${email.trim().toLowerCase()} and status <> 'active'
+    limit 1
+  `);
+  return result.rows.length > 0;
 }
 
 export type RegisterCustomerResult =

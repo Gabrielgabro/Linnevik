@@ -41,6 +41,7 @@ const KIND_LABEL: Record<string, string> = {
   'order.amount_mismatch': 'Beloppsavvikelse',
   'order.refund_outside_admin': 'Återbetalning i Stripe',
   'order.credit_note_failed': 'Kreditnota saknas',
+  'order.inactive_account': 'Köp av inaktivt konto',
   'email.failed': 'E-post',
   'inventory.low_stock': 'Lågt lager',
   'invoice.config': 'Fakturainställning',

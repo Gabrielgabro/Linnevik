@@ -29,6 +29,7 @@ export type AlertKind =
   | 'order.amount_mismatch'
   | 'order.refund_outside_admin'
   | 'order.credit_note_failed'
+  | 'order.inactive_account'
   | 'email.failed'
   | 'inventory.low_stock'
   | 'invoice.config'
