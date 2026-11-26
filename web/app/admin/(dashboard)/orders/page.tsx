@@ -49,6 +49,8 @@ const tone = (status: string) => ORDER_TONE[status] ?? 'var(--viz-ink-3)';
 const ATTENTION: Record<string, { label: string; color: string }> = {
   stock_exception: { label: 'Lager saknas', color: 'var(--adm-danger)' },
   disputed: { label: 'Tvist', color: 'var(--adm-danger)' },
+  on_hold: { label: 'Pausad', color: 'var(--adm-warn)' },
+  closed: { label: 'Avslutad', color: 'var(--viz-ink-3)' },
   failed: { label: 'Misslyckad', color: 'var(--adm-danger)' },
   cancelled: { label: 'Makulerad', color: 'var(--viz-ink-3)' },
   expired: { label: 'Utgången', color: 'var(--viz-ink-3)' },

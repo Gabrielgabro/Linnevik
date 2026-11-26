@@ -823,6 +823,7 @@ export async function recordRefund(input: {
       taxMinor: input.taxMinor,
     },
   });
+  await releaseStockIfFullyRefunded(input.orderId, input.actor);
   return row;
 }
 
@@ -837,8 +838,22 @@ export async function recordRefund(input: {
  * tillbaka en gång till. Först när Stripe säger `failed` eller `canceled`
  * slutar beloppet räknas, vilket är precis när det faktiskt kom tillbaka.
  */
+/**
+ * En helt återbetald order som inte har skickats behöver inte sitt lager
+ * (§3.5, A11). Reservationen släpps, och ordern behåller den status den har.
+ */
+export async function releaseStockIfFullyRefunded(orderId: number, actor: string): Promise<boolean> {
+  const [order] = await getDb()
+    .select({ paymentStatus: orders.paymentStatus, fulfillmentStatus: orders.fulfillmentStatus })
+    .from(orders)
+    .where(eq(orders.id, orderId));
+  if (!order || order.paymentStatus !== 'refunded' || order.fulfillmentStatus !== 'unfulfilled') return false;
+  await releaseOrderStock(orderId, actor, 'Order fully refunded before shipping');
+  return true;
+}
+
 export async function updateRefundStatus(stripeRefundId: string, status: string): Promise<void> {
-  await getDb().execute(sql`
+  const changed = await getDb().execute(sql`
     with changed as (
       update refunds set status = ${status}, updated_at = now()
       where stripe_refund_id = ${stripeRefundId}
@@ -859,7 +874,11 @@ export async function updateRefundStatus(stripeRefundId: string, status: string)
       updated_at = now()
     from counted
     where id in (select order_id from changed)
+    returning id
   `);
+  for (const row of changed.rows as Array<{ id: number }>) {
+    await releaseStockIfFullyRefunded(Number(row.id), 'stripe');
+  }
 }
 
 export async function createFulfillment(input: {
@@ -888,7 +907,8 @@ export async function createFulfillment(input: {
       select id from orders
       where id = ${input.orderId}
         and payment_status in ('paid', 'partially_refunded')
-        and status not in ('cancelled', 'failed', 'expired', 'stock_exception')
+        -- Pausad och tvist hindrar leverans (§8.9, A9).
+        and status not in ('cancelled', 'failed', 'expired', 'stock_exception', 'on_hold', 'disputed')
       for update
     ), requested as materialized (
       select "orderItemId" as order_item_id, sum(quantity)::int as quantity

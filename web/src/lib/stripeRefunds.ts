@@ -159,7 +159,7 @@ export async function syncStripeDispute(dispute: Stripe.Dispute): Promise<void> 
   const paymentIntentId = idOf(dispute.payment_intent);
   const order = paymentIntentId ? await orderByPaymentIntent(paymentIntentId) : null;
   // Öppen, vunnen eller förlorad — se orderChecks.disputeOutcome.
-  const { closed, orderStatus } = disputeOutcome(dispute.status);
+  const { closed, lost } = disputeOutcome(dispute.status);
 
   if (!order) {
     await raiseAlert({
@@ -176,26 +176,31 @@ export async function syncStripeDispute(dispute: Stripe.Dispute): Promise<void> 
     return;
   }
 
+  // En öppen tvist pausar ordern, så att den inte skickas (§8.9), och minns
+  // statusen den hade. En avgjord tvist ändrar ingenting av sig själv
+  // (§8.12): admin avgör, återupptar eller avslutar, och skriver varför.
   await getDb().execute(sql`
-    with order_update as (
-      update orders set
-        -- Öppen tvist märker ordern; en avslutad lämnar tillbaka den till
-        -- 'paid' om vi vann, och till 'refunded' om beloppet gick förlorat.
-        status = ${orderStatus},
-        updated_at = now()
-      where id = ${order.id}
+    with current as (
+      select id, status from orders where id = ${order.id}
+    ), order_update as (
+      update orders set status = 'disputed', updated_at = now()
+      where id = ${order.id} and not ${closed} and status not in ('disputed', 'cancelled', 'closed')
       returning id
     )
     insert into order_events (order_id, kind, actor, detail)
-    select id, ${closed ? 'payment.dispute_closed' : 'payment.disputed'}, 'stripe',
+    select current.id, ${closed ? 'payment.dispute_closed' : 'payment.disputed'}, 'stripe',
            jsonb_build_object(
              'dispute_id', ${dispute.id}::text,
              'status', ${dispute.status}::text,
              'amount_minor', ${dispute.amount}::int,
              'reason', ${dispute.reason ?? null}::text,
-             'evidence_due_by', ${dispute.evidence_details?.due_by ?? null}::bigint
+             'evidence_due_by', ${dispute.evidence_details?.due_by ?? null}::bigint,
+             'from', current.status
            )
-    from order_update
+    from current
+    -- Ett omsänt besked om en redan öppen tvist skriver ingen ny händelse:
+    -- den första bär statusen ordern ska tillbaka till.
+    where ${closed} or exists (select 1 from order_update)
   `);
 
   const dueBy = dispute.evidence_details?.due_by
@@ -206,8 +211,8 @@ export async function syncStripeDispute(dispute: Stripe.Dispute): Promise<void> 
     kind: 'order.dispute',
     key: `dispute:${dispute.id}:${dispute.status}`,
     subject: closed
-      ? `Tvisten om order ${order.id} är avgjord: ${dispute.status}`
-      : `Order ${order.id} är under tvist — svar krävs`,
+      ? `Tvisten om order ${order.id} är avgjord: ${lost ? 'förlorad' : 'vunnen'}`
+      : `Order ${order.id} är under tvist, svar krävs`,
     detail: {
       order: order.id,
       dispute: dispute.id,
@@ -215,6 +220,13 @@ export async function syncStripeDispute(dispute: Stripe.Dispute): Promise<void> 
       orsak: dispute.reason,
       status: dispute.status,
       ...(dueBy ? { svara_senast: dueBy } : {}),
+      ...(closed
+        ? {
+            åtgärd: lost
+              ? 'Beloppet är förlorat. Avgör vad som händer med ordern och skriv en kommentar.'
+              : 'Pengarna är kvar. Återuppta ordern om den ska levereras.',
+          }
+        : {}),
     },
     href: `/admin/orders/${order.id}`,
   });

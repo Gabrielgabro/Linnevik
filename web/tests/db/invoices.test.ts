@@ -112,6 +112,6 @@ describe('egna fakturor', () => {
 
   it('säljaren kräver ett giltigt bankgiro', () => {
     expect(() => sellerSnapshot({ INVOICE_BANKGIRO: '' })).toThrow();
-    expect(sellerSnapshot({ INVOICE_BANKGIRO: '5673-8776' })).toMatchObject({ name: 'Linneviken AB', vatNumber: 'SE559307295101' });
+    expect(sellerSnapshot({ INVOICE_BANKGIRO: '5673-8776' })).toMatchObject({ name: 'Linneviken AB', vatNumber: 'SE559307295101', seat: 'Uppsala' });
   });
 });

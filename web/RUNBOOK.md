@@ -107,7 +107,7 @@ numret felskrivet (kontrollsiffran stämmer inte), stoppas alla fakturaköp
 med larmet *Fakturainställning*, hellre det än en faktura som inte går att
 betala. Säljarens uppgifter på fakturan kan sättas med `INVOICE_SELLER_*`
 (namn, org.nr, momsreg.nr, adress, F-skatt, e-post). `INVOICE_SELLER_SEAT`
-(styrelsens säte) skrivs ut när den är satt.
+(styrelsens säte) är Uppsala om inget annat sätts.
 
 ---
 

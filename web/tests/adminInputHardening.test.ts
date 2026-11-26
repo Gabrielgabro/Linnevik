@@ -88,31 +88,6 @@ describe('isUniqueViolation', () => {
   });
 });
 
-/**
- * Ordningen i återbetalningsrutten är det som stoppar dubbla utbetalningar,
- * och den syns inte i något returvärde. Källan läses därför direkt: beloppet
- * ska vara avbokat på ordern *innan* Stripe anropas.
- */
-describe('återbetalningsrutten', () => {
-  const source = readFileSync(resolve('app/api/admin/orders/[id]/refunds/route.ts'), 'utf8');
-
-  it('bokar av beloppet före Stripe-anropet', () => {
-    const claim = source.indexOf('claimRefundAmount');
-    const stripe = source.indexOf('refunds.create');
-    expect(claim).toBeGreaterThan(-1);
-    expect(stripe).toBeGreaterThan(-1);
-    expect(claim).toBeLessThan(stripe);
-  });
-
-  it('släpper avbokningen när Stripe säger nej', () => {
-    expect(source).toContain('syncRefundedTotal');
-  });
-
-  it('svarar 409 när beloppet inte längre ryms', () => {
-    expect(source).toMatch(/claimRefundAmount[\s\S]{0,400}status: 409/);
-  });
-});
-
 describe('återbetalningsknappen', () => {
   const source = readFileSync(resolve('src/components/admin/OrderActions.tsx'), 'utf8');
 

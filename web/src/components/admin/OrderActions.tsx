@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
 import Notice from '@/components/admin/ui/Notice';
-import { toMinor } from '@/lib/money';
+import { formatMinor, toMinor } from '@/lib/money';
+import { allowedOrderActions, ORDER_ACTION_LABEL, type OrderAction } from '@/lib/orderActionRules';
 import type { OrderDetail } from '@/lib/ordersDb';
 
 // Select bär bara en lista med strängar, så alternativets text *är* dess
@@ -31,7 +32,10 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
   // Vad som faktiskt går att leverera nu. Samma räkning som spärren i
   // createFulfillment gör, men här för att slippa visa rutan alls.
   const canFulfill = ['paid', 'partially_refunded'].includes(order.paymentStatus)
-    && !['cancelled', 'failed', 'expired', 'stock_exception'].includes(order.status);
+    && !['cancelled', 'failed', 'expired', 'stock_exception', 'on_hold', 'disputed'].includes(order.status);
+  const actions = allowedOrderActions(order);
+  const [acting, setActing] = useState<OrderAction | null>(null);
+  const [actionNote, setActionNote] = useState('');
   const openItems = canFulfill ? order.items.filter(item => item.remainingQuantity > 0) : [];
   const fullyFulfilled = order.items.length > 0 && openItems.length === 0;
   const partiallyFulfilled = !fullyFulfilled && order.items.some(item => item.fulfilledQuantity > 0);
@@ -91,46 +95,75 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
   }
   return (
     <div className="grid grid-cols-2 gap-8 max-[760px]:grid-cols-1">
-      <form className="col-span-full grid grid-cols-[1fr_2fr_auto] items-end gap-4 max-[700px]:grid-cols-1" onSubmit={async event => {
-        event.preventDefault();
-        const values = formValues(event.currentTarget);
-        setSaving(true);
-        setError(null);
-        setSaved(null);
-        const response = await fetch(`/api/admin/orders/${order.id}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: values.status, notes: values.notes }),
-        });
-        const data = await response.json().catch(() => ({}));
-        setSaving(false);
-        if (!response.ok) return setError(data.error ?? 'Kunde inte uppdatera ordern.');
-        setSaved(new Date().toLocaleTimeString('sv-SE'));
-        router.refresh();
-      }}>
-        <Select label="Orderstatus" name="status" required options={['pending', 'paid', 'on_hold', 'cancelled', 'closed']} defaultValue={order.status} />
-        <Field label="Intern ordernotering" name="notes" defaultValue={order.notes} />
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Sparar…' : 'Uppdatera order'}
-        </Button>
-        {saved && (
-          <div className="col-span-full">
-            <Notice tone="ok" title="Ordern uppdaterad">
-              Status och notering sparades {saved}.
-            </Notice>
+      <div className="col-span-full grid gap-3">
+        {actions.length > 0 && (
+          <div className="flex flex-wrap items-end gap-3">
+            <Field
+              label="Varför (sparas i historiken)"
+              name="actionNote"
+              value={actionNote}
+              onChange={event => setActionNote(event.target.value)}
+            />
+            {actions.map(action => (
+              <Button
+                key={action}
+                type="button"
+                variant={action === 'cancel' ? 'secondary' : undefined}
+                disabled={acting !== null}
+                onClick={async () => {
+                  const remaining = order.totalMinor - order.refundedMinor;
+                  const paid = ['paid', 'partially_refunded'].includes(order.paymentStatus);
+                  if (action === 'cancel' && !window.confirm(
+                    paid && remaining > 0
+                      ? `Avboka ordern och återbetala ${formatMinor(remaining, order.currency)}? ${paidByBank ? 'Betala tillbaka från bankkontot först. En kreditfaktura skapas.' : 'Beloppet återbetalas till kortet.'}`
+                      : 'Avboka ordern? Fakturan makuleras och lagret släpps.'
+                  )) return;
+                  setActing(action);
+                  setError(null);
+                  const response = await fetch(`/api/admin/orders/${order.id}`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, note: actionNote }),
+                  });
+                  const data = await response.json().catch(() => ({}));
+                  setActing(null);
+                  if (!response.ok) return setError(data.error ?? 'Åtgärden misslyckades.');
+                  setActionNote('');
+                  setSaved(`${ORDER_ACTION_LABEL[action]} ${new Date().toLocaleTimeString('sv-SE')}`);
+                  router.refresh();
+                }}
+              >
+                {acting === action ? 'Arbetar…' : ORDER_ACTION_LABEL[action]}
+              </Button>
+            ))}
           </div>
         )}
-      </form>
-      {paidByBank ? (
-        <div className="grid content-start gap-4">
-          <h2 className="font-heading text-xl">Återbetalning</h2>
-          <Notice tone="info" title="Betald via bank">
-            Ordern betalades till bankgirot, inte i Stripe, så det finns ingen
-            kortbetalning att återbetala mot. Betala tillbaka från bankkontot och
-            kreditera sedan fakturan i Stripe: Fakturan → Kreditnota → välj
-            &quot;Återbetalt utanför Stripe&quot;.
+        <form className="grid grid-cols-[2fr_auto] items-end gap-4 max-[700px]:grid-cols-1" onSubmit={async event => {
+          event.preventDefault();
+          const values = formValues(event.currentTarget);
+          setSaving(true);
+          setError(null);
+          setSaved(null);
+          const response = await fetch(`/api/admin/orders/${order.id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notes: values.notes }),
+          });
+          const data = await response.json().catch(() => ({}));
+          setSaving(false);
+          if (!response.ok) return setError(data.error ?? 'Kunde inte spara noteringen.');
+          setSaved(`Noteringen ${new Date().toLocaleTimeString('sv-SE')}`);
+          router.refresh();
+        }}>
+          <Field label="Intern ordernotering" name="notes" defaultValue={order.notes} />
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Sparar…' : 'Spara notering'}
+          </Button>
+        </form>
+        {saved && (
+          <Notice tone="ok" title="Sparat">
+            {saved}.
           </Notice>
-        </div>
-      ) : (
+        )}
+      </div>
       <form className="grid gap-4" onSubmit={async event => {
         const values = formValues(event.currentTarget);
         if (refunding) return event.preventDefault();
@@ -143,14 +176,21 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
         if (ok) setRefundKey(crypto.randomUUID());
       }}>
         <h2 className="font-heading text-xl">Återbetalning</h2>
+        {paidByBank && (
+          <Notice tone="info" title="Betald via bank">
+            Betala först tillbaka från bankkontot och registrera sedan beloppet här.
+            En kreditfaktura skapas och mejlas till kunden.
+          </Notice>
+        )}
         <Field label="Belopp (kr)" name="amount" type="number" step="0.01" required />
-        <Select label="Orsak" name="reason" required options={['requested_by_customer', 'duplicate', 'fraudulent']} />
+        {!paidByBank && (
+          <Select label="Orsak" name="reason" required options={['requested_by_customer', 'duplicate', 'fraudulent']} />
+        )}
         <TextArea label="Intern notering" name="note" />
         <Button type="submit" disabled={refunding}>
-          {refunding ? 'Återbetalar…' : 'Återbetala via Stripe'}
+          {refunding ? 'Återbetalar…' : paidByBank ? 'Registrera återbetalning' : 'Återbetala via Stripe'}
         </Button>
       </form>
-      )}
 
       <div className="grid gap-4">
         <h2 className="font-heading text-xl">Leverans</h2>

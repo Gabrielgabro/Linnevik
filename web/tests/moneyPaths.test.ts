@@ -44,22 +44,15 @@ describe('tviststatus från Stripe', () => {
       'warning_needs_response',
       'warning_under_review',
     ]) {
-      expect(disputeOutcome(status)).toEqual({
-        closed: false,
-        lost: false,
-        orderStatus: 'disputed',
-      });
+      expect(disputeOutcome(status)).toEqual({ closed: false, lost: false });
     }
   });
 
-  it('lämnar tillbaka ordern som betald när tvisten vunnits', () => {
-    expect(disputeOutcome('won').orderStatus).toBe('paid');
-    expect(disputeOutcome('warning_closed').orderStatus).toBe('paid');
-  });
-
-  it('skriver ordern som återbetald när beloppet gick förlorat', () => {
-    expect(disputeOutcome('lost')).toEqual({ closed: true, lost: true, orderStatus: 'refunded' });
-    expect(disputeOutcome('charge_refunded').orderStatus).toBe('refunded');
+  it('skiljer en vunnen tvist från en förlorad, utan att bestämma orderns status', () => {
+    expect(disputeOutcome('won')).toEqual({ closed: true, lost: false });
+    expect(disputeOutcome('warning_closed')).toEqual({ closed: true, lost: false });
+    expect(disputeOutcome('lost')).toEqual({ closed: true, lost: true });
+    expect(disputeOutcome('charge_refunded')).toEqual({ closed: true, lost: true });
   });
 
   it('antar hellre att pengarna finns kvar vid en okänd status', () => {

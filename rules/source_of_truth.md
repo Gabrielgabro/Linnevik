@@ -722,22 +722,22 @@ A4  *Rättad.* §5.5. **Varukorgen töms när kunden avbryter hos Stripe.** Korg
     kvar som "i kassan", `GET` svarar 404 och webbläsaren glömmer korgen
     (`CartContext.tsx:220`).
 
-A5  §8.6. **Ett lagerundantag kan inte skickas**, inte ens när lagret har
+A5  *Rättad.* §8.6. **Ett lagerundantag kan inte skickas**, inte ens när lagret har
     rättats. Ingenting reserverar på nytt, och att skicka kräver en aktiv
     reservation (`ordersDb.ts:920`).
 
-A6  §8.7. En betalning som kommer in precis när reservationen går ut blir
+A6  *Rättad.* §8.7. En betalning som kommer in precis när reservationen går ut blir
     lagerundantag även om lagret räcker (`inventoryDb.ts:157`).
 
 A7  §17.2. Ett besked från Stripe som fastnar halvvägs, till exempel vid en
     timeout, blir liggande som "processing". Varje nytt försök besvaras med
     "duplicate". Återbetalningar och tvister har ingen nattlig avstämning.
 
-A8  §8.12. En vunnen tvist sätter ordern som "paid" av sig själv, även om
+A8  *Rättad.* §8.12. En vunnen tvist sätter ordern som "paid" av sig själv, även om
     den var pausad eller avslutad (`stripeRefunds.ts:187`). Enligt regeln
     ska admin avgöra.
 
-A9  §8.5, §8.8, §8.9.
+A9  *Rättad.* §8.5, §8.8, §8.9.
 
     * Admin kan sätta vilken status som helst (`api/admin/orders/[id]/route.ts:27`):
       tillbaka till väntar, eller avbokad till betald.
@@ -748,7 +748,7 @@ A10 *Rättad.* §4.9. En procentkod drar av även på frakten hos Stripe, efters
     skickas som en vanlig rad. Det Stripe tar avviker då från ordern
     (`checkout/route.ts:389`).
 
-A11 §3.5. En helt återbetald order som inte har skickats behåller sin
+A11 *Rättad.* §3.5. En helt återbetald order som inte har skickats behåller sin
     reservation.
 
 A12 *Rättad.* §10.8. En manuell faktura skapar ett webbkonto för mottagarens e-post.

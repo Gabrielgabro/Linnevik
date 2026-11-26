@@ -75,9 +75,9 @@ export function sellerSnapshot(env: Record<string, string | undefined> = process
       country: 'SE',
     },
     fTax: (env.INVOICE_SELLER_F_TAX ?? 'true') === 'true',
-    // Styrelsens säte ska stå på fakturor (aktiebolagslagen). Sätts i env när
-    // det är bekräftat; utan värde skrivs raden inte ut.
-    seat: env.INVOICE_SELLER_SEAT?.trim() || null,
+    // Styrelsens säte ska stå på fakturor (aktiebolagslagen). Uppsala,
+    // bekräftat av Gabriel 2026-11-26.
+    seat: env.INVOICE_SELLER_SEAT?.trim() || 'Uppsala',
     bankgiro: payment.bankgiro,
     bankAccount: bank ? `${bank.bank ? `${bank.bank} ` : ''}${bank.clearing}-${bank.account}` : null,
     contactEmail: env.INVOICE_SELLER_EMAIL?.trim() || 'info@linnevik.se',
