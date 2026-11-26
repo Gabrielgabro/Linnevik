@@ -755,21 +755,24 @@ A12 §10.8. En manuell faktura skapar ett webbkonto för mottagarens e-post.
     Hör e-posten redan till ett webbkonto flyttas det kontot till
     fakturans företag (`commerceOperations.ts:354`).
 
-A13 §11.4. Koden har två slag av företag, `kind = lead` och
+A13 *Rättad* av `drizzle/0046`. §11.4. Koden har två slag av företag, `kind = lead` och
     `kind = customer`, med var sin lista i admin (Tvätterikunder och
     Kunder), knappen **Gör till kund** och en omvandling när en
     tvätterikund väljs i Ny faktura. Allt det ersätts av taggen.
 
-A14 §11.5. Säljstatusen har värdena "Tvätterikund", "Aktiv kund" och
+A14 *Rättad* av `drizzle/0046`. §11.5. Säljstatusen har värdena "Tvätterikund", "Aktiv kund" och
     "Tidigare kund" och säger alltså vem som är kund. De värdena tas bort.
 
-A15 §11.3, §11.10.
+A15 *Rättad.* §11.2, §11.3, §11.10.
 
     * Det unika indexet på org-nummer skapades bara om det inte fanns
-      dubbletter (`drizzle/0036`). Om det finns i produktion vet vi inte.
+      dubbletter (`drizzle/0036`). Det fanns i produktionen och sätts nu
+      ovillkorligt av `drizzle/0046`.
     * Ett webbkonto kan ändra företagets org-nummer.
     * Ett webbkonto kan kopplas till ett företag via en kontaktpersons
       e-post, även om org-numret är ett annat.
+    * Kortkassan sparade Stripes momsnummer som det stod, så
+      "5564813318" och "SE556481331801" blev två företag.
 
 A16 §11.9. Ett inaktivt webbkonto kan logga in och betala med kort. Bara
     fakturaköp stoppas.

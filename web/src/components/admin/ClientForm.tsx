@@ -8,11 +8,11 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
-import { CLIENT_KIND_HREF, CLIENT_STATUSES, PRIORITIES, SEGMENTS } from '@/lib/clients';
-import type { ClientKind, ClientRow } from '@/lib/db/schema';
+import { CLIENT_STATUSES, isLaundryClient, LAUNDRY_TAG, PRIORITIES, SEGMENTS } from '@/lib/clients';
+import type { ClientRow } from '@/lib/db/schema';
 
 type Props =
-  | { mode: 'create'; suggestedCustomerNo: string; kind: ClientKind }
+  | { mode: 'create'; suggestedCustomerNo: string }
   | { mode: 'edit'; client: ClientRow };
 
 export default function ClientForm(props: Props) {
@@ -22,7 +22,6 @@ export default function ClientForm(props: Props) {
   const [saved, setSaved] = useState(false);
 
   const client = props.mode === 'edit' ? props.client : null;
-  const kind: ClientKind = props.mode === 'edit' ? props.client.kind : props.kind;
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,7 +35,7 @@ export default function ClientForm(props: Props) {
       {
         method: client ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(client ? values : { ...values, kind }),
+        body: JSON.stringify(values),
       }
     );
     const data = await response.json().catch(() => ({}));
@@ -52,7 +51,7 @@ export default function ClientForm(props: Props) {
       setBusy(false);
       router.refresh();
     } else {
-      router.push(`${CLIENT_KIND_HREF[kind]}/${data.client.id}`);
+      router.push(`/admin/clients/${data.client.id}`);
       router.refresh();
     }
   };
@@ -78,7 +77,7 @@ export default function ClientForm(props: Props) {
       setBusy(false);
       return;
     }
-    router.push(CLIENT_KIND_HREF[kind]);
+    router.push('/admin/clients');
     router.refresh();
   };
 
@@ -98,10 +97,10 @@ export default function ClientForm(props: Props) {
         <Field label="Kundnamn" name="name" required defaultValue={client?.name} />
         <Select label="Segment" name="segment" options={SEGMENTS} defaultValue={client?.segment} />
         <Select
-          label="Kundstatus"
+          label="Säljstatus"
           name="status"
           options={CLIENT_STATUSES}
-          defaultValue={client?.status ?? (kind === 'customer' ? 'Aktiv kund' : 'Tvätterikund')}
+          defaultValue={client?.status ?? 'Prospekt'}
           required
         />
         <Select
@@ -117,6 +116,20 @@ export default function ClientForm(props: Props) {
           step="0.01"
           defaultValue={client?.reminderFee}
         />
+        {/* Taggen styr ingenting. Den säger att företaget kommer ur tvätteriets
+            kundlista (§11.4). Den dolda rutan skickar "0" när kryssrutan
+            inte är ikryssad, så att taggen går att ta bort. */}
+        <label className="flex cursor-pointer items-center gap-2 self-end pb-2 text-[13px] text-ink-2">
+          <input type="hidden" name="laundry" value="0" />
+          <input
+            type="checkbox"
+            name="laundry"
+            value="1"
+            defaultChecked={client ? isLaundryClient(client) : false}
+            style={{ accentColor: 'var(--adm-brand)' }}
+          />
+          {LAUNDRY_TAG}
+        </label>
       </div>
 
       {/* Fakturauppgifterna. Det är de här fälten fakturan ställs ut på, och

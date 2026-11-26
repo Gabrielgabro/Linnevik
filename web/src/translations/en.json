@@ -372,6 +372,7 @@
       "saved": "Your company details have been saved.",
       "ready": "This account can pay by invoice.",
       "incomplete": "Complete these details to pay by invoice.",
+      "organizationNumberHint": "Contact us if the registration number is wrong.",
       "labels": {
         "companyName": "Company name",
         "organizationNumber": "Registration number",
@@ -387,6 +388,7 @@
         "address": "Enter a complete address with street, postal code and city.",
         "country": "We can currently invoice Swedish addresses only.",
         "saveFailed": "Could not save your details right now. Please try again.",
+        "organizationNumberLocked": "The registration number cannot be changed here. Contact us if it is wrong.",
         "loadFailed": "Could not load your details right now. Please try again."
       }
     },

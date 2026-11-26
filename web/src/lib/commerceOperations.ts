@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
+import { isValidCompanyRegistrationNumber, normalizeCompanyRegistrationNumber } from '@/lib/companyRegistration';
 import {
   clientContacts,
   clients,
@@ -649,9 +650,18 @@ async function fillClientProfileGaps(
  * WEB-post som sedan kan kompletteras i admin utan att orderkopplingen bryts.
  */
 async function ensureClientForCommerceCustomer(
-  input: CommerceClientIdentity
+  identity: CommerceClientIdentity
 ): Promise<ClientRow> {
   const db = getDb();
+  // Org-numret sparas och söks i en enda form, hur det än skrevs in (§11.2).
+  // Registreringen normaliserade redan, men kortkassan skickade Stripes
+  // momsnummer som det stod, och då blev "5564813318" och "SE556481331801"
+  // två företag. Ett nummer som inte går att tolka används inte alls.
+  const normalizedOrg = normalizeCompanyRegistrationNumber(identity.orgNumber ?? '');
+  const input: CommerceClientIdentity = {
+    ...identity,
+    orgNumber: isValidCompanyRegistrationNumber(normalizedOrg) ? normalizedOrg : null,
+  };
   const email = input.email.trim().toLowerCase();
   let client: ClientRow | undefined;
 
@@ -680,7 +690,10 @@ async function ensureClientForCommerceCustomer(
       .orderBy(asc(clients.id))
       .limit(1);
   }
-  if (!client) {
+  // Kontaktpersonens e-post räcker bara när inget org-nummer har angetts. Med
+  // ett org-nummer avgör det ensamt (§11.7): annars kunde ett webbkonto hamna
+  // på ett företag med ett annat org-nummer än det personen uppgav (A15).
+  if (!client && !input.orgNumber) {
     const [match] = await db
       .select({ client: clients })
       .from(clientContacts)
@@ -711,8 +724,6 @@ async function ensureClientForCommerceCustomer(
       .values({
         customerNo,
         name,
-        status: input.status === 'active' ? 'Aktiv kund' : 'Vilande',
-        kind: 'customer',
         ...clientProfileColumns(input),
       })
       .onConflictDoNothing()
@@ -731,17 +742,6 @@ async function ensureClientForCommerceCustomer(
   }
 
   if (!client) throw new Error('Kunde inte koppla webbkontot till kundregistret.');
-
-  // Ett företag med webbkonto eller order köper av oss. Var det en
-  // tvätterikund på ringlistan har samtalet blivit en affär, och posten flyttar
-  // till kundregistret — där fakturorna ställs ut ur.
-  if (client.kind !== 'customer') {
-    [client] = await db
-      .update(clients)
-      .set({ kind: 'customer', updatedAt: new Date() })
-      .where(eq(clients.id, client.id))
-      .returning();
-  }
 
   client = await fillClientProfileGaps(client, input);
 
@@ -838,17 +838,27 @@ export async function loadCompanyProfile(customerId: number): Promise<StoredComp
  * Har företaget flera inloggningar ändrar den här skrivningen adressen för
  * dem alla. Det är avsikten — det är en företagsadress, inte en personlig.
  */
+export class OrgNumberLockedError extends Error {
+  constructor() {
+    super('Organisationsnumret ändras bara av Linnevik.');
+  }
+}
+
 export async function saveCompanyProfile(
   customerId: number,
   input: { companyName: string; organizationNumber: string; address: PostalAddress }
 ): Promise<void> {
   const db = getDb();
   const [row] = await db
-    .select({ clientId: customers.clientId })
+    .select({ clientId: customers.clientId, orgNumber: clients.orgNumber })
     .from(customers)
+    .innerJoin(clients, eq(clients.id, customers.clientId))
     .where(eq(customers.id, customerId))
     .limit(1);
   if (!row) throw new Error('Okänt konto.');
+  // Org-numret är företagets identitet och ändras bara av admin (§11.10, A15).
+  // Kontosidan får fylla i ett som saknas, aldrig byta ett som finns.
+  if (row.orgNumber && row.orgNumber !== input.organizationNumber) throw new OrgNumberLockedError();
 
   await db
     .update(clients)

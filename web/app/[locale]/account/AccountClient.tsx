@@ -201,8 +201,15 @@ export default function AccountClient({
                                     maxLength={24}
                                     required
                                     defaultValue={company.organizationNumber}
+                                    // Ett org-nummer som finns ändras bara av oss (§11.10).
+                                    readOnly={Boolean(company.organizationNumber)}
                                     className={inputClass}
                                 />
+                                {company.organizationNumber && (
+                                    <span className="mt-1 block text-xs font-normal text-secondary">
+                                        {t.account.company.organizationNumberHint}
+                                    </span>
+                                )}
                             </label>
 
                             <label className="block text-sm font-medium text-secondary md:col-span-2">

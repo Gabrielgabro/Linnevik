@@ -19,15 +19,15 @@ export default async function NewClientPage() {
             className="inline-flex items-center gap-1.5 hover:text-ink-2 hover:underline"
           >
             <ArrowLeft size={13} strokeWidth={2} aria-hidden />
-            Tvätterikunder
+            Företag
           </Link>
         }
-        title="Lägg till tvätterikund"
+        title="Lägg till företag"
         accent={accentFor('/admin/clients')}
-        description="Kontaktpersoner läggs till på kunden när den är sparad."
+        description="Organisationsnummer, fakturamejl och adress behövs för att kunna fakturera. Kontaktpersoner läggs till på företaget när det är sparat."
       />
 
-      <ClientForm mode="create" suggestedCustomerNo={suggestedCustomerNo} kind="lead" />
+      <ClientForm mode="create" suggestedCustomerNo={suggestedCustomerNo} />
     </>
   );
 }

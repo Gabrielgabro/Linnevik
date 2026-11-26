@@ -57,8 +57,8 @@ export type InvoiceClientOption = {
   id: number;
   customerNo: string;
   name: string;
-  /** 'lead' = Tvätterikund; görs till kund när den väljs i formuläret. */
-  kind: 'lead' | 'customer';
+  /** Taggarna, till exempel Tvätterikund. Visas bara, styr ingenting. */
+  tags: string[];
   orgNumber: string | null;
   invoiceEmail: string | null;
   address: { line1: string; line2: string; postalCode: string; city: string; country: string };
@@ -71,8 +71,8 @@ export type InvoiceClientOption = {
 export async function listInvoiceClients(): Promise<InvoiceClientOption[]> {
   const db = getDb();
   const [clientRows, contactRows, accountRows] = await Promise.all([
-    // Båda registren: en tvätterikund som ska faktureras görs till kund när
-    // den väljs. Formuläret visar kunderna först.
+    // Hela registret. Ett företag med taggen Tvätterikund faktureras som
+    // vilket annat som helst (§10.2).
     db.select().from(clients).orderBy(asc(clients.name)),
     db
       .select({
@@ -111,7 +111,7 @@ export async function listInvoiceClients(): Promise<InvoiceClientOption[]> {
       id: client.id,
       customerNo: client.customerNo,
       name: client.name,
-      kind: client.kind === 'customer' ? ('customer' as const) : ('lead' as const),
+      tags: client.tags,
       orgNumber: client.orgNumber,
       invoiceEmail: client.invoiceEmail,
       address: {
@@ -324,10 +324,7 @@ export async function createManualInvoice(input: ManualInvoiceInput, actor: stri
   if (!stripe.ok) throw new ManualInvoiceError(`${stripe.message} Ingenting skapades.`, 503);
 
   const [client] = await getDb().select().from(clients).where(eq(clients.id, input.clientId)).limit(1);
-  if (!client) throw new ManualInvoiceError('Kunden finns inte.', 404);
-  if (client.kind !== 'customer') {
-    throw new ManualInvoiceError('Företaget ligger under Tvätterikunder. Gör det till kund från kundkortet först.');
-  }
+  if (!client) throw new ManualInvoiceError('Företaget finns inte.', 404);
 
   const resolved = resolveCompanyProfile({
     email: input.recipient.email,

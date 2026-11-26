@@ -6,7 +6,7 @@ import { deletePortalAccount } from '@/lib/clientsDb';
 import { getTranslations, type Translations } from '@/lib/getTranslations';
 import { cookies } from 'next/headers';
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from '@/lib/languageConfig';
-import { loadCompanyProfile, saveCompanyProfile } from '@/lib/commerceOperations';
+import { loadCompanyProfile, OrgNumberLockedError, saveCompanyProfile } from '@/lib/commerceOperations';
 import { resolveCompanyProfile, type CompanyProfileGap } from '@/lib/companyProfile';
 
 export type CompanyFields = {
@@ -105,6 +105,9 @@ export async function saveCompanyDetails(
             address: resolved.profile.address,
         });
     } catch (error) {
+        if (error instanceof OrgNumberLockedError) {
+            return { status: 'error', message: t.account.company.errors.organizationNumberLocked, fields };
+        }
         console.error('[account] Failed to save company profile', error);
         return { status: 'error', message: t.account.company.errors.saveFailed, fields };
     }

@@ -4,17 +4,14 @@ import { isUniqueViolation, readBody, requireAdmin } from '@/lib/adminRoute';
 import { listClients } from '@/lib/clientsDb';
 import { InputError, parseClientInput } from '@/lib/clientsInput';
 import { getDb } from '@/lib/db';
-import { clients, type ClientKind } from '@/lib/db/schema';
+import { clients } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
   if ('response' in auth) return auth.response;
-  const kind = request.nextUrl.searchParams.get('kind');
-  return NextResponse.json({
-    clients: await listClients(kind === 'lead' || kind === 'customer' ? kind : undefined),
-  });
+  return NextResponse.json({ clients: await listClients() });
 }
 
 /** Lägg till en kund. Kundnumret måste vara ledigt. */
@@ -23,13 +20,8 @@ export async function POST(request: NextRequest) {
   if ('response' in auth) return auth.response;
 
   let input;
-  let kind: ClientKind;
   try {
-    const body = await readBody(request);
-    input = parseClientInput(body);
-    // Vilket register posten läggs i: Kunder (som kan faktureras) eller
-    // ringlistan Tvätterikunder. Ringlistan är förvalet, som förut.
-    kind = body.kind === 'customer' ? 'customer' : 'lead';
+    input = parseClientInput(await readBody(request));
   } catch (error) {
     const message = error instanceof InputError ? error.message : 'Kunde inte läsa förfrågan.';
     return NextResponse.json({ error: message }, { status: 400 });
@@ -39,7 +31,7 @@ export async function POST(request: NextRequest) {
   try {
     [row] = await getDb()
       .insert(clients)
-      .values({ ...input, kind, ...(kind === 'customer' && input.status === 'Tvätterikund' ? { status: 'Aktiv kund' } : {}) })
+      .values(input)
       .returning();
   } catch (error) {
     // Unikt index på kundnummer. Två personer kan lägga till samtidigt, så
@@ -65,7 +57,7 @@ export async function POST(request: NextRequest) {
   await record(auth.user, 'client.created', String(row.id), {
     kundnr: row.customerNo,
     kund: row.name,
-    register: kind === 'customer' ? 'Kunder' : 'Tvätterikunder',
+    taggar: row.tags.join(', ') || '—',
   });
 
   return NextResponse.json({ client: row }, { status: 201 });

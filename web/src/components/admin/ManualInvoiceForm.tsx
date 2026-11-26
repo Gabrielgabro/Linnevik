@@ -180,29 +180,9 @@ export default function ManualInvoiceForm({
   const [reference, setReference] = useState('');
   const [purchaseOrder, setPurchaseOrder] = useState('');
 
-  const [promoting, setPromoting] = useState(false);
-  const [clientError, setClientError] = useState<string | null>(null);
-
-  async function chooseClient(option: InvoiceClientOption) {
-    let next = option;
-    if (option.kind === 'lead') {
-      // En tvätterikund som faktureras har blivit en kund: flytta den till
-      // kundregistret först, annars vägrar servern fakturan.
-      setPromoting(true);
-      setClientError(null);
-      const response = await fetch(`/api/admin/clients/${option.id}/kind`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'customer' }),
-      }).catch(() => null);
-      setPromoting(false);
-      if (!response?.ok) {
-        const data = response ? await response.json().catch(() => ({})) : {};
-        setClientError(data.error ?? `Kunde inte göra ${option.name} till kund.`);
-        return;
-      }
-      next = { ...option, kind: 'customer' };
-    }
+  // Vilket företag som helst kan faktureras. Taggen Tvätterikund visas bara
+  // (§10.2) och ändrar ingenting när företaget väljs.
+  function chooseClient(next: InvoiceClientOption) {
     setClient(next);
     setClientQuery('');
     setCompanyName(next.name);
@@ -219,7 +199,6 @@ export default function ManualInvoiceForm({
     if (!clientQuery.trim()) return [];
     return clients
       .filter(option => matches(`${option.name} ${option.customerNo} ${option.orgNumber ?? ''} ${option.emails.join(' ')}`, clientQuery))
-      .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'customer' ? -1 : 1))
       .slice(0, 8);
   }, [clients, clientQuery]);
 
@@ -404,22 +383,19 @@ export default function ManualInvoiceForm({
                   <span className="font-medium text-ink">{client.name}</span>{' '}
                   <span className="text-ink-3">· kundnr {client.customerNo}</span>{' '}
                   <Link
-                    href={`/admin/customers/${client.id}`}
+                    href={`/admin/clients/${client.id}`}
                     target="_blank"
                     rel="noopener"
                     className="text-[12.5px] text-brand-text hover:underline"
                   >
-                    Öppna kundkortet
+                    Öppna företaget
                   </Link>
                 </div>
                 <Button
                   type="button"
                   variant="quiet"
                   size="sm"
-                  onClick={() => {
-                    setClient(null);
-                    setClientError(null);
-                  }}
+                  onClick={() => setClient(null)}
                 >
                   Byt kund
                 </Button>
@@ -432,21 +408,17 @@ export default function ManualInvoiceForm({
                   label="Sök kund"
                   placeholder="Namn, kundnummer, org.nr eller e-post"
                   query={clientQuery}
-                  onQuery={value => {
-                    setClientQuery(value);
-                    setClientError(null);
-                  }}
+                  onQuery={setClientQuery}
                   items={clientMatches}
                   itemKey={option => option.id}
-                  disabled={promoting}
-                  onPick={option => void chooseClient(option)}
+                  onPick={chooseClient}
                   renderItem={option => (
                     <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                       <span className="min-w-0 break-words text-ink">
                         {option.name}
-                        {option.kind === 'lead' && (
-                          <span className="ml-2 whitespace-nowrap text-[11.5px] text-ink-3">Tvätterikund · blir kund när du väljer den</span>
-                        )}
+                        {option.tags.map(tag => (
+                          <span key={tag} className="ml-2 whitespace-nowrap text-[11.5px] text-ink-3">{tag}</span>
+                        ))}
                       </span>
                       <span className="whitespace-nowrap font-mono text-[11.5px] text-ink-3">
                         {option.orgNumber ?? 'org.nr saknas'} · {option.customerNo}
@@ -454,19 +426,13 @@ export default function ManualInvoiceForm({
                     </span>
                   )}
                 >
-                  {promoting && <p className="mt-2 text-[12.5px] text-ink-3">Gör om till kund…</p>}
-                  {clientError && (
-                    <div className="mt-2">
-                      <ErrorNote>{clientError}</ErrorNote>
-                    </div>
-                  )}
                   {clientQuery.trim() && clientMatches.length === 0 && (
                     <p className="mt-2 text-[12.5px] text-ink-3">
-                      Ingen kund matchar.{' '}
-                      <Link href="/admin/customers/new" target="_blank" rel="noopener" className="text-brand-text hover:underline">
-                        Lägg till kunden
+                      Inget företag matchar.{' '}
+                      <Link href="/admin/clients/new" target="_blank" rel="noopener" className="text-brand-text hover:underline">
+                        Lägg till företaget
                       </Link>{' '}
-                      under Kunder (öppnas i ny flik) och ladda sedan om den här sidan.
+                      under Företag (öppnas i ny flik) och ladda sedan om den här sidan.
                     </p>
                   )}
                 </SearchPicker>

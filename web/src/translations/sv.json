@@ -372,6 +372,7 @@
       "saved": "Företagsuppgifterna är sparade.",
       "ready": "Kontot kan betala mot faktura.",
       "incomplete": "Komplettera uppgifterna för att kunna betala mot faktura.",
+      "organizationNumberHint": "Kontakta oss om organisationsnumret är fel.",
       "labels": {
         "companyName": "Företagsnamn",
         "organizationNumber": "Organisationsnummer",
@@ -387,6 +388,7 @@
         "address": "Ange en fullständig adress med gatuadress, postnummer och ort.",
         "country": "Vi kan för närvarande bara fakturera svenska adresser.",
         "saveFailed": "Kunde inte spara uppgifterna just nu. Försök igen.",
+        "organizationNumberLocked": "Organisationsnumret kan inte ändras här. Kontakta oss om det är fel.",
         "loadFailed": "Kunde inte hämta uppgifterna just nu. Försök igen."
       }
     },

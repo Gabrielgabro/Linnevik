@@ -10,7 +10,7 @@
  * bara att någon rörde raden.
  */
 
-import { CHANNELS, CLIENT_STATUSES, CONTACT_STATUSES, PRIORITIES, SEGMENTS } from '@/lib/clients';
+import { CHANNELS, CLIENT_STATUSES, CLIENT_TAGS, CONTACT_STATUSES, LAUNDRY_TAG, PRIORITIES, SEGMENTS } from '@/lib/clients';
 import {
   ADDRESS_FIELD_MAX,
   INVOICE_COUNTRY,
@@ -114,6 +114,7 @@ export type ClientInput = {
   city: string | null;
   country: string;
   notes: string | null;
+  tags: string[];
 };
 
 export function parseClientInput(body: Body): ClientInput {
@@ -135,7 +136,7 @@ export function parseClientInput(body: Body): ClientInput {
     customerNo,
     name,
     segment: oneOf(body, 'segment', SEGMENTS),
-    status: oneOf(body, 'status', CLIENT_STATUSES) ?? 'Tvätterikund',
+    status: oneOf(body, 'status', CLIENT_STATUSES) ?? 'Prospekt',
     priority: oneOf(body, 'priority', PRIORITIES),
     reminderFee: decimal(body, 'reminderFee'),
     orgNumber: orgNumber(body, 'orgNumber'),
@@ -146,7 +147,19 @@ export function parseClientInput(body: Body): ClientInput {
     city: text(body, 'city', ADDRESS_FIELD_MAX),
     country,
     notes: text(body, 'notes', 2000),
+    tags: tagList(body),
   };
+}
+
+/**
+ * Taggarna ur formuläret: en lista, eller kryssrutan `laundry` ("1" eller
+ * "0"). Bara kända taggar sparas (CLIENT_TAGS).
+ */
+function tagList(body: Body): string[] {
+  if (Array.isArray(body.tags)) {
+    return CLIENT_TAGS.filter(tag => (body.tags as unknown[]).includes(tag));
+  }
+  return body.laundry === '1' || body.laundry === true ? [LAUNDRY_TAG] : [];
 }
 
 export type ContactInput = {
