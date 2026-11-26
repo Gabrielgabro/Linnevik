@@ -809,7 +809,7 @@ A24 *Rättad.* §15.3, §4.15.
     * Aktivitet och Driftlarm ligger under Kundregister.
     * Statusar och felmeddelanden visas på engelska.
 
-A25 §15.2. Statusändringar, återbetalningar, leveranser och returer på en
+A25 *Rättad.* §15.2. Statusändringar, återbetalningar, leveranser och returer på en
     order syns inte i Aktivitet.
 
 A26 *Rättad.* §17.1. README och en kommentar säger att avstämningen körs var tionde

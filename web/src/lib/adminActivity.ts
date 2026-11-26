@@ -11,9 +11,11 @@
  * En förlorad rad loggas till konsolen i stället.
  */
 
-import { desc } from 'drizzle-orm';
+import { and, desc, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { adminActivity, type AdminActivityRow } from '@/lib/db/schema';
+import { adminActivity, orderEvents } from '@/lib/db/schema';
+import { ADMIN_USERS } from '@/lib/adminAuth';
+import { orderEventLabel, orderStatusLabel } from '@/lib/adminLabels';
 import { revalidateStorefront } from '@/lib/storefrontCache';
 
 export type AdminAction =
@@ -165,14 +167,84 @@ export async function record(
   }
 }
 
-/** Senaste händelserna, nyast först. */
-export async function list(limit = 200): Promise<AdminActivityRow[]> {
+/**
+ * Ändringar admin gör på en order skrivs i orderns historik (order_events).
+ * Aktivitet visar dem också (§15.2), läst därifrån, så att varje ändring
+ * skrivs en gång. Bankbetalningar, manuella fakturor och omskickade mejl har
+ * redan en egen rad i loggen och räknas inte två gånger.
+ */
+const ORDER_CHANGE_KINDS = [
+  'order.updated',
+  'order.paused',
+  'order.resumed',
+  'order.closed',
+  'order.note',
+  'inventory.reserved_again',
+  'refund.created',
+  'fulfillment.created',
+  'inventory.returned',
+] as const;
+
+/** Orderns historik sparar statusnycklar. Aktivitet visar dem på svenska (§15.4). */
+function swedishOrderDetail(detail: Record<string, unknown>): Record<string, unknown> {
+  const names: Record<string, string> = { from: 'från', to: 'till', status: 'status', note: 'varför' };
+  return Object.fromEntries(
+    Object.entries(detail).map(([key, value]) => [
+      names[key] ?? key,
+      ['from', 'to', 'status'].includes(key) && typeof value === 'string' ? orderStatusLabel(value).toLowerCase() : value,
+    ])
+  );
+}
+
+export type ActivityEntry = {
+  key: string;
+  actor: string;
+  action: string;
+  label: string;
+  detail: Record<string, unknown>;
+  createdAt: Date;
+  /** Platsen i admin där ändringen gjordes, när det finns en. */
+  href: string | null;
+};
+
+/** Senaste händelserna, nyast först: adminloggen och admins ändringar på ordrar. */
+export async function list(limit = 200): Promise<ActivityEntry[]> {
   if (!activityConfigured()) return [];
-  return getDb()
-    .select()
-    .from(adminActivity)
-    .orderBy(desc(adminActivity.createdAt), desc(adminActivity.id))
-    .limit(limit);
+  const [logged, orderChanges] = await Promise.all([
+    getDb()
+      .select()
+      .from(adminActivity)
+      .orderBy(desc(adminActivity.createdAt), desc(adminActivity.id))
+      .limit(limit),
+    getDb()
+      .select()
+      .from(orderEvents)
+      .where(and(inArray(orderEvents.kind, [...ORDER_CHANGE_KINDS]), inArray(orderEvents.actor, [...ADMIN_USERS])))
+      .orderBy(desc(orderEvents.createdAt), desc(orderEvents.id))
+      .limit(limit),
+  ]);
+
+  const entries: ActivityEntry[] = [
+    ...logged.map(row => ({
+      key: `a${row.id}`,
+      actor: row.actor,
+      action: row.action,
+      label: actionLabel(row.action),
+      detail: row.detail,
+      createdAt: row.createdAt,
+      href: null,
+    })),
+    ...orderChanges.map(row => ({
+      key: `o${row.id}`,
+      actor: row.actor,
+      action: row.kind,
+      label: `Order #${row.orderId}: ${orderEventLabel(row.kind).toLowerCase()}`,
+      detail: swedishOrderDetail((row.detail ?? {}) as Record<string, unknown>),
+      createdAt: row.createdAt,
+      href: `/admin/orders/${row.orderId}`,
+    })),
+  ];
+  return entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit);
 }
 
 /**

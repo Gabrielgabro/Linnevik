@@ -1,7 +1,8 @@
 import { Activity } from 'lucide-react';
 import { EmptyState, Notice, PageHeader, Panel } from '@/components/admin/ui';
 import { accentFor } from '../nav';
-import { actionLabel, activityConfigured, isFlagged, list } from '@/lib/adminActivity';
+import Link from 'next/link';
+import { activityConfigured, isFlagged, list } from '@/lib/adminActivity';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export default async function AdminActivityPage() {
         kicker={`Senaste ${rows.length} händelserna`}
         title="Vad som hänt i adminvyn"
         accent={accentFor('/admin/activity')}
-        description="Inloggningar, sparade prisförslag och botkörningar. Tider i svensk tid."
+        description="Allt admin ändrar: inloggningar, priser, produkter, företag, ordrar, återbetalningar, leveranser och returer. Tider i svensk tid."
       />
 
       {!activityConfigured() && (
@@ -63,7 +64,7 @@ export default async function AdminActivityPage() {
           <ul className="flex flex-col">
             {group.rows.map(row => (
               <li
-                key={row.id}
+                key={row.key}
                 className="grid grid-cols-[64px_112px_1fr] items-baseline gap-3 border-t border-grid px-5 py-2.5 transition-colors hover:bg-plane max-[620px]:grid-cols-[64px_1fr] sm:px-6"
               >
                 <span className="font-mono text-[12px] tabular-nums text-ink-3">
@@ -84,7 +85,13 @@ export default async function AdminActivityPage() {
                       />
                     )}
                     <span className="min-[621px]:hidden">{row.actor} · </span>
-                    {actionLabel(row.action)}
+                    {row.href ? (
+                      <Link href={row.href} className="hover:underline">
+                        {row.label}
+                      </Link>
+                    ) : (
+                      row.label
+                    )}
                   </span>
                   {detailText(row.detail) && (
                     <span className="font-mono text-[11.5px] tabular-nums text-ink-3">
