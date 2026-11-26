@@ -52,6 +52,26 @@ export const adminActivity = pgTable('admin_activity', {
 
 export type AdminActivityRow = typeof adminActivity.$inferSelect;
 
+// Kommentarer på en order, ett företag eller en provbeställning (§15.6).
+// Raderna kan inte ändras eller raderas: en trigger i drizzle/0048 stoppar
+// det. Ingen främmande nyckel, så att kommentaren står kvar om saken raderas.
+// De gamla fälten orders.notes, clients.notes och
+// sample_requests.internal_note finns kvar i databasen men läses inte längre.
+export const adminComments = pgTable(
+  'admin_comments',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    subject: text('subject').notNull().$type<'order' | 'client' | 'sample_request'>(),
+    subjectId: integer('subject_id').notNull(),
+    author: text('author').notNull(),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [index('admin_comments_subject_idx').on(table.subject, table.subjectId, table.createdAt)]
+);
+
+export type AdminCommentRow = typeof adminComments.$inferSelect;
+
 // Prislogiken som admin styr. En enda rad (id = 1) — det finns bara en
 // konfiguration åt gången. `strategy` väljer mellan trappor (`progressive`)
 // och en jämn kurva (`linear`); `margin`-strategin i pricingRules.ts är
@@ -131,7 +151,6 @@ export const clients = pgTable(
     postalCode: text('postal_code'),
     city: text('city'),
     country: text('country').notNull().default('SE'),
-    notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -610,7 +629,6 @@ export const orders = pgTable(
     pricingVersion: text('pricing_version'),
     currency: text('currency').notNull().default('sek'),
     locale: text('locale'),
-    notes: text('notes'),
     // Sant när ordern skapades med en Stripe-nyckel i testläge. Sätts en gång,
     // vid skapandet, och beskriver nyckeln som användes då — inte vilket läge
     // appen står i när någon läser raden.
@@ -895,7 +913,6 @@ export const sampleRequests = pgTable(
     country: text('country').notNull(),
     notes: text('notes'),
     locale: text('locale'),
-    internalNote: text('internal_note'),
     handledBy: text('handled_by'),
     handledAt: timestamp('handled_at', { withTimezone: true }),
     // Om aviseringsmejlet gick fram. Posten finns kvar oavsett.

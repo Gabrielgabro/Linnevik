@@ -7,7 +7,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/components/admin/Fields';
+import { Button, ErrorNote, Field, Select, formValues } from '@/components/admin/Fields';
 import { CLIENT_STATUSES, isLaundryClient, LAUNDRY_TAG, PRIORITIES, SEGMENTS } from '@/lib/clients';
 import type { ClientRow } from '@/lib/db/schema';
 
@@ -169,8 +169,6 @@ export default function ClientForm(props: Props) {
         />
         <Field label="Ort" name="city" defaultValue={client?.city ?? ''} />
       </fieldset>
-
-      <TextArea label="Anteckningar" name="notes" defaultValue={client?.notes} rows={3} />
 
       <ErrorNote>{error}</ErrorNote>
 

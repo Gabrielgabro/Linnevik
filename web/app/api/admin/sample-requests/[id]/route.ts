@@ -35,12 +35,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (status !== undefined && !isSampleStatus(status)) {
     return NextResponse.json({ error: 'Ogiltig status.' }, { status: 400 });
   }
-  const internalNote =
-    body.internalNote === undefined ? undefined : String(body.internalNote).trim().slice(0, 5_000) || null;
+  const updated = await updateSampleRequest(id, { status }, auth.user);
+  if (!updated) return NextResponse.json({ error: 'Provbeställningen finns inte.' }, { status: 404 });
 
-  const updated = await updateSampleRequest(id, { status, internalNote }, auth.user);
-  if (!updated) return NextResponse.json({ error: 'Sample request not found.' }, { status: 404 });
-
-  await record(auth.user, 'sample_request.updated', `#${id}`, { status, hasNote: Boolean(internalNote) });
+  await record(auth.user, 'sample_request.updated', `#${id}`, { status });
   return NextResponse.json({ request: updated });
 }

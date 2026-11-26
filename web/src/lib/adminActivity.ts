@@ -51,6 +51,7 @@ export type AdminAction =
   | 'shipping.created'
   | 'shipping.updated'
   | 'sample_request.updated'
+  | 'comment.added'
   | 'order.email_resent'
   | 'order.bank_payment_registered'
   | 'order.invoice_created'
@@ -93,7 +94,8 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'discount.updated': 'Ändrade rabattkod',
   'shipping.created': 'La till fraktregel',
   'shipping.updated': 'Ändrade fraktregel',
-  'sample_request.updated': 'Hanterade provförfrågan',
+  'sample_request.updated': 'Hanterade provbeställning',
+  'comment.added': 'Skrev en kommentar',
   'order.email_resent': 'Skickade om ett ordermejl',
   'order.bank_payment_registered': 'Registrerade bankbetalning',
   'order.invoice_created': 'Skapade en faktura för hand',

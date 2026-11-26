@@ -684,7 +684,7 @@ export async function getOrderById(id: number): Promise<OrderDetail | null> {
 
 export async function updateOrderManagement(
   id: number,
-  patch: { status?: string; notes?: string | null },
+  patch: { status?: string },
   actor: string
 ): Promise<OrderRow | null> {
   // En avbokad fakturaorder makulerar sin faktura (§8.8). Fakturan står kvar
@@ -712,7 +712,6 @@ export async function updateOrderManagement(
     .update(orders)
     .set({
       status: patch.status,
-      notes: patch.notes,
       cancelledAt: patch.status === 'cancelled' ? new Date() : undefined,
       updatedAt: new Date(),
     })

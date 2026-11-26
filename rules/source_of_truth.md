@@ -832,7 +832,7 @@ A30 §2.1. Koden skiljer på taggarna. Mängdrabatt och minsta antal gäller
     bara `MTO`, inte `SAMPLE_ONLY` (`pricingRules.ts`, `cartDb.ts:142`).
     Behåll en tagg och ta bort den andra.
 
-A31 §15.6. Kommentarer finns i dag som ett enda textfält på order, företag
+A31 *Rättad* av `drizzle/0048`. §15.6. Kommentarer finns i dag som ett enda textfält på order, företag
     och provbeställning. Det skrivs över och sparar varken vem eller när.
 
 

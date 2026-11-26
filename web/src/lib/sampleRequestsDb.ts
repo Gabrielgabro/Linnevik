@@ -207,17 +207,16 @@ export async function getSampleRequestById(id: number): Promise<SampleRequestFul
   };
 }
 
-/** Statusbyte och intern anteckning från adminvyn. */
+/** Statusbyte från adminvyn. Kommentarer skrivs i adminComments (§15.6). */
 export async function updateSampleRequest(
   id: number,
-  patch: { status?: SampleStatus; internalNote?: string | null },
+  patch: { status?: SampleStatus },
   actor: string
 ): Promise<SampleRequestRow | null> {
   const [row] = await getDb()
     .update(sampleRequests)
     .set({
       status: patch.status,
-      internalNote: patch.internalNote,
       // Vem som senast rörde den, och när. En förfrågan som står kvar på "new"
       // har ingen rört, och då ska fälten förbli tomma.
       handledBy: patch.status && patch.status !== 'new' ? actor : undefined,

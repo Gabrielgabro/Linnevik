@@ -113,7 +113,6 @@ export type ClientInput = {
   postalCode: string | null;
   city: string | null;
   country: string;
-  notes: string | null;
   tags: string[];
 };
 
@@ -146,7 +145,6 @@ export function parseClientInput(body: Body): ClientInput {
     postalCode,
     city: text(body, 'city', ADDRESS_FIELD_MAX),
     country,
-    notes: text(body, 'notes', 2000),
     tags: tagList(body),
   };
 }

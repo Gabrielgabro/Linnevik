@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import OrderActions from '@/components/admin/OrderActions';
+import Comments from '@/components/admin/Comments';
+import { listComments } from '@/lib/adminComments';
 import InvoicePaymentPanel, { type InvoiceSummary } from '@/components/admin/InvoicePaymentPanel';
 import { invoicePaymentDetailsOrNull, ocrForOrder } from '@/lib/invoicePayment';
 import { invoicesForOrder } from '@/lib/invoicesDb';
@@ -31,6 +33,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const id = Number((await params).id);
   const order = Number.isInteger(id) ? await getOrderById(id) : null;
   if (!order) notFound();
+  const comments = await listComments('order', order.id);
   const invoice = order.paymentMethod === 'invoice'
     ? await invoiceSummary(order.id, ['paid', 'partially_refunded', 'refunded'].includes(order.paymentStatus))
     : null;
@@ -136,6 +139,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         );
       })()}
       <OrderActions order={order} />
+      <Comments subject="order" subjectId={order.id} comments={comments} />
       <section><h2 className="mb-3 font-heading text-xl">Historik</h2><ul className="grid gap-2 text-sm">{order.events.map(event => <li key={event.id}>{event.createdAt.toLocaleString('sv-SE')} · {event.kind} · {event.actor}</li>)}</ul></section>
     </>
   );

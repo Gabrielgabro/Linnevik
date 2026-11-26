@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import ClientForm from '@/components/admin/ClientForm';
 import ContactList from '@/components/admin/ContactList';
+import Comments from '@/components/admin/Comments';
+import type { AdminCommentRow } from '@/lib/db/schema';
 import CommerceCustomerPanel from '@/components/admin/CommerceCustomerPanel';
 import { Notice, PageHeader, StatusPill, Tag } from '@/components/admin/ui';
 import type { getClient } from '@/lib/clientsDb';
@@ -13,9 +15,11 @@ import { clientAddressLines, clientInvoiceGap } from '@/lib/clients';
  */
 export default function ClientDetail({
   data,
+  comments,
   accent,
 }: {
   data: NonNullable<Awaited<ReturnType<typeof getClient>>>;
+  comments: AdminCommentRow[];
   /** Registrets accentfärg ur adminmenyn. */
   accent: string;
 }) {
@@ -72,6 +76,8 @@ export default function ClientDetail({
       )}
 
       <ClientForm mode="edit" client={client} />
+
+      <Comments subject="client" subjectId={client.id} comments={comments} />
 
       <ContactList clientId={client.id} contacts={contacts} />
 

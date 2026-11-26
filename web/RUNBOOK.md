@@ -51,7 +51,7 @@ den 207 med en `failures`-lista.
 Det betyder att pengar tagits emot för något vi inte kan koppla till en order —
 sessionen saknar vår metadata. Det går inte att laga automatiskt. Skapa
 återbetalningen i Stripe (den speglas nu automatiskt hit) eller lägg ordern för
-hand, och notera vilket i orderns interna notering.
+hand, och skriv vilket i en kommentar på ordern.
 
 ---
 

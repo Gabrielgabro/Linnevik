@@ -12,7 +12,7 @@
 
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { clientContacts, clients, customers, orderEvents, orders, products, productVariants } from '@/lib/db/schema';
+import { clientContacts, clients, customers, orderEvents, products, productVariants } from '@/lib/db/schema';
 import { getPricingConfig } from '@/lib/pricing';
 import { priceOrder } from '@/lib/pricingRules';
 import { landedCostMinorForSku } from '@/lib/landedCostLookup';
@@ -24,6 +24,7 @@ import { invoicePaymentDetails } from '@/lib/invoicePayment';
 import { INVOICE_COUNTRY, resolveCompanyProfile, type CompanyProfileGap } from '@/lib/companyProfile';
 import { buyerSnapshot, issueInvoiceForOrder } from '@/lib/invoicesDb';
 import { sendInvoiceEmail } from '@/lib/orderEmails';
+import { addComment } from '@/lib/adminComments';
 import {
   type ManualInvoiceInput,
   type ManualInvoiceLineInput,
@@ -370,8 +371,10 @@ export async function createManualInvoice(input: ManualInvoiceInput, actor: stri
       billingAddress: profile.address,
       taxId: profile.organizationNumber,
     });
-    if (input.note) {
-      await getDb().update(orders).set({ notes: input.note, updatedAt: new Date() }).where(eq(orders.id, orderId));
+    // Den interna anteckningen (§10.6) blir orderns första kommentar, med vem
+    // som skapade fakturan (§15.6).
+    if (input.note?.trim()) {
+      await addComment({ subject: 'order', subjectId: orderId, author: actor, body: input.note });
     }
 
     const invoice = await issueInvoiceForOrder({

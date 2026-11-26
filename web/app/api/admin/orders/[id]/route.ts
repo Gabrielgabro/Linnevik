@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readJson, requireAdmin, routeId } from '@/lib/adminRoute';
-import { getOrderById, updateOrderManagement } from '@/lib/ordersDb';
+import { getOrderById } from '@/lib/ordersDb';
 import { applyOrderAction, ORDER_ACTION_LABEL, OrderActionError, type OrderAction } from '@/lib/orderActions';
 import { RefundError } from '@/lib/orderRefunds';
 
@@ -18,8 +18,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 /**
- * Ändrar en order: en av de tillåtna åtgärderna (`allowedOrderActions`) och
- * eller den interna noteringen. Status sätts aldrig fritt (§8.5, A9).
+ * Ändrar en order med en av de tillåtna åtgärderna (`allowedOrderActions`).
+ * Status sätts aldrig fritt (§8.5, A9). Kommentarer skrivs i
+ * /api/admin/comments (§15.6).
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const auth = await requireAdmin(request);
@@ -44,9 +45,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         actor: auth.user,
         note: body.note === undefined ? null : String(body.note).slice(0, 2_000),
       });
-    }
-    if (body.notes !== undefined) {
-      await updateOrderManagement(id, { notes: String(body.notes).trim() || null }, auth.user);
     }
   } catch (error) {
     if (error instanceof OrderActionError || error instanceof RefundError) {

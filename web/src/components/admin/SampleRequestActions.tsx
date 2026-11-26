@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, ErrorNote, Select, TextArea, formValues } from '@/components/admin/Fields';
+import { Button, ErrorNote, Select, formValues } from '@/components/admin/Fields';
 import type { SampleRequestDetail } from '@/lib/sampleRequestsDb';
 
 /** Samma ordning som statusarna faktiskt går igenom. */
@@ -24,7 +24,7 @@ export default function SampleRequestActions({ request }: { request: SampleReque
         const response = await fetch(`/api/admin/sample-requests/${request.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: values.status, internalNote: values.internalNote }),
+          body: JSON.stringify({ status: values.status }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) return setError(data.error ?? 'Kunde inte uppdatera förfrågan.');
@@ -39,11 +39,6 @@ export default function SampleRequestActions({ request }: { request: SampleReque
         required
         options={STATUS_OPTIONS}
         defaultValue={request.status}
-      />
-      <TextArea
-        label="Intern anteckning"
-        name="internalNote"
-        defaultValue={request.internalNote ?? ''}
       />
       <div className="flex items-center gap-3">
         <Button type="submit">Spara</Button>

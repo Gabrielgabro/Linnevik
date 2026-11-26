@@ -19,7 +19,6 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState<'confirmation' | 'shipment' | null>(null);
   const [resent, setResent] = useState(false);
-  const [saving, setSaving] = useState(false);
   // Återbetalningen är det enda i vyn som flyttar riktiga pengar, så knappen
   // låses medan anropet pågår. Nyckeln nedan hör till formulärets nuvarande
   // innehåll och byts först när en återbetalning gått igenom: dubbelklickar
@@ -137,27 +136,6 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
             ))}
           </div>
         )}
-        <form className="grid grid-cols-[2fr_auto] items-end gap-4 max-[700px]:grid-cols-1" onSubmit={async event => {
-          event.preventDefault();
-          const values = formValues(event.currentTarget);
-          setSaving(true);
-          setError(null);
-          setSaved(null);
-          const response = await fetch(`/api/admin/orders/${order.id}`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notes: values.notes }),
-          });
-          const data = await response.json().catch(() => ({}));
-          setSaving(false);
-          if (!response.ok) return setError(data.error ?? 'Kunde inte spara noteringen.');
-          setSaved(`Noteringen ${new Date().toLocaleTimeString('sv-SE')}`);
-          router.refresh();
-        }}>
-          <Field label="Intern ordernotering" name="notes" defaultValue={order.notes} />
-          <Button type="submit" disabled={saving}>
-            {saving ? 'Sparar…' : 'Spara notering'}
-          </Button>
-        </form>
         {saved && (
           <Notice tone="ok" title="Sparat">
             {saved}.
