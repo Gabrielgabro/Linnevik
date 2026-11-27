@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readJson, requireAdmin } from '@/lib/adminRoute';
 import { ManualInvoiceError, quoteManualInvoice } from '@/lib/manualInvoice';
-import {
-  ManualInvoiceInputError,
-  parseManualInvoiceLines,
-  parseManualInvoiceShipping,
-} from '@/lib/manualInvoiceInput';
+import { ManualInvoiceInputError, parseManualInvoiceQuote } from '@/lib/manualInvoiceInput';
 
 export const runtime = 'nodejs';
 
@@ -20,10 +16,7 @@ export async function POST(request: NextRequest) {
   if ('response' in parsed) return parsed.response;
 
   try {
-    const quote = await quoteManualInvoice({
-      lines: parseManualInvoiceLines(parsed.body.lines),
-      shipping: parseManualInvoiceShipping(parsed.body.shipping),
-    });
+    const quote = await quoteManualInvoice(parseManualInvoiceQuote(parsed.body));
     return NextResponse.json(quote);
   } catch (error) {
     if (error instanceof ManualInvoiceInputError) return NextResponse.json({ error: error.message }, { status: 400 });

@@ -9,7 +9,12 @@ import { Button, ErrorNote, Field, Label } from '@/components/admin/Fields';
 import { Notice, Panel, Tag } from '@/components/admin/ui';
 import { formatMinor, toMinor } from '@/lib/money';
 import type { InvoiceClientOption, InvoiceVariantOption, ManualQuote } from '@/lib/manualInvoice';
-import { MANUAL_INVOICE_DUE_DAYS_MAX, MANUAL_INVOICE_DUE_DAYS_MIN } from '@/lib/manualInvoiceInput';
+import {
+  MANUAL_INVOICE_DUE_DAYS_MAX,
+  MANUAL_INVOICE_DUE_DAYS_MIN,
+  type ManualInvoiceQuoteBody,
+  type ManualInvoiceShipping,
+} from '@/lib/manualInvoiceInput';
 
 /**
  * Formuläret för en faktura som skapas för hand.
@@ -247,11 +252,12 @@ export default function ManualInvoiceForm({
     quantity: Number(line.quantity),
     unitAmountMinor: line.ownPrice.trim() === '' ? null : kronorToMinor(line.ownPrice),
   }));
-  const payloadShipping =
+  const payloadShipping: ManualInvoiceShipping =
     shippingMode === 'manual'
       ? { mode: 'manual', name: shippingName, amountMinor: kronorToMinor(shippingAmount) }
       : { mode: shippingMode };
-  const quoteKey = JSON.stringify({ payloadLines, payloadShipping });
+  const quoteBody: ManualInvoiceQuoteBody = { lines: payloadLines, shipping: payloadShipping };
+  const quoteKey = JSON.stringify(quoteBody);
 
   // ── Offert från servern ──
   const [quote, setQuote] = useState<ManualQuote | null>(null);
@@ -333,7 +339,7 @@ export default function ManualInvoiceForm({
     if (submitting || blockers.length || !quote || !client) return;
     const ok = window.confirm(
       `Skapa och skicka faktura på ${formatMinor(quote.totalMinor, quote.currency)} inkl. moms till ${companyName} (${email})?\n\n` +
-        'Lagret reserveras, fakturan skapas i Stripe med bankgiro och OCR, och kunden får fakturamejlet direkt.'
+        'Lagret reserveras, fakturan skapas som pdf med bankgiro och OCR, och kunden får fakturamejlet direkt.'
     );
     if (!ok) return;
     setSubmitting(true);
@@ -720,7 +726,7 @@ export default function ManualInvoiceForm({
         </Button>
         {blockers.length > 0 && <p className="text-[12.5px] text-ink-3">{blockers[0]}</p>}
         <p className="text-[12px] leading-[1.6] text-ink-3">
-          Fakturan skapas i Stripe och mejlas till kunden direkt. Ordern hamnar under Ordrar → Obetalda fakturor och
+          Fakturan skapas som pdf och mejlas till kunden direkt. Ordern hamnar under Ordrar → Obetalda fakturor och
           följs upp som alla fakturor. Ångra genom att avbeställa ordern — då makuleras fakturan och lagret släpps.
         </p>
       </div>

@@ -47,6 +47,14 @@ export type ManualInvoiceInput = {
   note: string;
 };
 
+/**
+ * Kroppen till förhandsberäkningen. Formuläret bygger den med den här typen och
+ * routen läser den med `parseManualInvoiceQuote`, så att fältnamnen inte kan
+ * glida isär. Förr skickade formuläret `payloadLines` och routen läste
+ * `lines`, och ingen faktura gick att räkna fram.
+ */
+export type ManualInvoiceQuoteBody = Pick<ManualInvoiceInput, 'lines' | 'shipping'>;
+
 export class ManualInvoiceInputError extends Error {
   constructor(message: string) {
     super(message);
@@ -118,6 +126,11 @@ export function parseManualInvoiceShipping(value: unknown): ManualInvoiceShippin
     return { mode: 'manual', name: text(shipping.name, 80) || 'Frakt', amountMinor };
   }
   return { mode: 'rule' };
+}
+
+export function parseManualInvoiceQuote(body: unknown): ManualInvoiceQuoteBody {
+  const input = record(body);
+  return { lines: parseManualInvoiceLines(input.lines), shipping: parseManualInvoiceShipping(input.shipping) };
 }
 
 export function parseManualInvoiceInput(body: unknown): ManualInvoiceInput {

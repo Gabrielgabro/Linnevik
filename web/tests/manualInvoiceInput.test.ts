@@ -5,7 +5,9 @@ import {
   ManualInvoiceInputError,
   parseManualInvoiceInput,
   parseManualInvoiceLines,
+  parseManualInvoiceQuote,
   parseManualInvoiceShipping,
+  type ManualInvoiceQuoteBody,
 } from '@/lib/manualInvoiceInput';
 
 const valid = {
@@ -86,5 +88,23 @@ describe('manual invoices', () => {
   it('is admin-only', () => {
     expect(route).toContain('requireAdmin(request)');
     expect(readFileSync(resolve('app/api/admin/invoices/quote/route.ts'), 'utf8')).toContain('requireAdmin(request)');
+  });
+});
+
+describe('parseManualInvoiceQuote', () => {
+  it('reads the body the form sends', () => {
+    // Formuläret skickade förr `payloadLines` och `payloadShipping`, och
+    // varje offert föll på "Lägg till minst en rad."
+    const body: ManualInvoiceQuoteBody = {
+      lines: [{ variantId: 3, quantity: 36, unitAmountMinor: null }],
+      shipping: { mode: 'none' },
+    };
+    expect(parseManualInvoiceQuote(JSON.parse(JSON.stringify(body)))).toEqual(body);
+  });
+
+  it('refuses a body without lines', () => {
+    expect(() =>
+      parseManualInvoiceQuote({ payloadLines: [{ variantId: 3, quantity: 36, unitAmountMinor: null }] })
+    ).toThrow('Lägg till minst en rad.');
   });
 });
