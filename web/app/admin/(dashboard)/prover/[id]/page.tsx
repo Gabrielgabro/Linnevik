@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Notice, Panel, Tag } from '@/components/admin/ui';
 import SampleRequestActions from '@/components/admin/SampleRequestActions';
+import Comments from '@/components/admin/Comments';
+import { listComments } from '@/lib/adminComments';
 import { getSampleRequestById } from '@/lib/sampleRequestsDb';
-import { STATUS_LABEL } from '../page';
+import { SAMPLE_STATUS_LABEL as STATUS_LABEL } from '@/lib/adminLabels';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +17,7 @@ export default async function SampleRequestPage({
   const id = Number((await params).id);
   const request = Number.isInteger(id) ? await getSampleRequestById(id) : null;
   if (!request) notFound();
+  const comments = await listComments('sample_request', request.id);
 
   return (
     <>
@@ -24,7 +27,7 @@ export default async function SampleRequestPage({
           style={{ color: 'var(--viz-ink-3)' }}
         >
           <span>
-            Provförfrågan #{request.id} · {STATUS_LABEL[request.status] ?? request.status}
+            Provbeställning #{request.id} · {STATUS_LABEL[request.status] ?? request.status}
           </span>
           {!request.emailed && <Tag color="var(--adm-danger)">ej aviserad</Tag>}
         </p>
@@ -121,6 +124,8 @@ export default async function SampleRequestPage({
       )}
 
       <SampleRequestActions request={request} />
+
+      <Comments subject="sample_request" subjectId={request.id} comments={comments} />
 
       <p className="text-xs" style={{ color: 'var(--viz-ink-3)' }}>
         Inkom {request.createdAt.toLocaleString('sv-SE')}

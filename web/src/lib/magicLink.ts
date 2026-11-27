@@ -117,11 +117,12 @@ export async function requestMagicLink(input: {
 
     const db = getDb();
     const customer = await db.execute(sql`
-      select id from customers where lower(email) = ${email} limit 1
+      select id from customers where lower(email) = ${email} and status = 'active' limit 1
     `);
     const row = customer.rows[0] as { id: number } | undefined;
     if (!row) {
-      // Ingen kund med den adressen. Svarar tyst — se funktionskommentaren.
+      // Inget aktivt webbkonto med den adressen. Ett inaktivt konto kan inte
+      // logga in (§11.9). Svarar tyst — se funktionskommentaren.
       return false;
     }
 
@@ -171,11 +172,15 @@ export async function claimMagicLinkToken(rawToken: string): Promise<ClaimResult
   const hash = hashToken(rawToken);
   const db = getDb();
 
+  // Ett konto som har gjorts inaktivt efter att länken skickades kan inte
+  // lösa in den (§11.9). Länken räknas då som ogiltig.
   const claimed = await db.execute(sql`
-    update customer_login_tokens
+    update customer_login_tokens t
     set consumed_at = now()
-    where token_hash = ${hash} and consumed_at is null and expires_at > now()
-    returning customer_id
+    from customers c
+    where t.token_hash = ${hash} and t.consumed_at is null and t.expires_at > now()
+      and c.id = t.customer_id and c.status = 'active'
+    returning t.customer_id
   `);
   const claimedRow = claimed.rows[0] as { customer_id: number } | undefined;
   if (claimedRow) {
@@ -186,10 +191,11 @@ export async function claimMagicLinkToken(rawToken: string): Promise<ClaimResult
   // som om det lyckades. Se filkommentaren om varför: ett dubbelt POST ska
   // inte visa ett felmeddelande för en kund som redan är inloggad.
   const recent = await db.execute(sql`
-    select customer_id, expires_at, consumed_at from customer_login_tokens
-    where token_hash = ${hash}
-      and consumed_at is not null
-      and consumed_at > now() - make_interval(mins => ${REPLAY_WINDOW_MINUTES})
+    select t.customer_id from customer_login_tokens t
+    join customers c on c.id = t.customer_id and c.status = 'active'
+    where t.token_hash = ${hash}
+      and t.consumed_at is not null
+      and t.consumed_at > now() - make_interval(mins => ${REPLAY_WINDOW_MINUTES})
     limit 1
   `);
   const recentRow = recent.rows[0] as { customer_id: number } | undefined;
@@ -198,7 +204,9 @@ export async function claimMagicLinkToken(rawToken: string): Promise<ClaimResult
   }
 
   const existing = await db.execute(sql`
-    select expires_at from customer_login_tokens where token_hash = ${hash} limit 1
+    select t.expires_at from customer_login_tokens t
+    join customers c on c.id = t.customer_id and c.status = 'active'
+    where t.token_hash = ${hash} limit 1
   `);
   if (existing.rows.length === 0) return { status: 'invalid' };
   return { status: 'expired' };

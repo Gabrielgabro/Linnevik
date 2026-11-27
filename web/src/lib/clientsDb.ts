@@ -15,7 +15,6 @@ import {
   customers,
   orders,
   type ClientContactRow,
-  type ClientKind,
   type ClientRow,
   type CustomerRow,
   type OrderRow,
@@ -30,7 +29,7 @@ export function clientsConfigured(): boolean {
  * i stället för med en fråga per kund — listan är ett par hundra rader och
  * ska renderas i ett svep.
  */
-export async function listClients(kind?: ClientKind): Promise<ClientWithCounts[]> {
+export async function listClients(): Promise<ClientWithCounts[]> {
   if (!clientsConfigured()) return [];
   // Samma urval som Ordrar → Obetalda fakturor och avstämningen.
   const unpaidInvoices = sql`
@@ -56,7 +55,6 @@ export async function listClients(kind?: ClientKind): Promise<ClientWithCounts[]
     })
     .from(clients)
     .leftJoin(clientContacts, eq(clientContacts.clientId, clients.id))
-    .where(kind ? eq(clients.kind, kind) : undefined)
     .groupBy(clients.id)
     .orderBy(asc(clients.name));
 

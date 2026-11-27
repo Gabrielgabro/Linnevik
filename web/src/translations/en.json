@@ -81,6 +81,7 @@
     "leadTime": "Lead time",
     "informationHeading": "Product information",
     "unavailable": "Not available to order",
+    "soldOut": "Sold out",
     "pricingTableTitle": "Volume pricing",
     "pricingTableFrom": "Quantity",
     "pricingTableUnits": "units",
@@ -371,6 +372,7 @@
       "saved": "Your company details have been saved.",
       "ready": "This account can pay by invoice.",
       "incomplete": "Complete these details to pay by invoice.",
+      "organizationNumberHint": "Contact us if the registration number is wrong.",
       "labels": {
         "companyName": "Company name",
         "organizationNumber": "Registration number",
@@ -386,6 +388,7 @@
         "address": "Enter a complete address with street, postal code and city.",
         "country": "We can currently invoice Swedish addresses only.",
         "saveFailed": "Could not save your details right now. Please try again.",
+        "organizationNumberLocked": "The registration number cannot be changed here. Contact us if it is wrong.",
         "loadFailed": "Could not load your details right now. Please try again."
       }
     },
@@ -400,6 +403,9 @@
     "ordersEmptyBody": "Your first order will show up here.",
     "ordersCta": "Browse products",
     "orderNumber": "Order #{number}",
+    "invoiceLink": "Invoice {number} (PDF)",
+    "creditNoteLink": "Credit note {number} (PDF)",
+    "invoiceVoided": "voided",
     "totalLabel": "Total amount",
     "perUnit": "per item",
     "quantityLabel": "Quantity: {count}",
@@ -932,6 +938,11 @@
       "invoicePaymentHint": "Use the OCR number as the payment reference so the payment is matched to the right invoice. The details are also on the invoice.",
       "pendingTitle": "Payment processing",
       "pendingBody": "Your payment has not been confirmed yet. This page will update once it clears.",
+      "pendingSlow": "This is taking longer than usual. You will get a confirmation by email once the payment has cleared.",
+      "failedTitle": "The payment did not go through",
+      "failedBody": "The order has not been placed. You can try again from the cart or contact us.",
+      "cancelledTitle": "The order is cancelled",
+      "cancelledBody": "Contact us if you have any questions about the order.",
       "orderNumber": "Order number",
       "vat": "of which VAT",
       "total": "Total"

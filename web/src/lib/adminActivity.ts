@@ -11,9 +11,11 @@
  * En förlorad rad loggas till konsolen i stället.
  */
 
-import { desc } from 'drizzle-orm';
+import { and, desc, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { adminActivity, type AdminActivityRow } from '@/lib/db/schema';
+import { adminActivity, orderEvents } from '@/lib/db/schema';
+import { ADMIN_USERS } from '@/lib/adminAuth';
+import { orderEventLabel, orderStatusLabel } from '@/lib/adminLabels';
 import { revalidateStorefront } from '@/lib/storefrontCache';
 
 export type AdminAction =
@@ -39,6 +41,7 @@ export type AdminAction =
   | 'product.image_removed'
   | 'variant.created'
   | 'variant.updated'
+  | 'variant.price_changed'
   | 'variant.deleted'
   | 'collection.created'
   | 'collection.updated'
@@ -51,6 +54,7 @@ export type AdminAction =
   | 'shipping.created'
   | 'shipping.updated'
   | 'sample_request.updated'
+  | 'comment.added'
   | 'order.email_resent'
   | 'order.bank_payment_registered'
   | 'order.invoice_created'
@@ -82,6 +86,7 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'product.image_removed': 'Tog bort produktbild',
   'variant.created': 'La till variant',
   'variant.updated': 'Ändrade variant',
+  'variant.price_changed': 'Ändrade listpris',
   'variant.deleted': 'Tog bort variant',
   'collection.created': 'La till kategori',
   'collection.updated': 'Ändrade kategori',
@@ -93,7 +98,8 @@ export const ACTION_LABELS: Record<AdminAction, string> = {
   'discount.updated': 'Ändrade rabattkod',
   'shipping.created': 'La till fraktregel',
   'shipping.updated': 'Ändrade fraktregel',
-  'sample_request.updated': 'Hanterade provförfrågan',
+  'sample_request.updated': 'Hanterade provbeställning',
+  'comment.added': 'Skrev en kommentar',
   'order.email_resent': 'Skickade om ett ordermejl',
   'order.bank_payment_registered': 'Registrerade bankbetalning',
   'order.invoice_created': 'Skapade en faktura för hand',
@@ -128,6 +134,7 @@ const STOREFRONT_ACTIONS: ReadonlySet<AdminAction> = new Set<AdminAction>([
   'product.image_removed',
   'variant.created',
   'variant.updated',
+  'variant.price_changed',
   'variant.deleted',
   'collection.created',
   'collection.updated',
@@ -160,12 +167,108 @@ export async function record(
   }
 }
 
-/** Senaste händelserna, nyast först. */
-export async function list(limit = 200): Promise<AdminActivityRow[]> {
+/**
+ * Ändringar admin gör på en order skrivs i orderns historik (order_events).
+ * Aktivitet visar dem också (§15.2), läst därifrån, så att varje ändring
+ * skrivs en gång. Bankbetalningar, manuella fakturor och omskickade mejl har
+ * redan en egen rad i loggen och räknas inte två gånger.
+ */
+const ORDER_CHANGE_KINDS = [
+  'order.updated',
+  'order.paused',
+  'order.resumed',
+  'order.closed',
+  'order.note',
+  'inventory.reserved_again',
+  'refund.created',
+  'fulfillment.created',
+  'inventory.returned',
+] as const;
+
+/** Orderns historik sparar statusnycklar. Aktivitet visar dem på svenska (§15.4). */
+function swedishOrderDetail(detail: Record<string, unknown>): Record<string, unknown> {
+  const names: Record<string, string> = { from: 'från', to: 'till', status: 'status', note: 'varför' };
+  return Object.fromEntries(
+    Object.entries(detail).map(([key, value]) => [
+      names[key] ?? key,
+      ['from', 'to', 'status'].includes(key) && typeof value === 'string' ? orderStatusLabel(value).toLowerCase() : value,
+    ])
+  );
+}
+
+export type ActivityEntry = {
+  key: string;
+  actor: string;
+  action: string;
+  label: string;
+  detail: Record<string, unknown>;
+  createdAt: Date;
+  /** Platsen i admin där ändringen gjordes, när det finns en. */
+  href: string | null;
+};
+
+/** Senaste händelserna, nyast först: adminloggen och admins ändringar på ordrar. */
+export async function list(limit = 200): Promise<ActivityEntry[]> {
   if (!activityConfigured()) return [];
-  return getDb()
-    .select()
-    .from(adminActivity)
-    .orderBy(desc(adminActivity.createdAt), desc(adminActivity.id))
-    .limit(limit);
+  const [logged, orderChanges] = await Promise.all([
+    getDb()
+      .select()
+      .from(adminActivity)
+      .orderBy(desc(adminActivity.createdAt), desc(adminActivity.id))
+      .limit(limit),
+    getDb()
+      .select()
+      .from(orderEvents)
+      .where(and(inArray(orderEvents.kind, [...ORDER_CHANGE_KINDS]), inArray(orderEvents.actor, [...ADMIN_USERS])))
+      .orderBy(desc(orderEvents.createdAt), desc(orderEvents.id))
+      .limit(limit),
+  ]);
+
+  const entries: ActivityEntry[] = [
+    ...logged.map(row => ({
+      key: `a${row.id}`,
+      actor: row.actor,
+      action: row.action,
+      label: actionLabel(row.action),
+      detail: row.detail,
+      createdAt: row.createdAt,
+      href: null,
+    })),
+    ...orderChanges.map(row => ({
+      key: `o${row.id}`,
+      actor: row.actor,
+      action: row.kind,
+      label: `Order #${row.orderId}: ${orderEventLabel(row.kind).toLowerCase()}`,
+      detail: swedishOrderDetail((row.detail ?? {}) as Record<string, unknown>),
+      createdAt: row.createdAt,
+      href: `/admin/orders/${row.orderId}`,
+    })),
+  ];
+  return entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit);
+}
+
+/**
+ * Sidorna ett listpris kan ändras från (§4.15): produkten, eller prisanalysen
+ * för egna produkter eller för Franzén. Alla skriver samma fält.
+ */
+export const PRICE_SOURCES = ['Produkt', 'Prisbild', 'Franzén'] as const;
+export type PriceSource = (typeof PRICE_SOURCES)[number];
+
+export function parsePriceSource(value: unknown): PriceSource {
+  return (PRICE_SOURCES as readonly unknown[]).includes(value) ? (value as PriceSource) : 'Produkt';
+}
+
+const kr = (minor: number) => (minor / 100).toFixed(2).replace('.', ',');
+
+/** En ändring av listpriset: vem, när, gammalt och nytt pris och från vilken sida. */
+export async function recordPriceChange(
+  actor: string,
+  change: { variantId: number; sku: string; beforeMinor: number; afterMinor: number; source: PriceSource }
+): Promise<void> {
+  await record(actor, 'variant.price_changed', String(change.variantId), {
+    sku: change.sku,
+    före: kr(change.beforeMinor),
+    efter: kr(change.afterMinor),
+    sida: change.source,
+  });
 }

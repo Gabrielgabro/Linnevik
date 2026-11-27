@@ -1,34 +1,31 @@
 /**
- * Fakturor som skapas för hand i admin.
+ * Fakturor som skapas för hand i admin (source_of_truth §10).
  *
- * Samma väg som kassans fakturaköp, steg för steg: en order med frysta rader,
- * en strikt lagerreservation, en Stripe-faktura ställd på företaget med
- * bankgiro och OCR, och vårt eget fakturamejl. Därefter vet webhooken,
- * avstämningen, påminnelserna och "Registrera bankbetalning" inte skillnad på
- * en manuell faktura och en från kassan — de är samma sorts order.
+ * Samma sorts order som kassans fakturaköp: frysta rader, en strikt
+ * lagerreservation, vår egen faktura med nummer, bankgiro och OCR, och
+ * fakturamejlet med pdf:en. Därefter vet påminnelserna och "Registrera
+ * bankbetalning" inte skillnad på en manuell faktura och en från kassan.
  *
- * Det som skiljer: mottagaren väljs ur kundregistret i stället för att vara den
- * inloggade, och admin får sätta eget styckpris och egen frakt. Priset utan
- * eget värde är katalogens, genom samma prissättning som korgen använder.
+ * Det som skiljer: mottagaren väljs ur företagsregistret, admin får sätta eget
+ * styckpris och egen frakt, och inget webbkonto skapas (§10.8).
  */
 
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { clientContacts, clients, customers, orderEvents, orders, products, productVariants } from '@/lib/db/schema';
-import { getStripe, stripeFailureIsAmbiguous } from '@/lib/stripe';
-import { ensureStripeProducts } from '@/lib/stripeCatalog';
+import { clientContacts, clients, customers, orderEvents, products, productVariants } from '@/lib/db/schema';
 import { getPricingConfig } from '@/lib/pricing';
 import { priceOrder } from '@/lib/pricingRules';
 import { landedCostMinorForSku } from '@/lib/landedCostLookup';
-import { checkoutTaxMode, vatBps, vatOn, vatPercent } from '@/lib/vat';
-import { abandonPendingOrder, attachSession, createPendingOrder, setPendingOrderCustomerDetails } from '@/lib/ordersDb';
+import { vatBps, vatOn, vatPercent } from '@/lib/vat';
+import { abandonPendingOrder, createPendingOrder, setPendingOrderCustomerDetails } from '@/lib/ordersDb';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
-import { resolveShipping, upsertCustomerFromCheckout } from '@/lib/commerceOperations';
+import { resolveShipping } from '@/lib/commerceOperations';
 import { invoicePaymentDetails } from '@/lib/invoicePayment';
-import { INVOICE_COUNTRY, resolveCompanyProfile, STRIPE_TAX_ID_TYPE, type CompanyProfileGap } from '@/lib/companyProfile';
-import { createInvoiceDraft, finishInvoice, syncStripeInvoiceCustomer } from '@/lib/invoiceIssue';
+import { INVOICE_COUNTRY, resolveCompanyProfile, type CompanyProfileGap } from '@/lib/companyProfile';
+import { buyerSnapshot, issueInvoiceForOrder } from '@/lib/invoicesDb';
+import { sendInvoiceEmail } from '@/lib/orderEmails';
+import { addComment } from '@/lib/adminComments';
 import {
-  manualInvoiceReference,
   type ManualInvoiceInput,
   type ManualInvoiceLineInput,
   type ManualInvoiceShipping,
@@ -56,8 +53,8 @@ export type InvoiceClientOption = {
   id: number;
   customerNo: string;
   name: string;
-  /** 'lead' = Tvätterikund; görs till kund när den väljs i formuläret. */
-  kind: 'lead' | 'customer';
+  /** Taggarna, till exempel Tvätterikund. Visas bara, styr ingenting. */
+  tags: string[];
   orgNumber: string | null;
   invoiceEmail: string | null;
   address: { line1: string; line2: string; postalCode: string; city: string; country: string };
@@ -70,8 +67,8 @@ export type InvoiceClientOption = {
 export async function listInvoiceClients(): Promise<InvoiceClientOption[]> {
   const db = getDb();
   const [clientRows, contactRows, accountRows] = await Promise.all([
-    // Båda registren: en tvätterikund som ska faktureras görs till kund när
-    // den väljs. Formuläret visar kunderna först.
+    // Hela registret. Ett företag med taggen Tvätterikund faktureras som
+    // vilket annat som helst (§10.2).
     db.select().from(clients).orderBy(asc(clients.name)),
     db
       .select({
@@ -110,7 +107,7 @@ export async function listInvoiceClients(): Promise<InvoiceClientOption[]> {
       id: client.id,
       customerNo: client.customerNo,
       name: client.name,
-      kind: client.kind === 'customer' ? ('customer' as const) : ('lead' as const),
+      tags: client.tags,
       orgNumber: client.orgNumber,
       invoiceEmail: client.invoiceEmail,
       address: {
@@ -299,30 +296,29 @@ export async function quoteManualInvoice(input: {
 
 export type ManualInvoiceResult = {
   orderId: number;
-  invoiceId: string;
-  number: string | null;
-  hostedUrl: string | null;
+  number: number;
   totalMinor: number;
+  /** Mejlet med pdf:en gick fram. Fakturan finns oavsett. */
+  emailed: boolean;
 };
 
 /**
- * Skapar ordern, reserverar lagret och skickar fakturan.
+ * Skapar ordern, reserverar lagret, gör fakturan och mejlar den.
  *
- * Ett avbrott före utskicket städar efter sig som kassan gör: ett säkert fel
- * raderar utkastet i Stripe och släpper ordern och lagret. Ett tvetydigt fel —
- * ett tappat svar från Stripe — lämnar allt bundet, eftersom fakturan kan ha
- * gått i väg ändå; nattens avstämning tar upp utkast som blev liggande.
+ * Ordern kopplas till företaget direkt. Mottagarens e-post är en adress för
+ * fakturan, inte en inloggning: inget webbkonto skapas och inget befintligt
+ * flyttas (§10.8, A12).
+ *
+ * Ett fel före fakturan släpper ordern och lagret. Efter fakturan står allt
+ * kvar: fakturan har ett nummer i serien och ska makuleras, inte försvinna.
  */
 export async function createManualInvoice(input: ManualInvoiceInput, actor: string): Promise<ManualInvoiceResult> {
   // Först: utan bankgiro går fakturan inte att betala. Kastar
   // InvoicePaymentConfigError, som rutten gör om till ett larm och 503.
-  const payment = invoicePaymentDetails();
+  invoicePaymentDetails();
 
   const [client] = await getDb().select().from(clients).where(eq(clients.id, input.clientId)).limit(1);
-  if (!client) throw new ManualInvoiceError('Kunden finns inte.', 404);
-  if (client.kind !== 'customer') {
-    throw new ManualInvoiceError('Företaget ligger under Tvätterikunder. Gör det till kund från kundkortet först.');
-  }
+  if (!client) throw new ManualInvoiceError('Företaget finns inte.', 404);
 
   const resolved = resolveCompanyProfile({
     email: input.recipient.email,
@@ -341,8 +337,6 @@ export async function createManualInvoice(input: ManualInvoiceInput, actor: stri
   if (quote.stockProblems.length) {
     throw new ManualInvoiceError(`Lagret räcker inte. ${quote.stockProblems.join(' ')}`);
   }
-  // Samma spärr som kassan: varan ska finnas i Stripe i nyckelns läge.
-  const stripeProductIds = await ensureStripeProducts(quote.lines.map(line => line.productHandle));
   const priced = quote.lines.map(line => ({
     variantId: line.variantId,
     sku: line.sku,
@@ -350,99 +344,58 @@ export async function createManualInvoice(input: ManualInvoiceInput, actor: stri
     quantity: line.quantity,
     unitAmountMinor: line.unitAmountMinor,
     currency: line.currency,
-    stripeProductId: stripeProductIds.get(line.productHandle) ?? null,
+    stripeProductId: null,
   }));
-  const taxMode = await checkoutTaxMode();
 
   let orderId: number | null = null;
-  let stripeInvoiceId: string | null = null;
-  let sent = false;
+  let issued = false;
   try {
     orderId = await createPendingOrder(priced, 'sv', undefined, {
       paymentMethod: 'invoice',
       shipping: quote.shipping,
-      vat: { mode: taxMode.kind, bps: vatBps(taxMode.percent), rateId: taxMode.kind === 'explicit' ? taxMode.taxRateId : null },
+      vat: { mode: 'explicit', bps: vatBps(), rateId: null },
     });
 
-    const dueAt = new Date(Date.now() + input.daysUntilDue * 24 * 60 * 60 * 1000);
-    if (!(await reserveOrderStockStrict(orderId, 'admin_invoice', dueAt))) {
+    // Lagret hålls tills fakturan är betald eller ordern avbokad (§3.3, §10.7).
+    if (!(await reserveOrderStockStrict(orderId, 'admin_invoice', null))) {
       throw new ManualInvoiceError('Lagret ändrades medan fakturan skapades. Kontrollera antalen och försök igen.');
     }
 
-    // Kundposten först, knuten till den valda kunden i registret, så att
-    // ordern och Stripe-kunden hänger ihop med samma företag.
-    const localCustomerId = await upsertCustomerFromCheckout({
-      email: profile.email,
-      name: profile.companyName,
-      customerNo: client.customerNo,
-      shippingAddress: profile.address,
-      billingAddress: profile.address,
-      taxId: { type: STRIPE_TAX_ID_TYPE, value: profile.organizationNumber },
-    });
-    const [localCustomer] = await getDb()
-      .select({ stripeCustomerId: customers.stripeCustomerId })
-      .from(customers)
-      .where(eq(customers.id, localCustomerId))
-      .limit(1);
-    const customerId = await syncStripeInvoiceCustomer({
-      localCustomerId,
-      stripeCustomerId: localCustomer?.stripeCustomerId ?? null,
-      profile,
-    });
-    await getDb()
-      .update(customers)
-      .set({ stripeCustomerId: customerId, updatedAt: new Date() })
-      .where(eq(customers.id, localCustomerId));
     await setPendingOrderCustomerDetails({
       orderId,
-      customerId: localCustomerId,
+      customerId: null,
+      clientId: client.id,
       email: profile.email,
       customerName: profile.companyName,
       shippingAddress: profile.address,
       billingAddress: profile.address,
       taxId: profile.organizationNumber,
     });
-    if (input.note) {
-      await getDb().update(orders).set({ notes: input.note, updatedAt: new Date() }).where(eq(orders.id, orderId));
+    // Den interna anteckningen (§10.6) blir orderns första kommentar, med vem
+    // som skapade fakturan (§15.6).
+    if (input.note?.trim()) {
+      await addComment({ subject: 'order', subjectId: orderId, author: actor, body: input.note });
     }
 
-    const invoice = await createInvoiceDraft({
+    const invoice = await issueInvoiceForOrder({
       orderId,
-      customerId,
-      currency: quote.currency,
-      profile,
-      reference: manualInvoiceReference(input.reference, input.purchaseOrder),
-      payment,
-      taxMode,
-      shippingMinor: quote.shipping?.amountMinor ?? 0,
-      daysUntilDue: input.daysUntilDue,
-      idempotencyKey: `linnevik_admin_invoice_${orderId}`,
+      buyer: buyerSnapshot({
+        companyName: profile.companyName,
+        organizationNumber: profile.organizationNumber,
+        address: profile.address,
+        email: profile.email,
+        customerNo: client.customerNo,
+        reference: input.reference,
+        purchaseOrder: input.purchaseOrder,
+      }),
+      dueDays: input.daysUntilDue,
       memo: input.memo || null,
-      metadata: { linnevik_source: 'admin', linnevik_created_by: actor.slice(0, 200) },
+      actor,
     });
-    stripeInvoiceId = invoice.id;
-    await attachSession(orderId, invoice.id);
+    issued = true;
 
-    const finished = await finishInvoice({
-      invoiceId: invoice.id,
-      orderId,
-      customerId,
-      lines: priced,
-      shipping: {
-        name: quote.shipping?.name ?? 'Frakt',
-        currency: quote.currency,
-        amountMinor: quote.shipping?.amountMinor ?? 0,
-      },
-      taxMode,
-      // Mottagaren som admin valde, inte kundregistrets brevlåda: den adressen
-      // är redan ett av valen i formuläret.
-      notifyEmail: profile.email,
-      payment,
-    });
-    sent = true;
-
-    // Fakturan är skickad. Ett fel i spåret efteråt får inte se ut som att
-    // fakturan misslyckades — då skapar någon en till.
+    // Fakturan finns. Ett fel i spåret efteråt får inte se ut som att fakturan
+    // misslyckades, då skapar någon en till.
     await getDb()
       .insert(orderEvents)
       .values({
@@ -450,8 +403,7 @@ export async function createManualInvoice(input: ManualInvoiceInput, actor: stri
         kind: 'invoice.created_manually',
         actor,
         detail: {
-          stripeInvoiceId: finished.id,
-          number: finished.number ?? null,
+          number: invoice.number,
           clientId: client.id,
           overriddenPrices: quote.lines.filter(line => line.priceOverridden).map(line => line.sku),
           daysUntilDue: input.daysUntilDue,
@@ -459,21 +411,10 @@ export async function createManualInvoice(input: ManualInvoiceInput, actor: stri
       })
       .catch(error => console.error('[ManualInvoice] Could not record the order event:', error));
 
-    return {
-      orderId,
-      invoiceId: finished.id,
-      number: finished.number ?? null,
-      hostedUrl: finished.hosted_invoice_url ?? null,
-      totalMinor: finished.total,
-    };
+    const emailed = await sendInvoiceEmail(invoice);
+    return { orderId, number: invoice.number, totalMinor: invoice.totalMinor, emailed };
   } catch (error) {
-    const ambiguous = stripeFailureIsAmbiguous(error);
-    if (stripeInvoiceId && !sent && !ambiguous) {
-      await getStripe().invoices.del(stripeInvoiceId).catch(deleteError => {
-        console.error('[ManualInvoice] Failed to delete unfinished invoice:', deleteError);
-      });
-    }
-    if (orderId && !sent && !ambiguous) {
+    if (orderId && !issued) {
       await abandonPendingOrder(orderId, 'Manual invoice creation failed').catch(cleanupError => {
         console.error('[ManualInvoice] Failed to release pending order:', cleanupError);
       });

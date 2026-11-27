@@ -65,7 +65,7 @@ export default function CommerceSettings({ discounts, shippingRules }: {
         }))}>
           <Field label="Kod" name="code" required />
           <Field label="Namn" name="title" required />
-          <Select label="Typ" name="kind" required options={['percentage', 'fixed_amount', 'free_shipping']} />
+          <Select label="Typ" name="kind" required options={['percentage', 'fixed_amount', 'free_shipping']} labels={{ percentage: 'Procent', fixed_amount: 'Fast belopp', free_shipping: 'Fri frakt' }} />
           <Field label="Värde (% eller kr)" name="value" type="number" step="0.01" defaultValue="0" />
           <Field label="Minsta order (kr)" name="minimumSubtotal" type="number" step="0.01" defaultValue="0" />
           <Button type="submit" className="self-end">

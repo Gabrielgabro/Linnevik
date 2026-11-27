@@ -134,8 +134,11 @@ export function parseProductInput(body: Body, { partial = false } = {}): Product
 
   const tagList = tags(body, 'tags');
   if (tagList !== undefined) input.tags = tagList;
+  // `active` finns kvar i anropet för äldre formulär, men produkten har bara
+  // en inställning: status (§1.9). Utan uttrycklig status blir sant aktiv och
+  // falskt utkast.
   const active = bool(body, 'active');
-  if (active !== undefined) input.active = active;
+  if (active !== undefined && body.status === undefined) input.status = active ? 'active' : 'draft';
   if (body.status !== undefined) {
     const status = text(body, 'status', 20);
     if (!status || !['active', 'draft', 'archived'].includes(status)) {

@@ -12,6 +12,8 @@ import { LocaleLink } from '@/components/LocaleLink';
 import { getOrderBySession } from '@/lib/ordersDb';
 import { normalizeLocale, getTranslations } from '@/lib/i18n';
 import { invoicePaymentDetailsOrNull, ocrForOrder } from '@/lib/invoicePayment';
+import { checkoutCompleteState } from '@/lib/checkoutComplete';
+import RefreshWhilePending from './RefreshWhilePending';
 
 type Props = {
     params: Promise<{ locale: string }>;
@@ -41,24 +43,29 @@ export default async function CheckoutCompletePage({ params, searchParams }: Pro
     const order = await getOrderBySession(sessionId);
     if (!order) notFound();
 
-    const isPaid = order.status === 'paid';
-    const isInvoice = order.paymentMethod === 'invoice';
+    // Betalningens läge, inte orderns: en betald order med lagerundantag
+    // eller tvist är betald för kunden (§6.4).
+    const state = checkoutCompleteState(order);
+    const copy = t.checkout.complete;
+    const heading = {
+        paid: [copy.title, copy.body],
+        invoice: [copy.invoiceTitle, copy.invoiceBody],
+        pending: [copy.pendingTitle, copy.pendingBody],
+        failed: [copy.failedTitle, copy.failedBody],
+        cancelled: [copy.cancelledTitle, copy.cancelledBody],
+    }[state];
+    const showTotals = state === 'paid' || state === 'invoice';
     // En företagskund som just lagt en fakturaorder ska kunna lägga upp
     // betalningen direkt härifrån, utan att leta upp mejlet.
-    const invoicePayment = isInvoice && !isPaid && order.paymentStatus === 'pending'
-        ? invoicePaymentDetailsOrNull()
-        : null;
+    const invoicePayment = state === 'invoice' ? invoicePaymentDetailsOrNull() : null;
     const bankAccount = invoicePayment?.bankAccount;
 
     return (
         <main className="min-h-screen bg-white dark:bg-[#111827]">
             <div className="max-w-2xl mx-auto px-6 pt-32 pb-16">
-                <h1 className="text-3xl font-semibold text-primary">
-                    {isPaid ? t.checkout.complete.title : isInvoice ? t.checkout.complete.invoiceTitle : t.checkout.complete.pendingTitle}
-                </h1>
-                <p className="mt-3 text-gray-600 dark:text-gray-300">
-                    {isPaid ? t.checkout.complete.body : isInvoice ? t.checkout.complete.invoiceBody : t.checkout.complete.pendingBody}
-                </p>
+                <h1 className="text-3xl font-semibold text-primary">{heading[0]}</h1>
+                <p className="mt-3 text-gray-600 dark:text-gray-300">{heading[1]}</p>
+                {state === 'pending' && <RefreshWhilePending slowText={copy.pendingSlow} />}
 
                 <div className="mt-8 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                     <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -79,7 +86,7 @@ export default async function CheckoutCompletePage({ params, searchParams }: Pro
                         ))}
                     </ul>
 
-                    {(isPaid || isInvoice) && (
+                    {showTotals && (
                         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-1 text-sm">
                             <div className="flex justify-between text-gray-600 dark:text-gray-300">
                                 <span>{t.checkout.complete.vat}</span>

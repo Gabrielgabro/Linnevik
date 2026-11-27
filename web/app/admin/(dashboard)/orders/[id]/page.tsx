@@ -1,44 +1,43 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import OrderActions from '@/components/admin/OrderActions';
+import Comments from '@/components/admin/Comments';
+import { listComments } from '@/lib/adminComments';
 import InvoicePaymentPanel, { type InvoiceSummary } from '@/components/admin/InvoicePaymentPanel';
 import { invoicePaymentDetailsOrNull, ocrForOrder } from '@/lib/invoicePayment';
-import { getStripe, stripeConfigured } from '@/lib/stripe';
+import { invoicesForOrder } from '@/lib/invoicesDb';
 import { Tag } from '@/components/admin/ui';
 import { getOrderById } from '@/lib/ordersDb';
 import { formatMinor } from '@/lib/money';
+import { fulfillmentStatusLabel, orderEventLabel, orderStatusLabel, paymentStatusLabel } from '@/lib/adminLabels';
 
 export const dynamic = 'force-dynamic';
 
 const stockholmDay = (date: Date) =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm' }).format(date);
 
-/**
- * Fakturan som Stripe ser den: förfallodag, återstående belopp och status
- * finns bara där. Ett fel här får inte fälla orderkortet — rutan säger då
- * att uppgifterna inte gick att läsa.
- */
-async function invoiceSummary(reference: string): Promise<InvoiceSummary | null> {
-  if (!reference.startsWith('in_') || !stripeConfigured()) return null;
-  try {
-    const invoice = await getStripe().invoices.retrieve(reference);
-    return {
-      number: invoice.number ?? null,
-      status: invoice.status ?? null,
-      dueDate: invoice.due_date ? stockholmDay(new Date(invoice.due_date * 1000)) : null,
-      amountRemainingMinor: invoice.amount_remaining,
-      hostedUrl: invoice.hosted_invoice_url ?? null,
-    };
-  } catch (error) {
-    console.error('[admin] Could not read the Stripe invoice:', error);
-    return null;
-  }
+/** Orderns faktura som panelen visar den: den gällande, annars den senaste. */
+async function invoiceSummary(orderId: number, paid: boolean): Promise<InvoiceSummary | null> {
+  const all = await invoicesForOrder(orderId);
+  const invoice = all.filter(row => row.kind === 'invoice' && !row.voidedAt).at(-1)
+    ?? all.filter(row => row.kind === 'invoice').at(-1);
+  if (!invoice) return null;
+  return {
+    number: String(invoice.number),
+    status: invoice.voidedAt ? 'void' : paid ? 'paid' : 'open',
+    dueDate: invoice.dueOn,
+    amountRemainingMinor: paid || invoice.voidedAt ? 0 : invoice.totalMinor,
+    pdfUrl: `/api/admin/invoices/${invoice.number}/pdf`,
+  };
 }
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   const order = Number.isInteger(id) ? await getOrderById(id) : null;
   if (!order) notFound();
-  const invoice = order.paymentMethod === 'invoice' ? await invoiceSummary(order.stripeSessionId) : null;
+  const comments = await listComments('order', order.id);
+  const invoice = order.paymentMethod === 'invoice'
+    ? await invoiceSummary(order.id, ['paid', 'partially_refunded', 'refunded'].includes(order.paymentStatus))
+    : null;
   // Bara krediteringar som faktiskt gått igenom (eller är på väg) vänder moms.
   const refundedTaxMinor = order.refunds
     .filter(refund => refund.status === 'pending' || refund.status === 'succeeded')
@@ -47,13 +46,13 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
     <>
       <header className="border-t-2 pt-5" style={{ borderColor: 'var(--viz-ink)' }}>
         <p className="flex items-center gap-2 font-mono text-xs uppercase" style={{ color: 'var(--viz-ink-3)' }}>
-          <span>Order #{order.id} · {order.paymentStatus} · {order.fulfillmentStatus}</span>
+          <span>Order #{order.id} · {paymentStatusLabel(order.paymentStatus)} · {fulfillmentStatusLabel(order.fulfillmentStatus)} · {orderStatusLabel(order.status)}</span>
           {order.testMode && <Tag color="var(--adm-warn)">TEST</Tag>}
         </p>
         <h1 className="mt-2 font-heading text-4xl">{order.customerName ?? order.email ?? 'Okänd kund'}</h1>
         <p className="mt-2 text-sm">
           {order.clientId ? (
-            <Link href={`/admin/customers/${order.clientId}`} className="text-brand-text hover:underline">
+            <Link href={`/admin/clients/${order.clientId}`} className="text-brand-text hover:underline">
               Öppna kund
             </Link>
           ) : (
@@ -141,7 +140,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         );
       })()}
       <OrderActions order={order} />
-      <section><h2 className="mb-3 font-heading text-xl">Historik</h2><ul className="grid gap-2 text-sm">{order.events.map(event => <li key={event.id}>{event.createdAt.toLocaleString('sv-SE')} · {event.kind} · {event.actor}</li>)}</ul></section>
+      <Comments subject="order" subjectId={order.id} comments={comments} />
+      <section><h2 className="mb-3 font-heading text-xl">Historik</h2><ul className="grid gap-2 text-sm">{order.events.map(event => <li key={event.id}>{event.createdAt.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' })} · {orderEventLabel(event.kind)} · {event.actor}</li>)}</ul></section>
     </>
   );
 }

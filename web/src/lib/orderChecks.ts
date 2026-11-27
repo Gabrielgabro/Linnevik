@@ -25,8 +25,6 @@ export type DisputeOutcome = {
   closed: boolean;
   /** Sant när beloppet gick förlorat. */
   lost: boolean;
-  /** Vad orderns status ska vara efteråt. */
-  orderStatus: 'disputed' | 'paid' | 'refunded';
 };
 
 /**
@@ -48,8 +46,8 @@ export function disputeOutcome(status: string): DisputeOutcome {
     status === 'under_review' ||
     status === 'warning_needs_response' ||
     status === 'warning_under_review';
-  if (open) return { closed: false, lost: false, orderStatus: 'disputed' };
+  if (open) return { closed: false, lost: false };
 
   const lost = status === 'lost' || status === 'charge_refunded';
-  return { closed: true, lost, orderStatus: lost ? 'refunded' : 'paid' };
+  return { closed: true, lost };
 }

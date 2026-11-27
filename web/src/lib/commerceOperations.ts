@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
+import { isValidCompanyRegistrationNumber, normalizeCompanyRegistrationNumber } from '@/lib/companyRegistration';
 import {
   clientContacts,
   clients,
@@ -267,6 +268,46 @@ export async function resolveShipping(input: {
     : null;
 }
 
+/**
+ * Kortkassans rabatt: en engångskupong på exakt det belopp ordern räknade ut,
+ * begränsad till orderns produkter (source_of_truth §4.9, A10).
+ *
+ * Kodens egen kupong (`ensureStripeCoupon`) gällde hela sessionen. När frakten
+ * skickas som en vanlig rad drog en procentkod då även på frakten, och Stripe
+ * tog ett annat belopp än ordern visade. Fraktraden har ingen egen produkt i
+ * katalogen och hamnar därför utanför `applies_to`.
+ *
+ * Nyckeln är ordern och beloppet, så att ett återupptaget försök får samma
+ * kupong och Stripe kan spela upp sessionen med identiska parametrar.
+ */
+export async function createCheckoutCoupon(input: {
+  orderId: number;
+  discountId: number;
+  amountMinor: number;
+  currency: string;
+  productIds: string[];
+}): Promise<string> {
+  const productIds = [...new Set(input.productIds)];
+  if (productIds.length === 0 || productIds.length > 100) {
+    // Stripe tar högst 100 produkter i `applies_to`. En tom lista skulle ge
+    // rabatt på allt, frakten inräknad.
+    throw new Error(`Cannot limit the discount to ${productIds.length} products.`);
+  }
+  const coupon = await getStripe().coupons.create(
+    {
+      name: `Rabatt order #${input.orderId}`,
+      duration: 'once',
+      max_redemptions: 1,
+      amount_off: input.amountMinor,
+      currency: input.currency,
+      applies_to: { products: productIds },
+      metadata: { linnevik_discount_id: String(input.discountId), linnevik_order_id: String(input.orderId) },
+    },
+    { idempotencyKey: `linnevik_checkout_coupon_${input.orderId}_${input.amountMinor}` }
+  );
+  return coupon.id;
+}
+
 export async function ensureStripeCoupon(discount: AppliedDiscount): Promise<string | null> {
   if (discount.kind === 'free_shipping') return null;
   if (discount.stripeCouponId) {
@@ -316,8 +357,12 @@ export async function upsertCustomerFromCheckout(input: {
   shippingAddress?: Record<string, string | null> | null;
   billingAddress?: Record<string, string | null> | null;
   taxId?: { type: string; value: string } | null;
-}): Promise<number> {
+}): Promise<number | null> {
   const email = input.email.trim().toLowerCase();
+  // Ett inaktivt webbkonto kan inte köpa (§11.9). Kommer en betalning ändå,
+  // kopplas den inte till kontot, och varken kontot eller dess företag
+  // ändras. Den som anropar avgör vad som händer med ordern.
+  if (await accountIsInactive(email)) return null;
   const names = (input.name ?? '').trim().split(/\s+/).filter(Boolean);
   const firstName = names.shift() ?? null;
   const lastName = names.join(' ') || null;
@@ -355,8 +400,12 @@ export async function upsertCustomerFromCheckout(input: {
       client_id = excluded.client_id,
       stripe_customer_id = coalesce(excluded.stripe_customer_id, customers.stripe_customer_id),
       customer_no = excluded.customer_no,
-      first_name = coalesce(excluded.first_name, customers.first_name),
-      last_name = coalesce(excluded.last_name, customers.last_name),
+      -- Webbkontots namn är personens namn och skrivs aldrig över
+      -- (source_of_truth §7.3). Fakturavägarna skickar firmanamnet här; att
+      -- skriva över gjorde personen till "firman" och stoppade nästa
+      -- fakturaköp (§7.2). Ett tomt namn fylls i, ett befintligt står kvar.
+      first_name = coalesce(customers.first_name, excluded.first_name),
+      last_name = coalesce(customers.last_name, excluded.last_name),
       company = excluded.company,
       phone = coalesce(excluded.phone, customers.phone),
       default_shipping_address = coalesce(excluded.default_shipping_address, customers.default_shipping_address),
@@ -369,6 +418,16 @@ export async function upsertCustomerFromCheckout(input: {
     returning id
   `);
   return Number((result.rows[0] as { id: number }).id);
+}
+
+/** Finns e-postadressen som ett inaktivt webbkonto (§11.9)? */
+export async function accountIsInactive(email: string): Promise<boolean> {
+  const result = await getDb().execute(sql`
+    select 1 from customers
+    where lower(email) = ${email.trim().toLowerCase()} and status <> 'active'
+    limit 1
+  `);
+  return result.rows.length > 0;
 }
 
 export type RegisterCustomerResult =
@@ -605,9 +664,18 @@ async function fillClientProfileGaps(
  * WEB-post som sedan kan kompletteras i admin utan att orderkopplingen bryts.
  */
 async function ensureClientForCommerceCustomer(
-  input: CommerceClientIdentity
+  identity: CommerceClientIdentity
 ): Promise<ClientRow> {
   const db = getDb();
+  // Org-numret sparas och söks i en enda form, hur det än skrevs in (§11.2).
+  // Registreringen normaliserade redan, men kortkassan skickade Stripes
+  // momsnummer som det stod, och då blev "5564813318" och "SE556481331801"
+  // två företag. Ett nummer som inte går att tolka används inte alls.
+  const normalizedOrg = normalizeCompanyRegistrationNumber(identity.orgNumber ?? '');
+  const input: CommerceClientIdentity = {
+    ...identity,
+    orgNumber: isValidCompanyRegistrationNumber(normalizedOrg) ? normalizedOrg : null,
+  };
   const email = input.email.trim().toLowerCase();
   let client: ClientRow | undefined;
 
@@ -636,7 +704,10 @@ async function ensureClientForCommerceCustomer(
       .orderBy(asc(clients.id))
       .limit(1);
   }
-  if (!client) {
+  // Kontaktpersonens e-post räcker bara när inget org-nummer har angetts. Med
+  // ett org-nummer avgör det ensamt (§11.7): annars kunde ett webbkonto hamna
+  // på ett företag med ett annat org-nummer än det personen uppgav (A15).
+  if (!client && !input.orgNumber) {
     const [match] = await db
       .select({ client: clients })
       .from(clientContacts)
@@ -667,8 +738,6 @@ async function ensureClientForCommerceCustomer(
       .values({
         customerNo,
         name,
-        status: input.status === 'active' ? 'Aktiv kund' : 'Vilande',
-        kind: 'customer',
         ...clientProfileColumns(input),
       })
       .onConflictDoNothing()
@@ -687,17 +756,6 @@ async function ensureClientForCommerceCustomer(
   }
 
   if (!client) throw new Error('Kunde inte koppla webbkontot till kundregistret.');
-
-  // Ett företag med webbkonto eller order köper av oss. Var det en
-  // tvätterikund på ringlistan har samtalet blivit en affär, och posten flyttar
-  // till kundregistret — där fakturorna ställs ut ur.
-  if (client.kind !== 'customer') {
-    [client] = await db
-      .update(clients)
-      .set({ kind: 'customer', updatedAt: new Date() })
-      .where(eq(clients.id, client.id))
-      .returning();
-  }
 
   client = await fillClientProfileGaps(client, input);
 
@@ -794,17 +852,27 @@ export async function loadCompanyProfile(customerId: number): Promise<StoredComp
  * Har företaget flera inloggningar ändrar den här skrivningen adressen för
  * dem alla. Det är avsikten — det är en företagsadress, inte en personlig.
  */
+export class OrgNumberLockedError extends Error {
+  constructor() {
+    super('Organisationsnumret ändras bara av Linnevik.');
+  }
+}
+
 export async function saveCompanyProfile(
   customerId: number,
   input: { companyName: string; organizationNumber: string; address: PostalAddress }
 ): Promise<void> {
   const db = getDb();
   const [row] = await db
-    .select({ clientId: customers.clientId })
+    .select({ clientId: customers.clientId, orgNumber: clients.orgNumber })
     .from(customers)
+    .innerJoin(clients, eq(clients.id, customers.clientId))
     .where(eq(customers.id, customerId))
     .limit(1);
   if (!row) throw new Error('Okänt konto.');
+  // Org-numret är företagets identitet och ändras bara av admin (§11.10, A15).
+  // Kontosidan får fylla i ett som saknas, aldrig byta ett som finns.
+  if (row.orgNumber && row.orgNumber !== input.organizationNumber) throw new OrgNumberLockedError();
 
   await db
     .update(clients)

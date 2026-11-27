@@ -24,10 +24,11 @@ import { FALLBACK_PRICING_VERSION } from '@/lib/commerceConfig';
 import { currentPricingVersion } from '@/lib/pricingConfigDb';
 import { vatOn } from '@/lib/vat';
 import { upsertCustomerFromCheckout } from '@/lib/commerceOperations';
-import { getStripe, stripeConfigured, stripeTestMode } from '@/lib/stripe';
+import { stripeTestMode } from '@/lib/stripe';
 import { releaseOrderStock, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { amountDrifted } from '@/lib/orderChecks';
 import { raiseAlert } from '@/lib/opsAlerts';
+import { voidInvoiceForOrder } from '@/lib/invoicesDb';
 
 export type OrderWithItems = OrderRow & { items: OrderItemRow[] };
 
@@ -253,7 +254,10 @@ export async function attachSession(orderId: number, sessionId: string): Promise
  */
 export async function setPendingOrderCustomerDetails(input: {
   orderId: number;
-  customerId: number;
+  /** Webbkontot, när det finns ett. En manuell faktura har inget (§10.8). */
+  customerId: number | null;
+  /** Företaget ordern hör till (0047). */
+  clientId: number;
   email: string;
   customerName: string;
   shippingAddress: Record<string, string | null>;
@@ -264,6 +268,7 @@ export async function setPendingOrderCustomerDetails(input: {
     .update(orders)
     .set({
       customerId: input.customerId,
+      clientId: input.clientId,
       email: input.email,
       customerName: input.customerName,
       shippingAddress: input.shippingAddress,
@@ -325,6 +330,19 @@ export async function markOrderPaid(input: {
   taxMinor: number;
   totalMinor: number;
   currency: string;
+  /**
+   * Koppla köparen till ett webbkonto. Kortkassan gör det (§6.6). En
+   * registrerad bankbetalning gör det inte: en manuell faktura skapar aldrig
+   * något webbkonto (§10.8).
+   */
+  linkAccount?: boolean;
+  /** Vem som registrerade betalningen, för orderns historik. */
+  actor?: string;
+  /**
+   * Betalningsdagen som svensk kalenderdag (ÅÅÅÅ-MM-DD), när den är känd:
+   * dagen admin angav för en bankbetalning. Annars i dag (§16.2).
+   */
+  paidOn?: string;
 }): Promise<{ orderId: number; stockReady: boolean; newlyPaid: boolean }> {
   const [target] = await getDb()
     .select({
@@ -377,7 +395,8 @@ export async function markOrderPaid(input: {
   // older session created before that policy, this makes one strict recovery
   // attempt. It either reserves every tracked line or none.
   const stockReady = await reserveOrderStockStrict(target.id, 'stripe', null);
-  const customerId = input.email
+  const linkAccount = Boolean(input.email) && input.linkAccount !== false;
+  const customerId = linkAccount && input.email
     ? await upsertCustomerFromCheckout({
         email: input.email,
         stripeCustomerId: input.stripeCustomerId,
@@ -394,7 +413,14 @@ export async function markOrderPaid(input: {
       update orders set
         status = ${stockReady ? 'paid' : 'stock_exception'},
         payment_status = case when refunded_minor > 0 then payment_status else 'paid' end,
-        customer_id = ${customerId},
+        -- Betalningsdagen, i svensk tid. Exporten räknar ordern hit (§16.2).
+        paid_on = coalesce(
+          orders.paid_on,
+          ${input.paidOn ?? null}::date,
+          (now() at time zone 'Europe/Stockholm')::date
+        ),
+        -- Utan kontokoppling behåller ordern den kund den redan har.
+        customer_id = coalesce(${customerId}, customer_id),
         stripe_payment_intent_id = ${input.paymentIntentId},
         email = ${input.email},
         customer_name = ${input.customerName},
@@ -422,7 +448,7 @@ export async function markOrderPaid(input: {
       on conflict (order_id) do nothing
     ), event as (
       insert into order_events (order_id, kind, actor, detail)
-      select id, 'payment.paid', 'stripe',
+      select id, 'payment.paid', ${input.actor ?? 'stripe'},
              -- Explicit ::text: jsonb_build_object tar "any", och Postgres kan
              -- inte härleda typen på en obunden parameter där. Utan casten
              -- faller hela satsen på "could not determine data type".
@@ -456,6 +482,20 @@ export async function markOrderPaid(input: {
     }
     throw new Error('Paid order could not be updated.');
   }
+  // Ett inaktivt webbkonto kan inte köpa (§11.9), och kassan stoppar det. Har
+  // Stripe ändå tagit betalt med kontots adress — en adress som angavs först
+  // hos Stripe, eller ett konto som gjordes inaktivt under köpet — kopplas
+  // ordern inte till kontot. Admin avgör om ordern skickas eller återbetalas.
+  if (linkAccount && customerId === null) {
+    await raiseAlert({
+      kind: 'order.inactive_account',
+      key: `order:${row.id}:inactive-account`,
+      subject: `Order ${row.id} betalades med e-posten för ett inaktivt webbkonto`,
+      detail: { order: Number(row.id), epost: input.email },
+      href: `/admin/orders/${row.id}`,
+    });
+  }
+
   // Debiterat belopp mot förväntat. En krona i glapp är avrundning mellan vår
   // momsberäkning och Stripes; mer än så betyder att något ändrats under
   // kassan — ett pris, en rabatt, en fraktregel — och då vill vi veta vilken
@@ -655,38 +695,25 @@ export async function getOrderById(id: number): Promise<OrderDetail | null> {
 
 export async function updateOrderManagement(
   id: number,
-  patch: { status?: string; notes?: string | null },
+  patch: { status?: string },
   actor: string
 ): Promise<OrderRow | null> {
-  // Cancelling an invoice order has to void the Stripe receivable too. Done
-  // before the local write so a Stripe failure aborts the cancel cleanly and
-  // never leaves a live invoice behind a cancelled order. The `invoice.voided`
-  // webhook that follows is idempotent against the writes below.
+  // En avbokad fakturaorder makulerar sin faktura (§8.8). Fakturan står kvar
+  // med sitt nummer (§9.5). Görs före avbokningen, så att en avbokad order
+  // aldrig har en gällande faktura.
   if (patch.status === 'cancelled') {
     const [existing] = await getDb()
-      .select({
-        paymentMethod: orders.paymentMethod,
-        stripeSessionId: orders.stripeSessionId,
-        status: orders.status,
-      })
+      .select({ status: orders.status, paymentStatus: orders.paymentStatus })
       .from(orders)
       .where(eq(orders.id, id))
       .limit(1);
-    if (
-      existing &&
-      existing.status !== 'cancelled' &&
-      existing.paymentMethod === 'invoice' &&
-      existing.stripeSessionId.startsWith('in_') &&
-      stripeConfigured()
-    ) {
-      const invoice = await getStripe().invoices.retrieve(existing.stripeSessionId);
-      if (invoice.status === 'draft' || invoice.status === 'open') {
-        await getStripe().invoices.voidInvoice(existing.stripeSessionId);
+    if (existing && existing.status !== 'cancelled' && existing.paymentStatus === 'pending') {
+      if (await voidInvoiceForOrder(id, actor)) {
         await getDb().insert(orderEvents).values({
           orderId: id,
           kind: 'order.updated',
           actor,
-          detail: { stripeInvoiceVoided: existing.stripeSessionId },
+          detail: { invoiceVoided: true },
         });
       }
     }
@@ -696,7 +723,6 @@ export async function updateOrderManagement(
     .update(orders)
     .set({
       status: patch.status,
-      notes: patch.notes,
       cancelledAt: patch.status === 'cancelled' ? new Date() : undefined,
       updatedAt: new Date(),
     })
@@ -822,6 +848,7 @@ export async function recordRefund(input: {
       taxMinor: input.taxMinor,
     },
   });
+  await releaseStockIfFullyRefunded(input.orderId, input.actor);
   return row;
 }
 
@@ -836,8 +863,22 @@ export async function recordRefund(input: {
  * tillbaka en gång till. Först när Stripe säger `failed` eller `canceled`
  * slutar beloppet räknas, vilket är precis när det faktiskt kom tillbaka.
  */
+/**
+ * En helt återbetald order som inte har skickats behöver inte sitt lager
+ * (§3.5, A11). Reservationen släpps, och ordern behåller den status den har.
+ */
+export async function releaseStockIfFullyRefunded(orderId: number, actor: string): Promise<boolean> {
+  const [order] = await getDb()
+    .select({ paymentStatus: orders.paymentStatus, fulfillmentStatus: orders.fulfillmentStatus })
+    .from(orders)
+    .where(eq(orders.id, orderId));
+  if (!order || order.paymentStatus !== 'refunded' || order.fulfillmentStatus !== 'unfulfilled') return false;
+  await releaseOrderStock(orderId, actor, 'Order fully refunded before shipping');
+  return true;
+}
+
 export async function updateRefundStatus(stripeRefundId: string, status: string): Promise<void> {
-  await getDb().execute(sql`
+  const changed = await getDb().execute(sql`
     with changed as (
       update refunds set status = ${status}, updated_at = now()
       where stripe_refund_id = ${stripeRefundId}
@@ -858,7 +899,11 @@ export async function updateRefundStatus(stripeRefundId: string, status: string)
       updated_at = now()
     from counted
     where id in (select order_id from changed)
+    returning id
   `);
+  for (const row of changed.rows as Array<{ id: number }>) {
+    await releaseStockIfFullyRefunded(Number(row.id), 'stripe');
+  }
 }
 
 export async function createFulfillment(input: {
@@ -871,11 +916,11 @@ export async function createFulfillment(input: {
   items: Array<{ orderItemId: number; quantity: number }>;
   actor: string;
 }): Promise<number> {
-  if (!input.items.length) throw new Error('At least one fulfillment item is required.');
+  if (!input.items.length) throw new Error('Välj minst en rad att leverera.');
   const requested = new Map<number, number>();
   for (const item of input.items) {
     if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-      throw new Error('Fulfillment quantities must be positive integers.');
+      throw new Error('Antalen att leverera måste vara hela tal större än noll.');
     }
     requested.set(item.orderItemId, (requested.get(item.orderItemId) ?? 0) + item.quantity);
   }
@@ -887,7 +932,8 @@ export async function createFulfillment(input: {
       select id from orders
       where id = ${input.orderId}
         and payment_status in ('paid', 'partially_refunded')
-        and status not in ('cancelled', 'failed', 'expired', 'stock_exception')
+        -- Pausad och tvist hindrar leverans (§8.9, A9).
+        and status not in ('cancelled', 'failed', 'expired', 'stock_exception', 'on_hold', 'disputed')
       for update
     ), requested as materialized (
       select "orderItemId" as order_item_id, sum(quantity)::int as quantity
@@ -987,7 +1033,7 @@ export async function createFulfillment(input: {
     select id from new_fulfillment
   `);
   const row = result.rows[0] as { id: number } | undefined;
-  if (!row) throw new Error('Order could not be fulfilled.');
+  if (!row) throw new Error('Ordern kan inte levereras: den är inte betald, är pausad eller saknar lagerreservation.');
   const fulfillmentId = Number(row.id);
   return fulfillmentId;
 }
@@ -1003,11 +1049,11 @@ export async function returnOrderItems(input: {
   actor: string;
   note?: string | null;
 }): Promise<void> {
-  if (!input.items.length) throw new Error('At least one return item is required.');
+  if (!input.items.length) throw new Error('Välj minst en rad att returnera.');
   const requested = new Map<number, number>();
   for (const item of input.items) {
     if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-      throw new Error('Return quantities must be positive integers.');
+      throw new Error('Antalen att returnera måste vara hela tal större än noll.');
     }
     requested.set(item.orderItemId, (requested.get(item.orderItemId) ?? 0) + item.quantity);
   }
@@ -1082,6 +1128,6 @@ export async function returnOrderItems(input: {
     select id from event
   `);
   if (!result.rows.length) {
-    throw new Error('Return quantity exceeds the fulfilled quantity that has not already been returned.');
+    throw new Error('Det går inte att returnera fler än som har levererats och inte redan returnerats.');
   }
 }

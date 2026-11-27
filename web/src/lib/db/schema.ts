@@ -52,6 +52,26 @@ export const adminActivity = pgTable('admin_activity', {
 
 export type AdminActivityRow = typeof adminActivity.$inferSelect;
 
+// Kommentarer på en order, ett företag eller en provbeställning (§15.6).
+// Raderna kan inte ändras eller raderas: en trigger i drizzle/0048 stoppar
+// det. Ingen främmande nyckel, så att kommentaren står kvar om saken raderas.
+// De gamla fälten orders.notes, clients.notes och
+// sample_requests.internal_note finns kvar i databasen men läses inte längre.
+export const adminComments = pgTable(
+  'admin_comments',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    subject: text('subject').notNull().$type<'order' | 'client' | 'sample_request'>(),
+    subjectId: integer('subject_id').notNull(),
+    author: text('author').notNull(),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [index('admin_comments_subject_idx').on(table.subject, table.subjectId, table.createdAt)]
+);
+
+export type AdminCommentRow = typeof adminComments.$inferSelect;
+
 // Prislogiken som admin styr. En enda rad (id = 1) — det finns bara en
 // konfiguration åt gången. `strategy` väljer mellan trappor (`progressive`)
 // och en jämn kurva (`linear`); `margin`-strategin i pricingRules.ts är
@@ -99,8 +119,6 @@ export type PricingConfigRow = typeof pricingConfig.$inferSelect;
 // `client_contacts` — ett företag kan ha flera kontaktpersoner, vilket är
 // hela poängen med att dela upp det. `customerNo` är kundnumret från
 // tvätteriets arkivlista och är det vi känner igen en kund på utifrån.
-/** Tvätterikund på ringlistan, eller kund som köper av oss. */
-export type ClientKind = 'lead' | 'customer';
 
 export const clients = pgTable(
   'clients',
@@ -109,10 +127,11 @@ export const clients = pgTable(
     customerNo: text('customer_no').notNull(),
     name: text('name').notNull(),
     segment: text('segment'),
-    status: text('status').notNull().default('Tvätterikund'),
-    // `lead` är tvätteriets kund på ringlistan, `customer` köper av oss och
-    // kan faktureras. Se 0042 och CLIENT_KINDS.
-    kind: text('kind').$type<ClientKind>().notNull().default('lead'),
+    // Var säljarbetet står. Säger aldrig om företaget är kund (§11.5).
+    status: text('status').notNull().default('Prospekt'),
+    // Varifrån företaget kommer, till exempel "Tvätterikund". Styr ingenting
+    // (§11.4, 0046). Se CLIENT_TAGS.
+    tags: text('tags').array().notNull().default([]),
     priority: text('priority'),
     // Påminnelseavgiften ur arkivlistan. numeric för att ören inte ska
     // vandra iväg i flyttal; drizzle ger den som sträng.
@@ -132,18 +151,16 @@ export const clients = pgTable(
     postalCode: text('postal_code'),
     city: text('city'),
     country: text('country').notNull().default('SE'),
-    notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   table => [
     uniqueIndex('clients_customer_no_key').on(table.customerNo),
     // Uppslagning vid registrering: två anställda på samma företag ska landa
-    // på samma kundpost. Inte unikt — se 0035 om varför.
+    // på samma kundpost. Ett org-nummer hör till högst ett företag (§11.3).
     index('clients_org_number_idx').on(table.orgNumber).where(isNotNull(table.orgNumber)),
+    uniqueIndex('clients_org_number_key').on(table.orgNumber).where(isNotNull(table.orgNumber)),
     check('clients_country_check', sql`${table.country} ~ '^[A-Z]{2}$'`),
-    check('clients_kind_check', sql`${table.kind} in ('lead', 'customer')`),
-    index('clients_kind_idx').on(table.kind),
   ]
 );
 
@@ -211,7 +228,9 @@ export const products = pgTable(
     stripeProductId: text('stripe_product_id'),
     status: text('status').notNull().default('active'),
     publishedAt: timestamp('published_at', { withTimezone: true }),
-    active: boolean('active').notNull().default(true),
+    // Räknas ur `status` av databasen (0045) och kan aldrig skrivas: den
+    // fanns för att varukorgen och fakturan läste den, och de två gled isär.
+    active: boolean('active').notNull().generatedAlwaysAs(sql`status = 'active'`),
     source: text('source').notNull().default('linnevik'),
     sourceSyncedAt: timestamp('source_synced_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -571,6 +590,9 @@ export const orders = pgTable(
     paymentStatus: text('payment_status').notNull().default('pending'),
     fulfillmentStatus: text('fulfillment_status').notNull().default('unfulfilled'),
     customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+    // Företaget ordern hör till, direkt och inte via ett webbkonto (0047). En
+    // manuell faktura har inget webbkonto (§10.8).
+    clientId: integer('client_id').references(() => clients.id, { onDelete: 'set null' }),
     email: text('email'),
     customerName: text('customer_name'),
     // Sparad som den kom från Stripe: en adress ska visa vad kunden angav vid
@@ -607,12 +629,13 @@ export const orders = pgTable(
     pricingVersion: text('pricing_version'),
     currency: text('currency').notNull().default('sek'),
     locale: text('locale'),
-    notes: text('notes'),
     // Sant när ordern skapades med en Stripe-nyckel i testläge. Sätts en gång,
     // vid skapandet, och beskriver nyckeln som användes då — inte vilket läge
     // appen står i när någon läser raden.
     testMode: boolean('test_mode').notNull().default(false),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    // Den svenska kalenderdag då ordern blev betald (§16.2). Sätts en gång.
+    paidOn: date('paid_on', { mode: 'string' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -868,6 +891,10 @@ export const stripeWebhookEvents = pgTable(
     status: text('status').notNull().default('processing'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     processedAt: timestamp('processed_at', { withTimezone: true }),
+    // När någon senast tog sig an händelsen. Ett gammalt anspråk är övergivet
+    // och tas över (§17.2, drizzle/0050).
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
+    attempts: integer('attempts').notNull().default(1),
   },
   table => [index('stripe_webhook_events_status_idx').on(table.status, table.createdAt)]
 );
@@ -892,7 +919,6 @@ export const sampleRequests = pgTable(
     country: text('country').notNull(),
     notes: text('notes'),
     locale: text('locale'),
-    internalNote: text('internal_note'),
     handledBy: text('handled_by'),
     handledAt: timestamp('handled_at', { withTimezone: true }),
     // Om aviseringsmejlet gick fram. Posten finns kvar oavsett.
@@ -1037,7 +1063,80 @@ export const analyticsEvents = pgTable(
   ]
 );
 
+/** En part på fakturan, som den stod när fakturan gjordes. */
+export type InvoiceParty = {
+  name: string;
+  orgNumber: string | null;
+  vatNumber: string | null;
+  address: { line1: string; line2: string | null; postalCode: string; city: string; country: string };
+  email?: string | null;
+};
+export type InvoiceSeller = InvoiceParty & {
+  fTax: boolean;
+  seat: string | null;
+  bankgiro: string | null;
+  bankAccount: string | null;
+  contactEmail: string | null;
+};
+export type InvoiceBuyer = InvoiceParty & {
+  customerNo: string | null;
+  reference: string | null;
+  purchaseOrder: string | null;
+};
+export type InvoiceLineSnapshot = {
+  title: string;
+  sku: string | null;
+  quantity: number;
+  unitAmountMinor: number;
+  amountMinor: number;
+};
+
+// Egna fakturor och kreditfakturor (§9, 0047). Allt som står på fakturan är
+// en ögonblicksbild: den ändras aldrig efter att den gjorts (§9.6).
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    number: integer('number').notNull(),
+    kind: text('kind').$type<'invoice' | 'credit'>().notNull(),
+    orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
+    creditsInvoiceId: integer('credits_invoice_id'),
+    refundId: integer('refund_id').references(() => refunds.id, { onDelete: 'restrict' }),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+    dueOn: date('due_on', { mode: 'string' }),
+    currency: text('currency').notNull(),
+    seller: jsonb('seller').$type<InvoiceSeller>().notNull(),
+    buyer: jsonb('buyer').$type<InvoiceBuyer>().notNull(),
+    lines: jsonb('lines').$type<InvoiceLineSnapshot[]>().notNull(),
+    goodsMinor: integer('goods_minor').notNull(),
+    discountMinor: integer('discount_minor').notNull().default(0),
+    shippingMinor: integer('shipping_minor').notNull().default(0),
+    netMinor: integer('net_minor').notNull(),
+    vatBps: integer('vat_bps').notNull(),
+    taxMinor: integer('tax_minor').notNull(),
+    totalMinor: integer('total_minor').notNull(),
+    ocr: text('ocr'),
+    memo: text('memo'),
+    pdfBase64: text('pdf_base64'),
+    voidedAt: timestamp('voided_at', { withTimezone: true }),
+    voidedBy: text('voided_by'),
+    emailedTo: text('emailed_to'),
+    emailedAt: timestamp('emailed_at', { withTimezone: true }),
+    createdBy: text('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => [
+    uniqueIndex('invoices_number_key').on(table.number),
+    uniqueIndex('invoices_refund_id_key').on(table.refundId),
+    uniqueIndex('invoices_one_open_per_order')
+      .on(table.orderId)
+      .where(sql`${table.kind} = 'invoice' and ${table.voidedAt} is null`),
+    index('invoices_order_idx').on(table.orderId),
+  ]
+);
+
 export type ProductRow = typeof products.$inferSelect;
+export type InvoiceRow = typeof invoices.$inferSelect;
 export type ProductVariantRow = typeof productVariants.$inferSelect;
 export type ProductImageRow = typeof productImages.$inferSelect;
 export type CollectionRow = typeof collections.$inferSelect;

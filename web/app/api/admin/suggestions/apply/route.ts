@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { record } from '@/lib/adminActivity';
+import { record, recordPriceChange } from '@/lib/adminActivity';
 import { readBody, requireAdmin } from '@/lib/adminRoute';
 import { getDb } from '@/lib/db';
 import { products, productVariants } from '@/lib/db/schema';
@@ -43,6 +43,10 @@ export async function POST(request: NextRequest) {
   }
 
   const priceMinor = Math.round(priceSek * 100);
+  const previous = await getDb()
+    .select({ id: productVariants.id, sku: productVariants.sku, priceMinor: productVariants.priceMinor })
+    .from(productVariants)
+    .where(eq(productVariants.productId, product.id));
   const variants = await getDb()
     .update(productVariants)
     .set({ priceMinor, updatedAt: new Date() })
@@ -61,6 +65,16 @@ export async function POST(request: NextRequest) {
     pris: priceSek,
     varianter: variants.length,
   });
+  for (const variant of previous) {
+    if (variant.priceMinor === priceMinor) continue;
+    await recordPriceChange(auth.user, {
+      variantId: variant.id,
+      sku: variant.sku,
+      beforeMinor: variant.priceMinor,
+      afterMinor: priceMinor,
+      source: 'Prisbild',
+    });
+  }
 
   return NextResponse.json({
     ok: true,

@@ -81,6 +81,7 @@
     "leadTime": "Leveranstid",
     "informationHeading": "Produktinformation",
     "unavailable": "Kan inte beställas",
+    "soldOut": "Slutsåld",
     "pricingTableTitle": "Priser per volym",
     "pricingTableFrom": "Antal",
     "pricingTableUnits": "st",
@@ -371,6 +372,7 @@
       "saved": "Företagsuppgifterna är sparade.",
       "ready": "Kontot kan betala mot faktura.",
       "incomplete": "Komplettera uppgifterna för att kunna betala mot faktura.",
+      "organizationNumberHint": "Kontakta oss om organisationsnumret är fel.",
       "labels": {
         "companyName": "Företagsnamn",
         "organizationNumber": "Organisationsnummer",
@@ -386,6 +388,7 @@
         "address": "Ange en fullständig adress med gatuadress, postnummer och ort.",
         "country": "Vi kan för närvarande bara fakturera svenska adresser.",
         "saveFailed": "Kunde inte spara uppgifterna just nu. Försök igen.",
+        "organizationNumberLocked": "Organisationsnumret kan inte ändras här. Kontakta oss om det är fel.",
         "loadFailed": "Kunde inte hämta uppgifterna just nu. Försök igen."
       }
     },
@@ -400,6 +403,9 @@
     "ordersEmptyBody": "När du gör din första beställning visas den här.",
     "ordersCta": "Utforska produkter",
     "orderNumber": "Order #{number}",
+    "invoiceLink": "Faktura {number} (pdf)",
+    "creditNoteLink": "Kreditfaktura {number} (pdf)",
+    "invoiceVoided": "makulerad",
     "totalLabel": "Totalt belopp",
     "perUnit": "per st",
     "quantityLabel": "Antal: {count}",
@@ -932,6 +938,11 @@
       "invoicePaymentHint": "Ange OCR-numret som referens när du betalar, så kopplas betalningen till rätt faktura. Uppgifterna står också på fakturan.",
       "pendingTitle": "Betalningen behandlas",
       "pendingBody": "Din betalning är inte bekräftad ännu. Sidan uppdateras när den gått igenom.",
+      "pendingSlow": "Det tar längre tid än vanligt. Du får en bekräftelse per e-post när betalningen har gått igenom.",
+      "failedTitle": "Betalningen gick inte igenom",
+      "failedBody": "Ordern är inte lagd. Du kan försöka igen från varukorgen eller kontakta oss.",
+      "cancelledTitle": "Ordern är avbokad",
+      "cancelledBody": "Kontakta oss om du har frågor om ordern.",
       "orderNumber": "Ordernummer",
       "vat": "Varav moms",
       "total": "Totalt"

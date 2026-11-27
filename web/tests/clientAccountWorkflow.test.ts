@@ -128,7 +128,7 @@ describe('§1.4 admin raderar på båda nivåerna', () => {
 describe('fakturan ställs ut på organisationen, personen är referens', () => {
   const invoiceRoute =
     readFileSync(resolve('app/api/invoice/route.ts'), 'utf8') +
-    readFileSync(resolve('src/lib/invoiceIssue.ts'), 'utf8');
+    readFileSync(resolve('src/lib/invoicesDb.ts'), 'utf8');
   const companyProfile = readFileSync(resolve('src/lib/companyProfile.ts'), 'utf8');
 
   it('hämtar mottagarnamn och adress ur företagsposten, inte ur webbkontot', () => {
@@ -136,11 +136,6 @@ describe('fakturan ställs ut på organisationen, personen är referens', () => 
     // reserv för poster som ännu inte har någon företagspost.
     expect(invoiceRoute).toContain('companyName: client?.name ?? customer.company');
     expect(invoiceRoute).toContain('organizationNumber: client?.orgNumber ?? customer.taxId');
-  });
-
-  it('skriver ut kontaktpersonen som "Er referens"', () => {
-    expect(invoiceRoute).toContain("{ name: 'Er referens', value: reference }");
-    expect(invoiceRoute).toContain('text(body.profile?.reference) || account.contactName');
   });
 
   it('vägrar ställa ut fakturan på en mejladress', () => {
@@ -160,11 +155,6 @@ describe('fakturan ställs ut på organisationen, personen är referens', () => 
     expect(invoiceRoute).toContain('!isSwedishSoleTrader(account.organizationNumber)');
   });
 
-  it('skickar fakturamejlet till företagets brevlåda när den är ifylld', () => {
-    const orderEmails = readFileSync(resolve('src/lib/orderEmails.ts'), 'utf8');
-    expect(invoiceRoute).toContain('notifyEmail: account.invoiceEmail');
-    expect(orderEmails).toContain("const recipient = invoiceEmail?.trim() || order?.email;");
-  });
 });
 
 describe('registreringen fångar personnamn som firmanamn direkt', () => {

@@ -16,6 +16,12 @@ import { getDb } from '@/lib/db';
  * checkout policy: stock is bound before Stripe is allowed to accept payment.
  * The statement is both idempotent and concurrency-safe; variant rows are
  * locked in a stable order and all writes are gated by one eligibility result.
+ *
+ * En reservation som har släppts (till exempel för att kassan gick ut) tas
+ * upp igen om lagret räcker. Förr räknades den som ett hinder, så en
+ * betalning som kom in precis när reservationen gick ut blev lagerundantag
+ * fast varorna fanns (§8.7, A6). Samma väg reserverar på nytt för ett
+ * lagerundantag när admin har fyllt på lagret (§8.6, A5).
  */
 export async function reserveOrderStockStrict(
   orderId: number,
@@ -42,17 +48,23 @@ export async function reserveOrderStockStrict(
       left join inventory_reservations r on r.order_item_id = ti.order_item_id
     ), needed_by_variant as materialized (
       select variant_id, sum(quantity)::int as quantity, min(available)::int as available
-      from state where reservation_id is null group by variant_id
+      from state where reservation_id is null or reservation_status = 'released' group by variant_id
     ), eligibility as materialized (
       select
         not exists (
           select 1 from state
-          where reservation_id is not null
+          where reservation_id is not null and reservation_status <> 'released'
             and not (reservation_status = 'active' and reserved_quantity >= quantity)
         )
         and not exists (
           select 1 from needed_by_variant where quantity > available
         ) as ok
+    ), reactivated_reservations as (
+      update inventory_reservations r
+      set status = 'active', quantity = state.quantity, expires_at = ${expiresAt}, updated_at = now()
+      from state cross join eligibility
+      where eligibility.ok and r.id = state.reservation_id and state.reservation_status = 'released'
+      returning r.id, r.variant_id, r.order_item_id, r.quantity
     ), inserted_reservations as (
       insert into inventory_reservations (
         variant_id, order_id, order_item_id, quantity, status, expires_at
@@ -67,9 +79,13 @@ export async function reserveOrderStockStrict(
       from state cross join eligibility
       where eligibility.ok and r.id = state.reservation_id
         and state.reservation_status = 'active'
+    ), new_reservations as (
+      select id, variant_id, order_item_id, quantity from inserted_reservations
+      union all
+      select id, variant_id, order_item_id, quantity from reactivated_reservations
     ), reserved_by_variant as (
       select variant_id, sum(quantity)::int as quantity
-      from inserted_reservations group by variant_id
+      from new_reservations group by variant_id
     ), updated_variants as (
       update product_variants pv
       set inventory_reserved = pv.inventory_reserved + rbv.quantity, updated_at = now()
@@ -80,7 +96,7 @@ export async function reserveOrderStockStrict(
         variant_id, type, quantity, order_id, order_item_id, reservation_id, actor
       )
       select variant_id, 'reserve', quantity, ${orderId}, order_item_id, id, ${actor}
-      from inserted_reservations
+      from new_reservations
     )
     select ok from eligibility
   `);

@@ -345,7 +345,7 @@ export async function getCollectionPage(
       ) img on true
       left join lateral (
         select price_minor, currency from product_variants
-         where product_id = p.id and active and available_for_sale
+         where product_id = p.id and active and available_for_sale and ${IN_STOCK}
          order by price_minor asc limit 1
       ) price on true
      where p.status = 'active' and ${inSubtree}
@@ -406,6 +406,8 @@ export type CatalogProduct = {
         variantId: number;
         title: string;
         availableForSale: boolean;
+        /** Går att beställa i sig, men lagret räcker inte (§3.8). */
+        soldOut: boolean;
         price: { amount: string; currencyCode: string };
         selectedOptions: { name: string; value: string }[];
         sku: string | null;
@@ -442,7 +444,17 @@ type VariantRow = {
   minimum_order_quantity: number;
   order_increment: number;
   purchasable: boolean;
+  sold_out: boolean;
 };
+
+/**
+ * Lagervillkoret för att en variant ska gå att köpa, i SQL mot
+ * `product_variants`. Samma regel som `cartRules`: utan lagerföring finns
+ * ingen gräns, annars måste det säljbara lagret räcka till minsta antalet.
+ */
+const IN_STOCK = sql.raw(
+  '(not inventory_tracked or inventory_quantity - inventory_reserved >= greatest(minimum_order_quantity, 1))'
+);
 
 /**
  * Variantens eget id utåt. Prefixet gör typen tydlig i klienten och hindrar att
@@ -511,11 +523,15 @@ export async function getCatalogProduct(
   `);
 
   // `active` och `available_for_sale` säger olika saker — om varianten ingår i
-  // katalogen respektive om den får beställas. `cartRules` kräver båda.
+  // katalogen respektive om den får beställas. `cartRules` kräver båda, och
+  // för en lagerförd variant dessutom lager för minst det minsta antalet.
+  // Utan lagret här visade sidan en köpknapp som servern sedan sa nej till
+  // (§3.8, A21).
   const variantRows = await db.execute(sql`
     select id, sku, option_values, option_values_en, price_minor, currency,
            minimum_order_quantity, order_increment,
-           active and available_for_sale as purchasable
+           active and available_for_sale and ${IN_STOCK} as purchasable,
+           active and available_for_sale and not ${IN_STOCK} as sold_out
       from product_variants
      where product_id = ${row.id}
      -- Ordningen sätts i /admin. Id:t är andrahandsval, så att två varianter
@@ -553,6 +569,7 @@ export async function getCatalogProduct(
           variantId: variant.id,
           title: (variant.option_values ?? []).map(option => option.value).join(' / '),
           availableForSale: variant.purchasable,
+          soldOut: variant.sold_out,
           price: {
             amount: (variant.price_minor / 100).toFixed(2),
             currencyCode: variant.currency.toUpperCase(),

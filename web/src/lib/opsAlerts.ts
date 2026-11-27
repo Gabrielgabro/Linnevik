@@ -29,11 +29,13 @@ export type AlertKind =
   | 'order.amount_mismatch'
   | 'order.refund_outside_admin'
   | 'order.credit_note_failed'
+  | 'order.inactive_account'
   | 'email.failed'
   | 'inventory.low_stock'
   | 'invoice.config'
   | 'invoice.overdue'
-  | 'invoice.payment_mismatch';
+  | 'invoice.payment_mismatch'
+  | 'stripe.key';
 
 /** Hur länge samma nyckel tystas efter ett utskickat mejl. */
 const DEDUPE_MINUTES = 60;
@@ -88,6 +90,20 @@ function body(input: AlertInput): string {
       </p>
     </div>
   `;
+}
+
+/**
+ * Har ett larm med den här nyckeln skrivits någon gång? Nattens avstämning
+ * använder det för att inte larma varje natt om samma sak som redan är känd.
+ */
+export async function alertRaisedBefore(key: string): Promise<boolean> {
+  if (!alertsConfigured()) return false;
+  try {
+    const result = await getDb().execute(sql`select 1 from ops_alerts where dedupe_key = ${key} limit 1`);
+    return result.rows.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**

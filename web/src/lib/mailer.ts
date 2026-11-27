@@ -68,6 +68,8 @@ export interface EmailOptions {
   /** Ren text för klienter som inte visar HTML. Härleds ur html om den utelämnas. */
   text?: string;
   replyTo?: string;
+  /** Bilagor, till exempel fakturan som pdf. */
+  attachments?: Array<{ filename: string; content: Uint8Array; contentType: string }>;
 }
 
 export type SendResult =
@@ -97,6 +99,7 @@ export async function sendEmail({
   html,
   text,
   replyTo,
+  attachments,
 }: EmailOptions): Promise<SendResult> {
   if (!mailConfigured()) {
     // Tyst avbrott i stället för ett kastat fel: anropen ligger i webhooks och
@@ -113,6 +116,11 @@ export async function sendEmail({
       html,
       text: text ?? htmlToText(html),
       replyTo,
+      attachments: attachments?.map(file => ({
+        filename: file.filename,
+        content: Buffer.from(file.content),
+        contentType: file.contentType,
+      })),
     });
     return { success: true, messageId: info.messageId };
   } catch (error) {

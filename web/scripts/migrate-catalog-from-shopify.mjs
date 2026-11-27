@@ -188,7 +188,7 @@ for (const product of productsSv) {
           or products.seo_description_en = products.seo_description
         then ${en?.seo?.description || null} else products.seo_description_en end,
       shopify_updated_at = ${product.updatedAt},
-      status = 'active', active = true, published_at = coalesce(published_at, now()),
+      status = 'active', published_at = coalesce(published_at, now()),
       source_synced_at = now(), updated_at = now()
     where id = ${dbProduct.id}`;
 

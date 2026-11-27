@@ -31,12 +31,14 @@ export const CONTACT_STATUSES = [
   'Ingen kontakt möjlig',
 ] as const;
 
+/**
+ * Var säljarbetet med ett företag står. Säger aldrig om företaget är kund:
+ * värdena "Tvätterikund", "Aktiv kund" och "Tidigare kund" togs bort i 0046
+ * (§11.5).
+ */
 export const CLIENT_STATUSES = [
   'Prospekt',
-  'Tvätterikund',
   'Pågående dialog',
-  'Aktiv kund',
-  'Tidigare kund',
   'Vilande',
   'Ej aktuell',
 ] as const;
@@ -70,10 +72,7 @@ export type StatusTone = 'good' | 'linen' | 'warm' | 'info' | 'flag' | 'muted';
  * rött är avfärdat och grått är orört.
  */
 export function statusTone(status: string): StatusTone {
-  if (status === 'Vunnen' || status === 'Aktiv kund') return 'good';
-  // Tvätterikund känner redan tvätteriet — därför grön, men en egen grön, så
-  // att den inte förväxlas med en affär vi själva vunnit.
-  if (status === 'Tvätterikund') return 'linen';
+  if (status === 'Vunnen') return 'good';
   if (
     status === 'Svarat' ||
     status === 'Möte bokat' ||
@@ -123,17 +122,17 @@ export type ClientWithCounts = ClientRow & {
   lastContactedAt: string | null;
 };
 
-/** Vilket register en företagspost hör till. Se 0042. */
-export const CLIENT_KINDS = ['lead', 'customer'] as const;
-export const CLIENT_KIND_LABEL: Record<(typeof CLIENT_KINDS)[number], string> = {
-  lead: 'Tvätterikund',
-  customer: 'Kund',
-};
-/** Listan och kortet för varje register. */
-export const CLIENT_KIND_HREF: Record<(typeof CLIENT_KINDS)[number], string> = {
-  lead: '/admin/clients',
-  customer: '/admin/customers',
-};
+/**
+ * Taggarna ett företag kan ha. De säger varifrån företaget kommer och styr
+ * ingenting (§11.4).
+ */
+export const LAUNDRY_TAG = 'Tvätterikund';
+export const CLIENT_TAGS = [LAUNDRY_TAG] as const;
+
+/** Företaget kommer ur tvätteriets kundlista. */
+export function isLaundryClient(client: { tags: readonly string[] }): boolean {
+  return client.tags.includes(LAUNDRY_TAG);
+}
 
 export function contactName(contact: { firstName: string; lastName: string | null }): string {
   return [contact.firstName, contact.lastName].filter(Boolean).join(' ');

@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
-import { sql, eq, desc, inArray } from 'drizzle-orm';
+import { asc, sql, eq, desc, inArray } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
-import { orders, orderItems } from '@/lib/db/schema';
+import { invoices, orders, orderItems } from '@/lib/db/schema';
 import { normalizeAddress } from '@/lib/companyProfile';
 import { readCustomerSessionValue, CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
 
@@ -43,7 +43,7 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
                    cl.address_line1, cl.address_line2, cl.postal_code, cl.city, cl.country
             from customers c
             left join clients cl on cl.id = c.client_id
-            where c.id = ${customerId} limit 1
+            where c.id = ${customerId} and c.status = 'active' limit 1
         `);
         const row = result.rows[0] as
             | {
@@ -65,6 +65,8 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
                   country: string | null;
               }
             | undefined;
+        // Ett inaktivt webbkonto är inte inloggat (§11.9), även om det har en
+        // giltig session sedan tidigare. Det ser ut som utloggat överallt.
         if (!row) return null;
 
         const clientAddress = normalizeAddress({
@@ -140,6 +142,8 @@ export type CustomerOrder = {
     fulfillmentStatus: string;
     customerStatus: CustomerOrderStatus;
     totalPrice: { amount: string; currencyCode: string };
+    /** Fakturor och kreditfakturor på ordern, att ladda ned som pdf (§9.6). */
+    invoices: { number: number; kind: 'invoice' | 'credit'; voided: boolean }[];
     lineItems: {
         edges: {
             node: {
@@ -171,6 +175,11 @@ async function getOwnedCustomerOrders(customerId: number, limit: number): Promis
         .select()
         .from(orderItems)
         .where(inArray(orderItems.orderId, orderRows.map(order => order.id)));
+    const invoiceRows = await db
+        .select({ orderId: invoices.orderId, number: invoices.number, kind: invoices.kind, voidedAt: invoices.voidedAt })
+        .from(invoices)
+        .where(inArray(invoices.orderId, orderRows.map(order => order.id)))
+        .orderBy(asc(invoices.number));
 
     return orderRows.map(order => {
         const currency = order.currency.toUpperCase();
@@ -182,6 +191,9 @@ async function getOwnedCustomerOrders(customerId: number, limit: number): Promis
             fulfillmentStatus: order.fulfillmentStatus,
             customerStatus: resolveCustomerOrderStatus(order),
             totalPrice: { amount: (order.totalMinor / 100).toFixed(2), currencyCode: currency },
+            invoices: invoiceRows
+                .filter(row => row.orderId === order.id)
+                .map(row => ({ number: row.number, kind: row.kind, voided: row.voidedAt !== null })),
             lineItems: {
                 edges: itemRows
                     .filter(item => item.orderId === order.id)

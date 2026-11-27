@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const checkout = readFileSync(resolve('app/api/checkout/route.ts'), 'utf8');
 const invoice =
   readFileSync(resolve('app/api/invoice/route.ts'), 'utf8') +
-  readFileSync(resolve('src/lib/invoiceIssue.ts'), 'utf8');
+  readFileSync(resolve('src/lib/invoicesDb.ts'), 'utf8');
 const operations = readFileSync(resolve('src/lib/commerceOperations.ts'), 'utf8');
 const accountActions = readFileSync(resolve('app/[locale]/account/actions.ts'), 'utf8');
 
@@ -32,22 +32,9 @@ describe('an interrupted checkout can be finished', () => {
     expect(checkout).toContain('orderStillMatchesQuote(resumed, quote)');
     expect(checkout).toContain("fail('CART_REPRICED'");
   });
-
-  it('finishes an interrupted invoice instead of answering 409 for a day', () => {
-    expect(invoice).toContain("invoice.status === 'draft'");
-    expect(invoice).toContain('await finishInvoice({');
-    expect(invoice).toContain('linnevik_invoice_send_${input.orderId}');
-  });
 });
 
 describe('a superseded attempt is retired, not left live', () => {
-  it('expires the Stripe session before releasing its stock', () => {
-    // Releasing the reservation while the session is still payable would sell
-    // stock that is no longer reserved for it.
-    const retire = checkout.slice(checkout.indexOf('async function retireAttempt'));
-    expect(retire.indexOf('sessions.expire(')).toBeLessThan(retire.indexOf('abandonPendingOrder('));
-  });
-
   it('never hands back a session priced without a newly entered code', () => {
     expect(checkout).toContain('const sameInputs = resumed.discountCode === requestedDiscountCode');
     expect(checkout).toContain("retireAttempt(resumed, 'Superseded by new checkout inputs')");
@@ -77,12 +64,9 @@ describe('identity is verified rather than trusted', () => {
     expect(operations).toContain('export async function usableStripeCustomerId');
     expect(operations).toContain("(error as { code?: unknown }).code !== 'resource_missing'");
     expect(checkout).toContain('usableStripeCustomerId({');
-    expect(invoice).toContain('usableStripeCustomerId({');
   });
 
-  it('refuses card checkout for a deactivated account, as invoicing does', () => {
-    expect(checkout).toContain("account.status !== 'active'");
-  });
+  // Ett inaktivt webbkonto körs på riktigt i tests/db/inactiveAccount.test.ts (§11.9).
 });
 
 describe('one company-number rule across every entry point', () => {

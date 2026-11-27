@@ -22,10 +22,9 @@ import type Stripe from 'stripe';
 import { sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { getStripe } from '@/lib/stripe';
-import { raiseAlert } from '@/lib/opsAlerts';
+import { alertRaisedBefore, raiseAlert } from '@/lib/opsAlerts';
 import { disputeOutcome } from '@/lib/orderChecks';
 import { recordRefund, updateRefundStatus } from '@/lib/ordersDb';
-import { ensureCreditNoteForRefund } from '@/lib/creditNotes';
 import { refundVatMinor } from '@/lib/vat';
 
 function idOf(value: string | { id: string } | null | undefined): string | null {
@@ -70,7 +69,10 @@ async function orderByPaymentIntent(paymentIntentId: string): Promise<OrderMatch
  * `recordRefund` är en upsert på `stripe_refund_id` gör att två webhookar för
  * samma återbetalning inte kan bli två rader.
  */
-export async function syncStripeRefund(refund: Stripe.Refund): Promise<void> {
+export async function syncStripeRefund(
+  refund: Stripe.Refund,
+  options: { source?: 'webhook' | 'reconcile' } = {}
+): Promise<void> {
   const status = refund.status ?? 'pending';
   const known = await getDb().execute(sql`
     select id from refunds where stripe_refund_id = ${refund.id} limit 1
@@ -85,6 +87,8 @@ export async function syncStripeRefund(refund: Stripe.Refund): Promise<void> {
   if (!order) {
     // Pengar har lämnat kontot för något vi inte kan koppla till en order.
     // Det går inte att laga automatiskt, men det får inte passera tyst.
+    // Avstämningen larmar inte igen om något som redan har larmat.
+    if (options.source === 'reconcile' && (await alertRaisedBefore(`refund:${refund.id}`))) return;
     await raiseAlert({
       kind: 'order.refund_outside_admin',
       key: `refund:${refund.id}`,
@@ -119,13 +123,6 @@ export async function syncStripeRefund(refund: Stripe.Refund): Promise<void> {
   // Normaliserar summan efter samma regel som alla andra statusändringar:
   // en misslyckad eller makulerad återbetalning ska inte räknas.
   await updateRefundStatus(refund.id, status);
-  // Betalades ordern mot faktura ska beloppet också krediteras som en
-  // handling, inte bara flyttas tillbaka. Sväljer sina egna fel och larmar.
-  await ensureCreditNoteForRefund({
-    stripeRefundId: refund.id,
-    status,
-    reason: refund.reason ?? null,
-  });
 
   await raiseAlert({
     kind: 'order.refund_outside_admin',
@@ -163,13 +160,17 @@ export async function syncRefundsForCharge(charge: Stripe.Charge): Promise<void>
  * som faktiskt behöver hända är att någon lämnar underlag i Stripe före
  * tidsfristen, och det kan bara en människa göra.
  */
-export async function syncStripeDispute(dispute: Stripe.Dispute): Promise<void> {
+export async function syncStripeDispute(
+  dispute: Stripe.Dispute,
+  options: { source?: 'webhook' | 'reconcile' } = {}
+): Promise<void> {
   const paymentIntentId = idOf(dispute.payment_intent);
   const order = paymentIntentId ? await orderByPaymentIntent(paymentIntentId) : null;
   // Öppen, vunnen eller förlorad — se orderChecks.disputeOutcome.
-  const { closed, orderStatus } = disputeOutcome(dispute.status);
+  const { closed, lost } = disputeOutcome(dispute.status);
 
   if (!order) {
+    if (options.source === 'reconcile' && (await alertRaisedBefore(`dispute:${dispute.id}`))) return;
     await raiseAlert({
       kind: 'order.dispute',
       key: `dispute:${dispute.id}`,
@@ -184,27 +185,48 @@ export async function syncStripeDispute(dispute: Stripe.Dispute): Promise<void> 
     return;
   }
 
-  await getDb().execute(sql`
-    with order_update as (
-      update orders set
-        -- Öppen tvist märker ordern; en avslutad lämnar tillbaka den till
-        -- 'paid' om vi vann, och till 'refunded' om beloppet gick förlorat.
-        status = ${orderStatus},
-        updated_at = now()
-      where id = ${order.id}
+  // En öppen tvist pausar ordern, så att den inte skickas (§8.9), och minns
+  // statusen den hade. En avgjord tvist ändrar ingenting av sig själv
+  // (§8.12): admin avgör, återupptar eller avslutar, och skriver varför.
+  //
+  // Varje tvist ger högst en händelse av varje slag. Samma besked kan komma
+  // flera gånger: Stripe skickar om, och nattens avstämning läser alla
+  // tvister igen (§17.2). Ett omsänt besked om en öppen tvist pausar inte en
+  // order som admin redan har återupptagit.
+  const kind = closed ? 'payment.dispute_closed' : 'payment.disputed';
+  const written = await getDb().execute(sql`
+    with current as (
+      select id, status from orders where id = ${order.id}
+    ), already as (
+      select 1 from order_events
+      where order_id = ${order.id} and kind = ${kind} and detail ->> 'dispute_id' = ${dispute.id}
+    ), order_update as (
+      update orders set status = 'disputed', updated_at = now()
+      where id = ${order.id} and not ${closed} and status not in ('disputed', 'cancelled', 'closed')
+        and not exists (select 1 from already)
       returning id
     )
     insert into order_events (order_id, kind, actor, detail)
-    select id, ${closed ? 'payment.dispute_closed' : 'payment.disputed'}, 'stripe',
+    select current.id, ${kind}, 'stripe',
            jsonb_build_object(
              'dispute_id', ${dispute.id}::text,
              'status', ${dispute.status}::text,
              'amount_minor', ${dispute.amount}::int,
              'reason', ${dispute.reason ?? null}::text,
-             'evidence_due_by', ${dispute.evidence_details?.due_by ?? null}::bigint
+             'evidence_due_by', ${dispute.evidence_details?.due_by ?? null}::bigint,
+             'from', current.status
            )
-    from order_update
+    from current
+    -- Den första händelsen om en öppen tvist bär statusen ordern ska
+    -- tillbaka till, så en ny skrivs bara när ordern faktiskt pausas.
+    where not exists (select 1 from already)
+      and (${closed} or exists (select 1 from order_update))
+    returning id
   `);
+
+  // Webhooken larmar vid varje nytt läge. Avstämningen larmar bara när den
+  // hittade något webhooken missade.
+  if (options.source === 'reconcile' && written.rows.length === 0) return;
 
   const dueBy = dispute.evidence_details?.due_by
     ? new Date(dispute.evidence_details.due_by * 1000).toISOString()
@@ -214,8 +236,8 @@ export async function syncStripeDispute(dispute: Stripe.Dispute): Promise<void> 
     kind: 'order.dispute',
     key: `dispute:${dispute.id}:${dispute.status}`,
     subject: closed
-      ? `Tvisten om order ${order.id} är avgjord: ${dispute.status}`
-      : `Order ${order.id} är under tvist — svar krävs`,
+      ? `Tvisten om order ${order.id} är avgjord: ${lost ? 'förlorad' : 'vunnen'}`
+      : `Order ${order.id} är under tvist, svar krävs`,
     detail: {
       order: order.id,
       dispute: dispute.id,
@@ -223,6 +245,13 @@ export async function syncStripeDispute(dispute: Stripe.Dispute): Promise<void> 
       orsak: dispute.reason,
       status: dispute.status,
       ...(dueBy ? { svara_senast: dueBy } : {}),
+      ...(closed
+        ? {
+            åtgärd: lost
+              ? 'Beloppet är förlorat. Avgör vad som händer med ordern och skriv en kommentar.'
+              : 'Pengarna är kvar. Återuppta ordern om den ska levereras.',
+          }
+        : {}),
     },
     href: `/admin/orders/${order.id}`,
   });

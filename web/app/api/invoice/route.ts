@@ -8,28 +8,26 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
-import { ensureStripeProducts } from '@/lib/stripeCatalog';
 import {
-  createInvoiceDraft,
-  finishInvoice,
+  buyerSnapshot,
   INVOICE_DUE_DAYS,
-  stripeProductIdsForVariants,
-  syncStripeInvoiceCustomer,
+  invoiceReference,
+  issueInvoiceForOrder,
   type InvoiceProfile,
-} from '@/lib/invoiceIssue';
+} from '@/lib/invoicesDb';
+import { sendInvoiceEmail } from '@/lib/orderEmails';
 import { getDb } from '@/lib/db';
 import { clients, customers } from '@/lib/db/schema';
 import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
-import { checkoutTaxMode, vatBps, VatConfigurationError } from '@/lib/vat';
-import { createPendingOrder, attachSession, abandonPendingOrder, getOrderByCartVersion, PaymentMethodConflictError, setPendingOrderCustomerDetails } from '@/lib/ordersDb';
+import { vatBps } from '@/lib/vat';
+import { createPendingOrder, abandonPendingOrder, getOrderByCartVersion, PaymentMethodConflictError, setPendingOrderCustomerDetails } from '@/lib/ordersDb';
 import { CartError, getOwnedCart, markOwnedCartCheckoutStarted, validateOwnedCartForCheckout } from '@/lib/cartDb';
 import { ownedCommerceEnabled } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
 import { raiseAlert } from '@/lib/opsAlerts';
 import { InvoicePaymentConfigError, invoicePaymentDetails } from '@/lib/invoicePayment';
-import { claimDiscountCapacity, DiscountError, ensureStripeCoupon, resolveDiscount, resolveShipping, upsertCustomerFromCheckout } from '@/lib/commerceOperations';
+import { claimDiscountCapacity, DiscountError, resolveDiscount, resolveShipping } from '@/lib/commerceOperations';
 import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inventoryDb';
 import { CartRuleError } from '@/lib/cartRules';
 import { isSwedishSoleTrader } from '@/lib/companyRegistration';
@@ -38,7 +36,6 @@ import {
   INVOICE_COUNTRY,
   normalizeAddress,
   resolveCompanyProfile,
-  STRIPE_TAX_ID_TYPE,
   type CompanyProfileGap,
   type PostalAddress,
 } from '@/lib/companyProfile';
@@ -123,7 +120,9 @@ type InvoiceAccountData = {
   id: number;
   email: string;
   status: string;
-  stripeCustomerId: string | null;
+  /** Företaget kontot hör till. Ordern kopplas dit (§10.8, 0047). */
+  clientId: number;
+  customerNo: string | null;
   companyName: string;
   organizationNumber: string;
   address: PostalAddress | null;
@@ -172,7 +171,8 @@ async function loadInvoiceAccount(): Promise<InvoiceAccountData | null> {
     id: customer.id,
     email: customer.email,
     status: customer.status,
-    stripeCustomerId: customer.stripeCustomerId,
+    clientId: customer.clientId,
+    customerNo: client?.customerNo ?? null,
     companyName: client?.name ?? customer.company ?? '',
     organizationNumber: client?.orgNumber ?? customer.taxId ?? '',
     address: clientAddress ?? normalizeAddress(customer.defaultBillingAddress),
@@ -181,33 +181,10 @@ async function loadInvoiceAccount(): Promise<InvoiceAccountData | null> {
   };
 }
 
-/**
- * "Er referens" på fakturan.
- *
- * En svensk leverantörsfaktura ställs ut på ett företag men hanteras av en
- * människa, och det är referensen köparens ekonomiavdelning sorterar på — utan
- * den blir fakturan liggande. Personen på kontot är förvalet; köparen får
- * skriva om den för den här ordern, eftersom den som beställer inte alltid är
- * den som attesterar.
- *
- * Inköpsordernumret läggs i samma fält i stället för ett eget: Stripe tar emot
- * högst fyra `custom_fields` på en faktura, och organisationsnummer, momsnummer
- * och vårt ordernummer upptar redan tre.
- */
-const REFERENCE_MAX = 140;
-
 /** Samma namn så när som på versaler och mellanslag. */
 function sameName(a: string, b: string): boolean {
   const key = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
   return key(a) !== '' && key(a) === key(b);
-}
-
-function invoiceReference(body: InvoiceBody, account: InvoiceAccountData): string | null {
-  const reference = text(body.profile?.reference) || account.contactName;
-  const purchaseOrder = text(body.profile?.purchaseOrder);
-  const parts = [reference, purchaseOrder ? `Ert ordernr ${purchaseOrder}` : ''].filter(Boolean);
-  if (!parts.length) return null;
-  return parts.join(' · ').slice(0, REFERENCE_MAX);
 }
 
 /**
@@ -255,7 +232,7 @@ function resolveProfile(body: InvoiceBody, account: InvoiceAccountData): Invoice
 }
 
 export async function POST(request: NextRequest) {
-  if (!ownedCommerceEnabled() || !stripeConfigured()) {
+  if (!ownedCommerceEnabled()) {
     return fail('NOT_CONFIGURED', 'Invoice checkout is not configured.', 503);
   }
 
@@ -302,80 +279,48 @@ export async function POST(request: NextRequest) {
   }
 
   let pendingOrderId: number | null = null;
-  let stripeInvoiceId: string | null = null;
-  let invoiceSent = false;
+  let invoiceIssued = false;
   try {
     // Först av allt, före order och reservation: en faktura utan bankgiro
-    // eller konto går inte att betala för en svensk företagskund, och ska då
-    // inte gå i väg alls. Kastar InvoicePaymentConfigError, som blir 503.
-    const payment = invoicePaymentDetails();
+    // eller konto går inte att betala, och ska då inte gå i väg alls (§7.8).
+    // Kastar InvoicePaymentConfigError, som blir 503 och ett larm.
+    invoicePaymentDetails();
 
     await releaseExpiredReservations('invoice').catch(error => {
       console.error('[Invoice] Could not release expired reservations:', error);
     });
 
     const profile = resolveProfile(body, account);
+    const buyer = buyerSnapshot({
+      companyName: profile.companyName,
+      organizationNumber: profile.organizationNumber,
+      address: profile.address,
+      email: account.invoiceEmail || profile.email,
+      customerNo: account.customerNo,
+      reference: text(body.profile?.reference) || account.contactName,
+      purchaseOrder: text(body.profile?.purchaseOrder),
+    });
     const currentCart = await getOwnedCart(cartId);
     if (!currentCart) return fail('CART_NOT_FOUND', 'Cart not found.', 404);
     if (currentCart.status === 'checkout_started') {
+      // Ett omsänt anrop, eller ett som avbröts efter att ordern skapats.
+      // Fakturan görs högst en gång per order (issueInvoiceForOrder), och
+      // mejlet skickas högst en gång (sendInvoiceEmail).
       const existing = await getOrderByCartVersion(cartId, currentCart.version);
-      if (existing?.paymentMethod === 'invoice' && existing.stripeSessionId.startsWith('in_')) {
-        const invoice = await getStripe().invoices.retrieve(existing.stripeSessionId);
-        if (invoice.hosted_invoice_url) {
-          return NextResponse.json({ redirectUrl: invoice.hosted_invoice_url, invoiceId: invoice.id, reused: true });
-        }
-        // A draft has no hosted URL yet: the previous attempt was interrupted
-        // between creating the invoice and sending it. Finish that invoice —
-        // every remaining call is keyed on the order id and replays cleanly.
-        // Answering 409 here left the buyer with a frozen cart and reserved
-        // stock until the daily reconciliation swept the draft away.
-        // Varje rad måste kunna peka ut sin variant: idempotensnyckeln bakom
-        // priset bär variantnumret, och en rad vars variant hunnit tas bort
-        // kan inte spela om nyckeln första försöket använde. Då är 409 rätt
-        // svar — avstämningen städar bort utkastet och släpper lagret.
-        const recoverable = existing.items.every(item => item.variantId !== null);
-        if (invoice.status === 'draft' && existing.status === 'pending' && recoverable) {
-          const productIds = await stripeProductIdsForVariants(
-            existing.items.map(item => item.variantId as number)
-          );
-          const finished = await finishInvoice({
-            invoiceId: invoice.id,
-            orderId: existing.id,
-            customerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? '',
-            lines: existing.items.map(item => ({
-              title: item.title,
-              currency: existing.currency,
-              unitAmountMinor: item.unitAmountMinor,
-              quantity: item.quantity,
-              variantId: item.variantId as number,
-              stripeProductId: productIds.get(item.variantId as number) ?? null,
-            })),
-            shipping: {
-              name: existing.shippingMethod ?? 'Frakt',
-              currency: existing.currency,
-              amountMinor: existing.shippingMinor,
-            },
-            taxMode: await checkoutTaxMode(),
-            notifyEmail: account.invoiceEmail,
-            payment,
-          });
-          invoiceSent = true;
-          return NextResponse.json({
-            redirectUrl: getSiteUrl(`${await getServerLanguage()}/checkout/klar?session_id=${finished.id}`),
-            invoiceId: finished.id,
-            reused: true,
-          });
-        }
+      if (existing?.paymentMethod === 'invoice' && existing.status === 'pending') {
+        const invoice = await issueInvoiceForOrder({ orderId: existing.id, buyer, dueDays: INVOICE_DUE_DAYS, actor: `webbkonto:${account.id}` });
+        await sendInvoiceEmail(invoice);
+        return NextResponse.json({
+          redirectUrl: getSiteUrl(`${await getServerLanguage()}/checkout/klar?session_id=${invoiceReference(invoice.number)}`),
+          invoiceNumber: invoice.number,
+          reused: true,
+        });
       }
       return fail('CHECKOUT_IN_PROGRESS', 'Checkout has already started.', 409);
     }
 
     const locale = await getServerLanguage();
     const ownedCart = await validateOwnedCartForCheckout(cartId);
-    // Samma spärr som kortkassan: varan ska finnas i Stripe i nyckelns läge.
-    const stripeProductIds = await ensureStripeProducts(
-      ownedCart.lines.map(line => line.productHandle)
-    );
     const priced = ownedCart.lines.map(line => ({
       variantId: line.variantId,
       sku: line.sku,
@@ -383,7 +328,7 @@ export async function POST(request: NextRequest) {
       quantity: line.quantity,
       unitAmountMinor: line.unitAmountMinor,
       currency: line.currency,
-      stripeProductId: stripeProductIds.get(line.productHandle) ?? null,
+      stripeProductId: null,
     }));
     const subtotalMinor = priced.reduce((sum, line) => sum + line.unitAmountMinor * line.quantity, 0);
     const discount = await resolveDiscount({
@@ -394,12 +339,12 @@ export async function POST(request: NextRequest) {
       countryCode: ALLOWED_COUNTRY, freeShipping: discount?.freeShipping,
     });
     if (!shipping) throw new Error('No shipping rule supports this order.');
-    const taxMode = await checkoutTaxMode();
     const orderId = await createPendingOrder(priced, locale, { id: ownedCart.id, version: ownedCart.version }, {
       paymentMethod: 'invoice',
       discount: discount ? { id: discount.id, code: discount.code, amountMinor: discount.amountMinor } : null,
       shipping: { id: shipping.id, name: shipping.name, amountMinor: shipping.amountMinor },
-      vat: { mode: taxMode.kind, bps: vatBps(taxMode.percent), rateId: taxMode.kind === 'explicit' ? taxMode.taxRateId : null },
+      // Vår egen faktura bär vår egen sats. Stripe Tax räknar bara kortköp.
+      vat: { mode: 'explicit', bps: vatBps(), rateId: null },
     });
     pendingOrderId = orderId;
 
@@ -408,80 +353,36 @@ export async function POST(request: NextRequest) {
       await claimDiscountCapacity({ orderId, discountCodeId: discount.id, email: profile.email });
     }
 
-    const expiresAt = new Date(Date.now() + INVOICE_DUE_DAYS * 24 * 60 * 60 * 1000);
-    if (!(await reserveOrderStockStrict(orderId, 'invoice', expiresAt))) {
+    // Lagret hålls tills fakturan är betald eller ordern avbokad (§3.3).
+    if (!(await reserveOrderStockStrict(orderId, 'invoice', null))) {
       await abandonPendingOrder(orderId, 'Insufficient stock before invoice');
       pendingOrderId = null;
       throw new InvoiceError('STOCK_CHANGED', 'Lagret ändrades. Kontrollera korgen och försök igen.', 409);
     }
 
-    const customerId = await syncStripeInvoiceCustomer({
-      localCustomerId: account.id,
-      stripeCustomerId: account.stripeCustomerId,
-      profile,
-    });
-    const localCustomerId = await upsertCustomerFromCheckout({
-      email: profile.email, stripeCustomerId: customerId, name: profile.companyName,
-      shippingAddress: profile.address, billingAddress: profile.address,
-      taxId: { type: STRIPE_TAX_ID_TYPE, value: profile.organizationNumber },
-    });
     await setPendingOrderCustomerDetails({
-      orderId, customerId: localCustomerId, email: profile.email, customerName: profile.companyName,
+      orderId, customerId: account.id, clientId: account.clientId, email: profile.email, customerName: profile.companyName,
       shippingAddress: profile.address, billingAddress: profile.address, taxId: profile.organizationNumber,
     });
 
-    const couponId = discount ? await ensureStripeCoupon(discount) : null;
-    const reference = invoiceReference(body, account);
-    const invoice = await createInvoiceDraft({
-      orderId,
-      customerId,
-      currency: priced[0].currency,
-      profile,
-      reference,
-      payment,
-      taxMode,
-      couponId,
-      shippingMinor: shipping.amountMinor,
-      daysUntilDue: INVOICE_DUE_DAYS,
-      idempotencyKey: `linnevik_invoice_${ownedCart.id}_${ownedCart.version}`,
-    });
-    stripeInvoiceId = invoice.id;
-    await attachSession(orderId, invoice.id);
+    const invoice = await issueInvoiceForOrder({ orderId, buyer, dueDays: INVOICE_DUE_DAYS, actor: `webbkonto:${account.id}` });
+    invoiceIssued = true;
     await markOwnedCartCheckoutStarted(ownedCart.id, ownedCart.version);
-
-    const sent = await finishInvoice({
-      invoiceId: invoice.id,
-      orderId,
-      customerId,
-      lines: priced,
-      shipping: { name: shipping.name, currency: shipping.currency, amountMinor: shipping.amountMinor },
-      taxMode,
-      notifyEmail: account.invoiceEmail,
-      payment,
-    });
-    invoiceSent = true;
+    await sendInvoiceEmail(invoice);
     return NextResponse.json({
-      redirectUrl: getSiteUrl(`${locale}/checkout/klar?session_id=${sent.id}`),
-      invoiceId: sent.id,
+      redirectUrl: getSiteUrl(`${locale}/checkout/klar?session_id=${invoiceReference(invoice.number)}`),
+      invoiceNumber: invoice.number,
     });
   } catch (error) {
     console.error('[Invoice] Failed to create invoice:', error);
-    const ambiguousStripeFailure = stripeFailureIsAmbiguous(error);
-    // A lost response can mean Stripe created/sent the invoice already. Keep
-    // the order and stock bound; retry/reconciliation can recover it. Deleting
-    // locally and releasing stock here could leave a live receivable behind.
-    if (stripeInvoiceId && !invoiceSent && !ambiguousStripeFailure) {
-      await getStripe().invoices.del(stripeInvoiceId).catch(deleteError => {
-        console.error('[Invoice] Failed to delete unfinished invoice:', deleteError);
-      });
-    }
-    if (pendingOrderId && !invoiceSent && !ambiguousStripeFailure) {
+    // Utan utfärdad faktura finns ingen fordran: ordern släpps och lagret med
+    // den. Med en utfärdad faktura står allt kvar, den är redan bokförd.
+    if (pendingOrderId && !invoiceIssued) {
       await abandonPendingOrder(pendingOrderId, 'Invoice creation failed').catch(cleanupError => {
         console.error('[Invoice] Failed to release pending reservation:', cleanupError);
       });
     }
     const message = error instanceof Error ? error.message : 'Invoice checkout failed.';
-    if (error instanceof VatConfigurationError) return fail('NOT_CONFIGURED', 'Invoice checkout is not configured.', 503);
     if (error instanceof InvoicePaymentConfigError) {
       // Ett konfigurationsfel stoppar varje fakturaköp tills någon rättar det,
       // så det ska inte bara ligga i en logg.
@@ -501,7 +402,6 @@ export async function POST(request: NextRequest) {
     if (error instanceof CartError) return fail('CART_INVALID', message, error.status);
     if (error instanceof CartRuleError) return NextResponse.json({ error: message, code: error.code }, { status: 409 });
     if (error instanceof DiscountError) return NextResponse.json({ error: message, code: `DISCOUNT_${error.reason}` }, { status: 409 });
-    if (ambiguousStripeFailure) return fail('STRIPE_UNAVAILABLE', 'Invoice checkout is temporarily unavailable. Try again.', 503);
     return fail('CHECKOUT_FAILED', 'Invoice checkout failed.', 500);
   }
 }

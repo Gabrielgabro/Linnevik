@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, ErrorNote, Select, TextArea, formValues } from '@/components/admin/Fields';
+import { Button, ErrorNote, Select, formValues } from '@/components/admin/Fields';
 import type { SampleRequestDetail } from '@/lib/sampleRequestsDb';
+import { SAMPLE_STATUS_LABEL } from '@/lib/adminLabels';
 
 /** Samma ordning som statusarna faktiskt går igenom. */
 const STATUS_OPTIONS = ['new', 'in_progress', 'sent', 'declined'];
@@ -24,10 +25,10 @@ export default function SampleRequestActions({ request }: { request: SampleReque
         const response = await fetch(`/api/admin/sample-requests/${request.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: values.status, internalNote: values.internalNote }),
+          body: JSON.stringify({ status: values.status }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) return setError(data.error ?? 'Kunde inte uppdatera förfrågan.');
+        if (!response.ok) return setError(data.error ?? 'Kunde inte uppdatera provbeställningen.');
         setSaved(true);
         router.refresh();
       }}
@@ -38,12 +39,8 @@ export default function SampleRequestActions({ request }: { request: SampleReque
         name="status"
         required
         options={STATUS_OPTIONS}
+        labels={SAMPLE_STATUS_LABEL}
         defaultValue={request.status}
-      />
-      <TextArea
-        label="Intern anteckning"
-        name="internalNote"
-        defaultValue={request.internalNote ?? ''}
       />
       <div className="flex items-center gap-3">
         <Button type="submit">Spara</Button>

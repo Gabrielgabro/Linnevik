@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { record } from '@/lib/adminActivity';
+import { parsePriceSource, record, recordPriceChange, type PriceSource } from '@/lib/adminActivity';
 import { readBody, requireAdmin, routeId, isUniqueViolation } from '@/lib/adminRoute';
 import { diff } from '@/lib/clientsInput';
 import { getDb } from '@/lib/db';
@@ -28,8 +28,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!before) return NextResponse.json({ error: 'Varianten finns inte.' }, { status: 404 });
 
   let input;
+  let priceSource: PriceSource = 'Produkt';
   try {
-    input = parseVariantInput(await readBody(request), { partial: true });
+    const body = await readBody(request);
+    priceSource = parsePriceSource(body.priceSource);
+    input = parseVariantInput(body, { partial: true });
   } catch (error) {
     const message = error instanceof InputError ? error.message : 'Kunde inte läsa förfrågan.';
     return NextResponse.json({ error: message }, { status: 400 });
@@ -83,6 +86,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     sku: before.sku,
     ändrat: diff(before, { ...input }),
   });
+  // Listpriset loggas för sig, med gammalt och nytt pris och sidan det
+  // ändrades från (§4.15).
+  if (input.priceMinor !== undefined && input.priceMinor !== before.priceMinor) {
+    await recordPriceChange(auth.user, {
+      variantId: id,
+      sku: before.sku,
+      beforeMinor: before.priceMinor,
+      afterMinor: input.priceMinor,
+      source: priceSource,
+    });
+  }
 
   return NextResponse.json({ variant });
 }

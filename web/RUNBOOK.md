@@ -42,73 +42,74 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
   https://www.linnevik.se/api/cron/commerce-reconcile
 ```
 
-Den läser om alla `pending`-ordrar från de tre senaste dygnen mot Stripe,
-skriver dem som betalda, skickar orderbekräftelsen och släpper utgångna
-reservationer. Svaret säger hur många som lagades. Går det inte igenom svarar
-den 207 med en `failures`-lista.
+Den körs annars av sig själv varje natt kl 03:00. Den hanterar först om
+Stripe-händelser som fastnade halvvägs (`stuckEvents`), läser sedan om alla
+obetalda kortordrar från de tre senaste dygnen mot Stripe, skriver dem som
+betalda, skickar orderbekräftelsen, läser om återbetalningar och tvister och
+släpper utgångna reservationer. Svaret säger hur många som lagades. Går det
+inte igenom svarar den 207 med en `failures`-lista och ett driftlarm.
 
 **1b. Ingen order alls.** Larmet *Betalning utan order hos oss* ska ha gått ut.
 Det betyder att pengar tagits emot för något vi inte kan koppla till en order —
 sessionen saknar vår metadata. Det går inte att laga automatiskt. Skapa
 återbetalningen i Stripe (den speglas nu automatiskt hit) eller lägg ordern för
-hand, och notera vilket i orderns interna notering.
+hand, och skriv vilket i en kommentar på ordern.
 
 ---
 
-## 1c. Fakturabetalning via bank
+## 1c. Fakturor och fakturabetalning via bank
 
-Företagskunder betalar fakturan till vårt bankgiro med OCR-nummer — Stripe
-kan inte ta emot svenska bankbetalningar. Pengarna landar på bolagets konto,
-och **ingenting i systemet vet om det förrän någon registrerar betalningen.**
+Fakturorna är våra egna (rules/source_of_truth.md §9). Stripe används bara
+för kort. Varje faktura får nästa nummer i en obruten serie, sparas som pdf
+och mejlas till kunden med pdf:en som bilaga. Admin laddar ned den från
+ordern, kunden från Mina sidor.
+
+Företagskunder betalar till vårt bankgiro med OCR-nummer. Pengarna landar
+på bolagets konto, och **ingenting i systemet vet om det förrän någon
+registrerar betalningen.**
 
 1. Se insättningen på kontot. OCR-numret i referensen pekar ut ordern:
    ordernumret är allt utom de två sista siffrorna (OCR `1248` = order 12).
 2. /admin → Ordrar → ordern → **Fakturabetalning** → fyll i belopp och
    betalningsdag → **Registrera bankbetalning**.
-3. Fakturan markeras betald i Stripe ("utanför Stripe"), ordern blir betald,
-   lagret plockas och kunden får orderbekräftelsen.
+3. Ordern blir betald, lagret plockas och kunden får orderbekräftelsen.
 
 Det systemet vägrar, och varför:
 
 - **Delbetalning** (mer än 1 kr för lite): fakturan blir inte betald. Vänta
-  på resten, eller kreditera mellanskillnaden i Stripe först om ni kommit
-  överens om ett lägre pris.
+  på resten.
 - **Överbetalning**: registreras, men larmet *Fakturabetalning avviker* går
-  ut — mellanskillnaden ska tillbaka från bankkontot.
-- **Redan betald med kort**: kunden har betalat två gånger. Bankbeloppet ska
-  tillbaka.
-- **Makulerad eller avbeställd**: kan inte betalas. Betala tillbaka eller
-  lägg en ny order.
-
-Att markera en faktura betald direkt i Stripes kontrollpanel ("Mark as paid")
-fungerar också — webhooken gör ordern betald — men då står betalningsdag och
-belopp ingenstans hos oss. Använd orderkortet.
+  ut. Mellanskillnaden ska tillbaka från bankkontot.
+- **Redan registrerad som betald**: pengarna har kommit två gånger. Den ena
+  betalningen ska tillbaka.
+- **Makulerad eller avbokad**: kan inte betalas. Betala tillbaka eller lägg
+  en ny order.
 
 **Faktura för hand** (t.ex. en beställning per telefon eller mejl): /admin →
-Ordrar → **Ny faktura**. Välj kunden ur **Kunder** (tvätterikunderna på
-ringlistan går inte att fakturera — gör om en till kund från kundkortet först), lägg till rader (eget
-styckpris går att sätta per rad; tomt = katalogpris) och frakt. Det blir en
-vanlig fakturaorder: lagret reserveras, fakturan skapas i Stripe med bankgiro
-och OCR och mejlas direkt, och betalningen registreras på orderkortet som ovan.
-Org.nr och adress som saknades på kundkortet sparas dit. Ångra genom att
-avbeställa ordern.
+Ordrar → **Ny faktura**. Välj företaget ur **Företag**, lägg till rader
+(eget styckpris går att sätta per rad; tomt = katalogpris) och frakt. Det
+blir en vanlig fakturaorder: lagret reserveras, fakturan får nästa nummer och
+mejlas som pdf till den adress du valde, och betalningen registreras som
+ovan. Inget webbkonto skapas. Ångra genom att avboka ordern.
 
 **Förfallna fakturor makuleras inte automatiskt.** Avstämningen följer upp:
-larm dag 1 (kolla banken), vänlig påminnelse till kunden dag 7 (en gång),
-larm dag 14 (hör av er) och dag 45 (beslut: vänta eller avbeställ). Varorna
-är reserverade hela tiden. Avbeställ ordern för att makulera fakturan och
-släppa lagret. Påminnelse och faktura kan skickas om för hand från
-orderkortet.
+larm dag 1 (kolla banken), påminnelse till kunden dag 7 (en gång, med
+pdf:en), larm dag 14 (hör av er) och dag 45 (beslut: vänta eller avboka).
+Varorna är reserverade hela tiden. Avboka ordern för att makulera fakturan
+och släppa lagret. Den makulerade fakturan behåller sitt nummer. Påminnelse
+och faktura kan skickas om för hand från ordern.
 
-**Återbetalning av en bankbetald order** går inte via Stripe — det finns
-ingen kortbetalning att återbetala mot. Betala tillbaka från bankkontot och
-kreditera fakturan i Stripe: Kreditnota → "Återbetalt utanför Stripe".
+**Återbetalning av en bankbetald order:** betala tillbaka från bankkontot,
+och registrera sedan återbetalningen på ordern. En kreditfaktura med nästa
+nummer görs och mejlas automatiskt, och den kommer med i exporten.
 
 **Bankgirot** är **5673-8776** (Linneviken AB). Det sätts i env (`INVOICE_BANKGIRO`, och/eller
 `INVOICE_BANK_CLEARING` + `INVOICE_BANK_ACCOUNT`). Saknas det, eller är
 numret felskrivet (kontrollsiffran stämmer inte), stoppas alla fakturaköp
-med larmet *Fakturainställning* — hellre det än en faktura som inte går att
-betala.
+med larmet *Fakturainställning*, hellre det än en faktura som inte går att
+betala. Säljarens uppgifter på fakturan kan sättas med `INVOICE_SELLER_*`
+(namn, org.nr, momsreg.nr, adress, F-skatt, e-post). `INVOICE_SELLER_SEAT`
+(styrelsens säte) är Uppsala om inget annat sätts.
 
 ---
 

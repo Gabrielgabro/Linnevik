@@ -138,6 +138,7 @@ function ContentPanel({ detail, suppliers }: { detail: ProductDetail; suppliers:
         label="Publiceringsstatus"
         name="status"
         options={['active', 'draft', 'archived']}
+        labels={{ active: 'Aktiv', draft: 'Utkast', archived: 'Arkiverad' }}
         defaultValue={product.status}
         required
       />

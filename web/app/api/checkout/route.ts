@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { reportStripeKeyError } from '@/lib/stripeHealth';
 import { getStripe, stripeConfigured, stripeFailureIsAmbiguous } from '@/lib/stripe';
 import { ensureStripeProducts } from '@/lib/stripeCatalog';
 import {
@@ -35,11 +36,14 @@ import {
   stripeIntegrationIdentifier,
 } from '@/lib/commerceConfig';
 import { getSiteUrl } from '@/lib/site';
+import { raiseAlert } from '@/lib/opsAlerts';
+import { retireAttempt } from '@/lib/checkoutAttempts';
 import { getServerLanguage } from '@/lib/language';
 import {
   claimDiscountCapacity,
+  createCheckoutCoupon,
   DiscountError,
-  ensureStripeCoupon,
+  accountIsInactive,
   resolveDiscount,
   resolveShipping,
   usableStripeCustomerId,
@@ -109,25 +113,6 @@ function orderStillMatchesQuote(
   });
 }
 
-/**
- * Retire an attempt so the buyer can start a clean one. A Stripe session that
- * is still open has to be expired first: `abandonPendingOrder` releases the
- * stock this attempt reserved, and a live session with no reservation behind
- * it is a sale we cannot fulfil.
- */
-async function retireAttempt(order: OrderWithItems, reason: string): Promise<void> {
-  if (order.stripeSessionId.startsWith('cs_')) {
-    try {
-      const session = await getStripe().checkout.sessions.retrieve(order.stripeSessionId);
-      if (session.status === 'open') await getStripe().checkout.sessions.expire(order.stripeSessionId);
-    } catch (error) {
-      console.error('[Checkout] Could not expire the superseded session:', error);
-      throw error;
-    }
-  }
-  await abandonPendingOrder(order.id, reason);
-}
-
 export async function POST(request: NextRequest) {
   if (!ownedCommerceEnabled() || !stripeConfigured()) {
     return fail('NOT_CONFIGURED', 'Checkout is not configured.', 503);
@@ -175,15 +160,15 @@ export async function POST(request: NextRequest) {
     }
 
     const locale = await getServerLanguage();
+    // Ett inaktivt webbkonto kan inte köpa (§11.9). Sessionen räknar det redan
+    // som utloggat, så det som återstår är att samma adress anges som gäst.
     const account = await getCurrentCustomerFromCookies();
-    if (account && account.status !== 'active') {
-      // The invoice route already refuses a deactivated account. Card checkout
-      // let one through and stamped the order with its identity anyway.
-      return fail('ACCOUNT_INACTIVE', 'This account cannot check out. Contact us.', 403);
-    }
     // Only an authenticated account may select an existing Stripe Customer or
     // CRM customer number. A request body is not proof of either identity.
     const checkoutEmail = account?.email.trim().toLowerCase() || email;
+    if (checkoutEmail && (await accountIsInactive(checkoutEmail))) {
+      return fail('ACCOUNT_INACTIVE', 'This account cannot check out. Contact us.', 403);
+    }
     const customerNo = account?.customerNo ?? null;
     const currentCart = await getOwnedCart(ownedCartId);
     if (!currentCart) {
@@ -281,7 +266,6 @@ export async function POST(request: NextRequest) {
       freeShipping: discount?.freeShipping,
     });
     if (!shipping) throw new Error('No shipping rule supports this order.');
-    const stripeCouponId = discount ? await ensureStripeCoupon(discount) : null;
     // Läget avgörs före ordern skapas: ordern ska bära hur momsen räknades,
     // inte bara hur mycket den blev.
     const taxMode = await checkoutTaxMode();
@@ -355,6 +339,19 @@ export async function POST(request: NextRequest) {
       }
     }
     const orderId = order.id;
+
+    // Rabatten bara på varorna, aldrig på frakten (§4.9). Fri frakt är redan
+    // inräknad i fraktbeloppet och behöver ingen kupong.
+    const discountMinor = discount?.amountMinor ?? 0;
+    const stripeCouponId = discount && discountMinor > 0
+      ? await createCheckoutCoupon({
+          orderId,
+          discountId: discount.id,
+          amountMinor: discountMinor,
+          currency: priced[0].currency,
+          productIds: priced.map(line => line.stripeProductId).filter((id): id is string => Boolean(id)),
+        })
+      : null;
 
     // Priserna på sajten är exklusive moms, så momsen läggs på här. Stripe Tax
     // sköter det när den svenska registreringen är bekräftad *och* finns på
@@ -497,11 +494,28 @@ export async function POST(request: NextRequest) {
     }, { idempotencyKey: `linnevik_order_${orderId}` });
     stripeSessionCreated = true;
 
+    // Sista spärren för rabatten: det Stripe drar av ska vara exakt det ordern
+    // visar (§4.9). Avviker det stängs betalsidan innan kunden kan betala.
+    // Totalen går inte att jämföra här, eftersom Stripe Tax räknar momsen
+    // först när adressen är ifylld.
+    const stripeDiscountMinor = session.total_details?.amount_discount ?? 0;
+    if (stripeDiscountMinor !== discountMinor) {
+      await getStripe().checkout.sessions.expire(session.id);
+      await raiseAlert({
+        kind: 'order.amount_mismatch',
+        key: `order:${orderId}:checkout-discount`,
+        subject: `Kortkassan stängdes: Stripes rabatt avvek från order #${orderId}`,
+        detail: { order: orderId, rabatt_order: discountMinor, rabatt_stripe: stripeDiscountMinor },
+      });
+      throw new Error(`Stripe discount ${stripeDiscountMinor} differs from order discount ${discountMinor}.`);
+    }
+
     await attachSession(orderId, session.id);
     if (ownedCart) await markOwnedCartCheckoutStarted(ownedCart.id, ownedCart.version);
     return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (error) {
     console.error('[Checkout] Failed to create session:', error);
+    await reportStripeKeyError(error, 'kortkassan');
     const ambiguousStripeFailure = stripeFailureIsAmbiguous(error);
     // A session that exists must keep its reservation: the customer may
     // already have received its URL and metadata reconciliation can repair the

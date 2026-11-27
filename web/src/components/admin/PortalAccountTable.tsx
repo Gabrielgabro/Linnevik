@@ -137,7 +137,7 @@ export default function PortalAccountTable({ accounts }: { accounts: PortalAccou
           <thead>
             <tr>
               <Th>Konto</Th>
-              <Th>Tvätterikund</Th>
+              <Th>Företag</Th>
               <Th>Ursprung</Th>
               <Th>Registrerad</Th>
               <Th>Senaste inloggning</Th>
@@ -170,7 +170,7 @@ export default function PortalAccountTable({ accounts }: { accounts: PortalAccou
                   <Td>
                     {/* Kontot redigeras på företagets sida — det är där webbkontona bor. */}
                     <Link
-                      href={`/admin/customers/${account.clientId}`}
+                      href={`/admin/clients/${account.clientId}`}
                       className="text-brand-text hover:underline"
                     >
                       {account.clientName}

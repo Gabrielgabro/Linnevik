@@ -207,7 +207,6 @@ export function shipmentEmail(
 
 /** Fakturans uppgifter som mejlen behöver: länk, nummer, förfallodag, betalning. */
 export type InvoiceEmailDetails = {
-  hostedUrl: string | null;
   number: string | null;
   dueDate: Date | null;
   payment: InvoicePaymentDetails | null;
@@ -257,10 +256,9 @@ function paymentBox(
   </div>`;
 }
 
-function invoiceButton(hostedUrl: string | null, label: string): string {
-  return hostedUrl
-    ? `<p style="margin:18px 0;"><a href="${escapeHtml(hostedUrl)}" style="display:inline-block;padding:11px 20px;background:${BRAND};color:#F5EFE7;text-decoration:none;border-radius:6px;font-size:15px;">${escapeHtml(label)}</a></p>`
-    : '';
+/** Fakturan följer med som pdf (§9.6). Ingen länk: den finns i bilagan. */
+function attachmentNote(): string {
+  return `<p style="margin:18px 0;color:${INK_2};">Fakturan finns som pdf i bilagan till det här mejlet.</p>`;
 }
 
 function referenceLine(orderId: number, invoiceNumber: string | null): string {
@@ -300,7 +298,7 @@ export function invoiceCreatedEmail(
           Ordern plockas och skickas enligt överenskommelse.
         </p>
         ${paymentBox(invoice, order.totalMinor, order.currency)}
-        ${invoiceButton(invoice.hostedUrl, 'Öppna fakturan (pdf)')}
+        ${attachmentNote()}
         ${lineTable(order.items, order.currency)}
         ${totalsTable(order)}
         ${addressBlock(order.shippingAddress, order.customerName)}
@@ -335,7 +333,7 @@ export function invoiceReminderEmail(
           }. Det är säkert bara ett förbiseende — vi skulle uppskatta om ni betalar den så snart som möjligt.
         </p>
         ${paymentBox(invoice, invoice.amountDueMinor, order.currency)}
-        ${invoiceButton(invoice.hostedUrl, 'Öppna fakturan (pdf)')}
+        ${attachmentNote()}
         <p style="margin:0 0 8px;color:${INK_2};">
           Har ni redan betalat kan ni bortse från det här mejlet — betalningar kan ta
           några bankdagar att nå oss. Hör gärna av er om något är fel med fakturan.
@@ -373,6 +371,36 @@ export function magicLinkEmail(url: string): { subject: string; html: string } {
         <p style="margin:16px 0 0;color:#8A8A8A;font-size:13px;">
           Har du inte försökt logga in kan du bortse från det här mejlet — ingen kommer in utan att klicka på länken.
         </p>`,
+    }),
+  };
+}
+
+/**
+ * Kreditfakturan (§9.8). Ingen betalningsanvisning: pengarna går åt andra
+ * hållet, från oss till kunden.
+ */
+export function creditNoteEmail(input: {
+  orderId: number;
+  customerName: string | null;
+  number: number;
+  creditsNumber: number;
+  totalMinor: number;
+  currency: string;
+}): { subject: string; html: string } {
+  const greeting = input.customerName ? `Hej ${escapeHtml(input.customerName)},` : 'Hej,';
+  return {
+    subject: `Kreditfaktura ${input.number} · order #${input.orderId}`,
+    html: layout({
+      title: `Kreditfaktura för order #${input.orderId}`,
+      preheader: `${formatMinor(input.totalMinor, input.currency)} krediteras på faktura ${input.creditsNumber}.`,
+      body: `
+        <p style="margin:0 0 8px;">${greeting}</p>
+        <p style="margin:0 0 8px;color:${INK_2};">
+          Vi har krediterat <strong style="color:${INK};">${escapeHtml(formatMinor(input.totalMinor, input.currency))}</strong>
+          på faktura ${input.creditsNumber}. Beloppet betalas tillbaka till ert konto.
+        </p>
+        ${attachmentNote().replace('Fakturan', 'Kreditfakturan')}
+        ${referenceLine(input.orderId, String(input.number))}`,
     }),
   };
 }

@@ -36,7 +36,6 @@ describe('owned checkout persistence contracts', () => {
     // A stored Stripe customer id is verified, never trusted: a dead one is a
     // hard error that would lock the account out of card checkout for good.
     expect(checkout).toContain('usableStripeCustomerId({');
-    expect(checkout).toContain("account.status !== 'active'");
   });
 
   it('resumes or retires an interrupted attempt instead of duplicating it', () => {

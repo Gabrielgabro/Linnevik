@@ -41,11 +41,13 @@ const KIND_LABEL: Record<string, string> = {
   'order.amount_mismatch': 'Beloppsavvikelse',
   'order.refund_outside_admin': 'Återbetalning i Stripe',
   'order.credit_note_failed': 'Kreditnota saknas',
+  'order.inactive_account': 'Köp av inaktivt konto',
   'email.failed': 'E-post',
   'inventory.low_stock': 'Lågt lager',
   'invoice.config': 'Fakturainställning',
   'invoice.overdue': 'Förfallen faktura',
   'invoice.payment_mismatch': 'Fakturabetalning avviker',
+  'stripe.key': 'Stripe-nyckel',
 };
 
 /** Larm som betyder att pengar eller lager står fel just nu. */
@@ -61,6 +63,8 @@ const CRITICAL = new Set([
   'invoice.config',
   // En överbetalning ska tillbaka till kunden.
   'invoice.payment_mismatch',
+  // Ingen betalning, faktura eller återbetalning fungerar utan nyckeln.
+  'stripe.key',
 ]);
 
 function detailText(detail: Record<string, unknown>): string {

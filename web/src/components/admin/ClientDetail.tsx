@@ -2,45 +2,45 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import ClientForm from '@/components/admin/ClientForm';
 import ContactList from '@/components/admin/ContactList';
+import Comments from '@/components/admin/Comments';
+import type { AdminCommentRow } from '@/lib/db/schema';
 import CommerceCustomerPanel from '@/components/admin/CommerceCustomerPanel';
-import { Notice, PageHeader, StatusPill } from '@/components/admin/ui';
-import ClientKindSwitch from '@/components/admin/ClientKindSwitch';
+import { Notice, PageHeader, StatusPill, Tag } from '@/components/admin/ui';
 import type { getClient } from '@/lib/clientsDb';
-import { CLIENT_KIND_HREF, CLIENT_KIND_LABEL, clientAddressLines, clientInvoiceGap } from '@/lib/clients';
+import { clientAddressLines, clientInvoiceGap } from '@/lib/clients';
 
 /**
- * Kortet för ett företag, oavsett register. Visas under Tvätterikunder för
- * ringlistan och under Kunder för dem som köper av oss — samma uppgifter,
- * kontakter och webbkonton, men tillbakalänken och menyn följer registret.
+ * Kortet för ett företag: uppgifter, kontaktpersoner, webbkonton och ordrar.
+ * Det finns ett enda register (§11.4), och taggarna visas som etiketter.
  */
 export default function ClientDetail({
   data,
+  comments,
   accent,
 }: {
   data: NonNullable<Awaited<ReturnType<typeof getClient>>>;
+  comments: AdminCommentRow[];
   /** Registrets accentfärg ur adminmenyn. */
   accent: string;
 }) {
   const { client, contacts, commerceCustomers, orders } = data;
   const addressLines = clientAddressLines(client);
   const invoiceGap = clientInvoiceGap(client);
-  const listHref = CLIENT_KIND_HREF[client.kind];
 
   return (
     <>
       <PageHeader
         kicker={
           <Link
-            href={listHref}
+            href="/admin/clients"
             className="inline-flex items-center gap-1.5 hover:text-ink-2 hover:underline"
           >
             <ArrowLeft size={13} strokeWidth={2} aria-hidden />
-            {client.kind === 'customer' ? 'Kunder' : 'Tvätterikunder'}
+            Företag
           </Link>
         }
         title={client.name}
         accent={accent}
-        actions={<ClientKindSwitch clientId={client.id} kind={client.kind} hasAccounts={commerceCustomers.length > 0} />}
         description={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">
@@ -48,7 +48,9 @@ export default function ClientDetail({
               {client.segment ? ` · ${client.segment}` : ''}
             </span>
             <StatusPill status={client.status} />
-            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">{CLIENT_KIND_LABEL[client.kind]}</span>
+            {client.tags.map(tag => (
+              <Tag key={tag} color="var(--viz-s4)">{tag}</Tag>
+            ))}
             {addressLines.length > 0 && (
               <span className="text-[12px] text-ink-3">{addressLines.join(', ')}</span>
             )}
@@ -74,6 +76,8 @@ export default function ClientDetail({
       )}
 
       <ClientForm mode="edit" client={client} />
+
+      <Comments subject="client" subjectId={client.id} comments={comments} />
 
       <ContactList clientId={client.id} contacts={contacts} />
 

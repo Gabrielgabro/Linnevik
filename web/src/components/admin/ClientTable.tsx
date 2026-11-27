@@ -21,6 +21,7 @@ import {
 } from '@/components/admin/ui';
 import {
   CLIENT_STATUSES,
+  isLaundryClient,
   PRIORITIES,
   SEGMENTS,
   statusTone,
@@ -66,7 +67,7 @@ function BatchBar({
           value=""
           onChange={e => e.target.value && onRun('status', e.target.value)}
         >
-          <option value="">Sätt kundstatus…</option>
+          <option value="">Sätt säljstatus…</option>
           {CLIENT_STATUSES.map(option => (
             <option key={option} value={option}>
               {option}
@@ -131,6 +132,7 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<string>(ALL);
   const [onlyUnworked, setOnlyUnworked] = useState(false);
+  const [onlyLaundry, setOnlyLaundry] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +142,7 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
     return clients.filter(client => {
       if (status !== ALL && client.status !== status) return false;
       if (onlyUnworked && client.workedCount > 0) return false;
+      if (onlyLaundry && !isLaundryClient(client)) return false;
       if (!needle) return true;
       return (
         client.name.toLowerCase().includes(needle) ||
@@ -147,7 +150,7 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
         (client.segment ?? '').toLowerCase().includes(needle)
       );
     });
-  }, [clients, query, status, onlyUnworked]);
+  }, [clients, query, status, onlyUnworked, onlyLaundry]);
 
   // Bara markeringar som syns just nu räknas. Filtrerar man om, ska en åtgärd
   // aldrig träffa kunder man inte längre har framför sig.
@@ -221,13 +224,22 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
           />
           Bara obearbetade
         </label>
+        <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink-2">
+          <input
+            type="checkbox"
+            checked={onlyLaundry}
+            onChange={e => setOnlyLaundry(e.target.checked)}
+            style={{ accentColor: 'var(--adm-brand)' }}
+          />
+          Bara tvätterikunder
+        </label>
       </Toolbar>
 
       {/* Statusfiltren behåller sin egen ton även omarkerade — det är den enda
           platsen där hela statusskalan syns bredvid varandra. */}
       <Toolbar className="gap-y-2">
         <span className="mr-1 font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-3">
-          Kundstatus
+          Säljstatus
         </span>
         {[ALL, ...CLIENT_STATUSES].map(option => {
           const active = status === option;
@@ -255,8 +267,8 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
       {visible.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="Ingen kund matchar filtret"
-          description="Rensa sökningen eller välj en annan kundstatus."
+          title="Inget företag matchar filtret"
+          description="Rensa sökningen eller välj en annan säljstatus."
         />
       ) : (
         <div className="overflow-hidden rounded-card border border-rule bg-surface shadow-card">
@@ -274,7 +286,7 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
                 style={{ accentColor: 'var(--adm-brand)' }}
               />
               <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3">
-                {visible.length} av {clients.length} kunder
+                {visible.length} av {clients.length} företag
               </span>
             </span>
             <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-3 max-[620px]:hidden">
@@ -311,6 +323,9 @@ export default function ClientTable({ clients }: { clients: ClientWithCounts[] }
                     <span className="text-[14px] text-ink">{client.name}</span>
                     {client.segment && <Tag>{client.segment}</Tag>}
                     <StatusPill status={client.status} />
+                    {client.tags.map(tag => (
+                      <Tag key={tag} color="var(--viz-s4)">{tag}</Tag>
+                    ))}
                     {client.commerceCustomerCount > 0 && (
                       <Tag color="var(--adm-ok)">Webbhandel</Tag>
                     )}

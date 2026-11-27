@@ -12,6 +12,7 @@ import {
 } from '@/components/admin/ui';
 import { accentFor } from '../nav';
 import { listSampleRequests } from '@/lib/sampleRequestsDb';
+import { SAMPLE_STATUS_LABEL as STATUS_LABEL } from '@/lib/adminLabels';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,12 +24,6 @@ const STATUS_TONE: Record<string, string> = {
   declined: 'var(--viz-ink-3)',
 };
 
-export const STATUS_LABEL: Record<string, string> = {
-  new: 'Ny',
-  in_progress: 'Påbörjad',
-  sent: 'Skickad',
-  declined: 'Avböjd',
-};
 
 export default async function SampleRequestsPage() {
   const requests = await listSampleRequests(200);
@@ -49,7 +44,7 @@ export default async function SampleRequestsPage() {
         <EmptyState
           icon={PackageOpen}
           title="Inga provförfrågningar ännu"
-          description="Så fort någon skickar formuläret på /samples hamnar förfrågan här."
+          description="Så fort någon skickar formuläret på /samples hamnar provbeställningen här."
         />
       ) : (
         <>
@@ -80,7 +75,7 @@ export default async function SampleRequestsPage() {
                   <Td numeric>
                     <span className="inline-flex items-center gap-2">
                       <span className="text-brand-text">#{request.id}</span>
-                      {/* Aviseringen kan ha fallerat utan att förfrågan gjort det. */}
+                      {/* Aviseringen kan ha fallerat utan att provbeställningen gjort det. */}
                       {!request.emailed && <Tag color="var(--adm-danger)">ej aviserad</Tag>}
                     </span>
                   </Td>

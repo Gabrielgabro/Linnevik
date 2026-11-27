@@ -69,7 +69,7 @@ export default function ExportPanel({ icon }: { icon?: React.ReactNode }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Panel title="Period" meta="Datumen är inklusive, i svensk tid.">
+      <Panel title="Period" meta="Datumen är inklusive, i svensk tid. Ordrar räknas på betalningsdagen.">
         <div className="flex flex-wrap items-end gap-4">
           <Field
             label="Från"

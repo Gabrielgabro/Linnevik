@@ -13,7 +13,9 @@
  *   Satsen sparas per order sedan 0021 just för att en gammal order ska gå att
  *   stämma av även efter att VAT_PERCENT eller Stripe Tax-flaggan ändrats.
  * - **Återbetalningar**: en rad per återbetalning, med sin egen momsdel.
- *   Bokförs i den period de skedde, inte i orderns.
+ *   Bokförs i den period de skedde, inte i orderns (§16.3).
+ *
+ * Alla dagar är svenska kalenderdagar (§16.2).
  *
  * Test-läge utesluts alltid. En order skapad med en testnyckel är inte en
  * affärshändelse, och den ska inte kunna hamna i en momsdeklaration.
@@ -42,8 +44,11 @@ function kronor(minor: number | null | undefined): string {
   return ((Number(minor ?? 0)) / 100).toFixed(2).replace('.', ',');
 }
 
+/** Svensk kalenderdag. Ett klockslag strax efter midnatt hör till den dagen, inte till gårdagen i UTC. */
 function day(value: unknown): string {
-  return value ? new Date(value as string).toISOString().slice(0, 10) : '';
+  if (!value) return '';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm' }).format(new Date(value as string));
 }
 
 export type ExportPeriod = { from: string; to: string };
@@ -51,28 +56,33 @@ export type ExportPeriod = { from: string; to: string };
 /**
  * En rad per betald order i perioden.
  *
- * Perioden mäts på när ordern skapades. `updated_at` hade gjort att en gammal
- * order hoppade mellan perioder så fort någon rörde den.
+ * Perioden mäts på betalningsdagen, i svensk tid (§16.2). Den sätts en gång
+ * när ordern blir betald, så en faktura som betalas sent hamnar i den månad
+ * pengarna kom och ändrar inte en månad som redan är stängd. Varken
+ * `created_at` eller `updated_at` duger: den första lägger en sent betald
+ * faktura i fel månad, den andra flyttar ordern så fort någon rör den.
  */
 export async function ordersCsv(period: ExportPeriod): Promise<string> {
   const result = await getDb().execute(sql`
-    select o.id, o.created_at, o.payment_status, o.status,
+    select o.id, o.paid_on, o.created_at, o.payment_status, o.status,
            o.customer_name, o.email, o.tax_id_value,
            o.subtotal_minor, o.discount_minor, o.shipping_minor,
            o.tax_minor, o.total_minor, o.refunded_minor, o.currency,
            o.vat_mode, o.vat_bps, o.stripe_payment_intent_id,
-           o.billing_address ->> 'country' as billing_country
+           o.billing_address ->> 'country' as billing_country,
+           (select i.number from invoices i
+             where i.order_id = o.id and i.kind = 'invoice' and i.voided_at is null) as invoice_number
       from orders o
      where not o.test_mode
        and o.payment_status in ('paid', 'partially_refunded', 'refunded')
-       and o.created_at >= ${period.from}::date
-       and o.created_at < (${period.to}::date + interval '1 day')
-     order by o.created_at asc, o.id asc
+       and o.paid_on between ${period.from}::date and ${period.to}::date
+     order by o.paid_on asc, o.id asc
   `);
 
   const header = csvRow([
     'ordernr',
-    'datum',
+    'betalningsdag',
+    'orderdag',
     'betalstatus',
     'kund',
     'epost',
@@ -88,11 +98,13 @@ export async function ordersCsv(period: ExportPeriod): Promise<string> {
     'momslage',
     'momssats_procent',
     'stripe_betalning',
+    'fakturanr',
   ]);
 
   const rows = (result.rows as Array<Record<string, unknown>>).map(row =>
     csvRow([
       row.id,
+      day(row.paid_on),
       day(row.created_at),
       row.payment_status,
       row.customer_name,
@@ -112,23 +124,28 @@ export async function ordersCsv(period: ExportPeriod): Promise<string> {
         ? ''
         : (Number(row.vat_bps) / 100).toFixed(2).replace('.', ','),
       row.stripe_payment_intent_id,
+      row.invoice_number,
     ])
   );
 
   return [header, ...rows].join('\r\n');
 }
 
-/** En rad per återbetalning i perioden, med sin egen momsdel. */
+/**
+ * En rad per återbetalning i perioden, med sin egen momsdel. En
+ * återbetalning av en fakturaorder har en kreditfaktura (§9.8, §16.3).
+ */
 export async function refundsCsv(period: ExportPeriod): Promise<string> {
   const result = await getDb().execute(sql`
     select r.id, r.created_at, r.order_id, r.amount_minor, r.tax_minor,
-           r.currency, r.reason, r.status, r.actor, r.stripe_refund_id
+           r.currency, r.reason, r.status, r.actor, r.stripe_refund_id,
+           i.number as credit_note_number
       from refunds r
       join orders o on o.id = r.order_id
+      left join invoices i on i.refund_id = r.id and i.kind = 'credit'
      where not o.test_mode
        and r.status in ('pending', 'succeeded')
-       and r.created_at >= ${period.from}::date
-       and r.created_at < (${period.to}::date + interval '1 day')
+       and (r.created_at at time zone 'Europe/Stockholm')::date between ${period.from}::date and ${period.to}::date
      order by r.created_at asc, r.id asc
   `);
 
@@ -143,6 +160,7 @@ export async function refundsCsv(period: ExportPeriod): Promise<string> {
     'status',
     'gjord_av',
     'stripe_refund',
+    'kreditfakturanr',
   ]);
 
   const rows = (result.rows as Array<Record<string, unknown>>).map(row =>
@@ -157,6 +175,7 @@ export async function refundsCsv(period: ExportPeriod): Promise<string> {
       row.status,
       row.actor,
       row.stripe_refund_id,
+      row.credit_note_number,
     ])
   );
 
@@ -189,8 +208,7 @@ export async function vatSummary(period: ExportPeriod): Promise<VatSummary> {
         from orders o
        where not o.test_mode
          and o.payment_status in ('paid', 'partially_refunded', 'refunded')
-         and o.created_at >= ${period.from}::date
-         and o.created_at < (${period.to}::date + interval '1 day')
+         and o.paid_on between ${period.from}::date and ${period.to}::date
     ), returns as (
       select coalesce(sum(r.amount_minor), 0)::int as refunded_minor,
              coalesce(sum(r.tax_minor), 0)::int as refunded_vat_minor
@@ -198,8 +216,7 @@ export async function vatSummary(period: ExportPeriod): Promise<VatSummary> {
         join orders o on o.id = r.order_id
        where not o.test_mode
          and r.status in ('pending', 'succeeded')
-         and r.created_at >= ${period.from}::date
-         and r.created_at < (${period.to}::date + interval '1 day')
+         and (r.created_at at time zone 'Europe/Stockholm')::date between ${period.from}::date and ${period.to}::date
     )
     select * from sales cross join returns
   `);

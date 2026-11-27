@@ -13,7 +13,8 @@ export type InvoiceSummary = {
   status: string | null;
   dueDate: string | null;
   amountRemainingMinor: number;
-  hostedUrl: string | null;
+  /** Fakturan som pdf. */
+  pdfUrl: string | null;
 };
 
 type Props = {
@@ -112,14 +113,18 @@ export default function InvoicePaymentPanel({ order, invoice, ocr, bankgiro, ban
       <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
         <dt className="text-ink-3">Faktura</dt>
         <dd>
-          {invoice?.hostedUrl ? (
-            <a href={invoice.hostedUrl} target="_blank" rel="noreferrer" className="text-brand-text hover:underline">
+          {invoice?.pdfUrl ? (
+            <a href={invoice.pdfUrl} target="_blank" rel="noreferrer" className="text-brand-text hover:underline">
               {invoice.number ?? 'Öppna'}
             </a>
           ) : (
             invoice?.number ?? '—'
           )}
-          {invoice?.status && <span className="ml-2 text-ink-3">({invoice.status})</span>}
+          {invoice?.status && (
+            <span className="ml-2 text-ink-3">
+              ({({ open: 'obetald', paid: 'betald', void: 'makulerad' } as Record<string, string>)[invoice.status] ?? invoice.status})
+            </span>
+          )}
         </dd>
         <dt className="text-ink-3">Förfallodag</dt>
         <dd>
