@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { normalizeLocale } from './i18n';
 import type { Language } from './languageConfig';
-import { readCustomerSessionValue, CUSTOMER_SESSION_COOKIE } from './customerSession';
+import { getCurrentCustomerFromCookies } from './customerAccount';
 
 /**
  * Get the user's current locale from cookies or URL
@@ -17,10 +17,10 @@ export async function getCurrentLocale(): Promise<Language> {
  * Check if user is authenticated
  */
 export async function isAuthenticated(): Promise<boolean> {
-  const cookieStore = await cookies();
-  return Boolean(
-    await readCustomerSessionValue(cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value)
-  );
+  // Ett giltigt kakvärde räcker inte: kontot kan vara inaktivt eller raderat.
+  // Förr skickade /login då vidare till /account, som visade ett tomt konto,
+  // och kunden kom inte ur slingan (plan.md, H10).
+  return Boolean(await getCurrentCustomerFromCookies());
 }
 
 /**

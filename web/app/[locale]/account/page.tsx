@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import AccountClient from './AccountClient';
 import { getCurrentCustomerFromCookies, getCustomerOrders } from '@/lib/customerAccount';
 import { loadCompanyDetails } from './actions';
@@ -26,6 +27,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function AccountPage({ params }: Props) {
     const customer = await getCurrentCustomerFromCookies();
+    // Utan inloggning finns inget konto att visa. Förr visades ett tomt konto
+    // utan väg till inloggningen (plan.md, H5).
+    if (!customer) redirect(`/${normalizeLocale((await params).locale)}/login`);
 
     const orders = customer ? await getCustomerOrders(10) : [];
     // Företagsuppgifterna läses ur företagsposten, inte ur sessionen: det är
