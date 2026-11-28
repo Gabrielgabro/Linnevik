@@ -30,10 +30,15 @@ export async function POST(request: NextRequest) {
 
   let product;
   try {
-    product = await createProduct({ ...input, title: input.title! });
+    // En ny produkt är ett utkast tills den har variant, pris, bild och
+    // engelsk text (§1.11). Den publiceras på produktsidan.
+    product = await createProduct({ ...input, title: input.title!, status: input.status ?? 'draft' });
   } catch (error) {
     if (isUniqueViolation(error, 'products_handle_key')) {
-      return NextResponse.json({ error: 'Den handlen används redan.' }, { status: 409 });
+      return NextResponse.json({ error: 'Den svenska adressen används redan.' }, { status: 409 });
+    }
+    if (isUniqueViolation(error, 'products_handle_en_key')) {
+      return NextResponse.json({ error: 'Den engelska adressen används redan.' }, { status: 409 });
     }
     throw error;
   }
