@@ -234,16 +234,27 @@ export async function updatePricingConfig(
     })
     .onConflictDoUpdate({
       target: pricingConfig.id,
+      // Bara den valda strategins inställningar skrivs. parsePricingConfigInput
+      // läser bara dem, och de andra två fick förr standardvärden som skrev
+      // över det admin ställt in där (plan.md, K4).
       set: {
         strategy: input.strategy,
-        tiers: input.tiers,
-        linearStartQuantity: input.linear.startQuantity,
-        linearQuantityStep: input.linear.quantityStep,
-        linearPercentPerStep: input.linear.percentPerStep,
-        linearMaxPercent: input.linear.maxPercent,
-        orderValueLadder: input.orderValue.ladder,
-        orderValueCaps: input.orderValue.caps,
-        orderValueDefaultMaxPercent: input.orderValue.defaultMaxPercent,
+        ...(input.strategy === 'progressive' ? { tiers: input.tiers } : {}),
+        ...(input.strategy === 'linear'
+          ? {
+              linearStartQuantity: input.linear.startQuantity,
+              linearQuantityStep: input.linear.quantityStep,
+              linearPercentPerStep: input.linear.percentPerStep,
+              linearMaxPercent: input.linear.maxPercent,
+            }
+          : {}),
+        ...(input.strategy === 'orderValue'
+          ? {
+              orderValueLadder: input.orderValue.ladder,
+              orderValueCaps: input.orderValue.caps,
+              orderValueDefaultMaxPercent: input.orderValue.defaultMaxPercent,
+            }
+          : {}),
         minimumOrderQuantity: input.minimumOrderQuantity,
         updatedBy,
         updatedAt: new Date(),
