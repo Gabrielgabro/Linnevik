@@ -508,7 +508,9 @@ export async function createVariant(
       productId,
       // Stripe-nyckeln byggs likadant som importen gjorde, så att en variant
       // som skapas här ser likadan ut som en som en gång kom från Shopify.
-      stripeLookupKey: `linnevik_${input.sku.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      // Ingen Stripe-nyckel: kassan skapar sina priser själv, och nyckeln var
+      // unik, så en SKU som bara skilde sig i - . _ föll på den (plan.md, K5).
+      stripeLookupKey: null,
     })
     .returning();
   return row;
