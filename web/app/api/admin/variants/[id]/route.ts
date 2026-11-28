@@ -65,26 +65,28 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     throw error;
   }
 
+  let stockRefused: string | null = null;
   if (inventoryQuantity !== undefined && inventoryQuantity !== before.inventoryQuantity) {
     // Kontrolleras en gång till under radlås: reservationen kan ha hunnit
     // ändras mellan läsningen ovan och skrivningen.
     const stock = await setVariantStock(id, inventoryQuantity, auth.user, 'Ändrat i /admin');
-    if (!stock.ok) {
-      return NextResponse.json(
-        {
-          error:
-            `${stock.reserved} enheter är reserverade av pågående ordrar. Lagret kan inte sättas ` +
-            `lägre än så — övriga ändringar är sparade.`,
-        },
-        { status: 409 }
-      );
+    if (stock.ok) {
+      variant = variant ? { ...variant, inventoryQuantity } : variant;
+    } else {
+      stockRefused =
+        `${stock.reserved} enheter är reserverade av pågående ordrar. Lagret kan inte sättas ` +
+        `lägre än så — övriga ändringar är sparade.`;
     }
-    variant = variant ? { ...variant, inventoryQuantity } : variant;
   }
 
+  // Övriga ändringar är sparade även när lagret vägrades, och loggas därför
+  // alltid. Förr svarade rutten innan loggen skrevs, och ett ändrat listpris
+  // syntes aldrig i Aktivitet (plan.md, K6).
+  const { inventoryQuantity: _requestedStock, ...withoutStock } = input;
+  void _requestedStock;
   await record(auth.user, 'variant.updated', String(id), {
     sku: before.sku,
-    ändrat: diff(before, { ...input }),
+    ändrat: diff(before, stockRefused ? withoutStock : { ...input }),
   });
   // Listpriset loggas för sig, med gammalt och nytt pris och sidan det
   // ändrades från (§4.15).
@@ -97,6 +99,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       source: priceSource,
     });
   }
+  if (stockRefused) return NextResponse.json({ error: stockRefused }, { status: 409 });
 
   return NextResponse.json({ variant });
 }

@@ -580,6 +580,8 @@ function VariantRow({
     setBusy(false);
     if (!response.ok) {
       setError(data.error ?? 'Kunde inte spara.');
+      // Ett vägrat lager sparar ändå resten, så sidan ska visa det som sparats.
+      if (response.status === 409) router.refresh();
       return;
     }
     setOpen(false);
