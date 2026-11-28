@@ -342,7 +342,7 @@ webbkonton, **H** hemsidan. Lager A (kontrakten) är gjord för alla fyra.
 | C1 | Företag | Formuläret saknar land. Att spara ett utländskt företag sätter landet till SE eller misslyckas varje gång. | §11.2 | 2 | Rättad (`40ce87c`) |
 | C2 | Webbkonto | En e-post som redan finns ger ett rått SQL-fel och lägger till en kontaktperson ingen bett om. | §11 | 2 | Rättad (`08eb47e`) |
 | C3 | Radera företag | Ett företag med obetalda fakturor går att radera. | §11.11, B6 | 2 | Rättad (`63799b9`) |
-| C4 | Webbkonto | Kontot har ett eget fält för org.nr som fakturakassan faller tillbaka på. Två källor till org-numret. | §11.1, B5 | 3 | Beslut behövs |
+| C4 | Webbkonto | Kontot har ett eget fält för org.nr som fakturakassan faller tillbaka på. Två källor till org-numret. | §11.1, B5 | 3 | Rättad (A32) |
 | C5 | Webbkonto | Status och orderstatus på engelska. Felmeddelanden på engelska. | §15.4 | 3 | Rättad (`48ed7c1`) |
 | C6 | Besökare | Ett klick på en annan period kan tappas, och sidan visar fel period i upp till 30 s. | | 3 | Öppen |
 | C7 | Webbkonton | Bekräftelsen säger att företaget "står kvar bland tvätterikunderna". | §11.4 | 3 | Rättad (`48ed7c1`) |

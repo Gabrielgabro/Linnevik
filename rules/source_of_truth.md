@@ -835,6 +835,10 @@ A30 §2.1. Koden skiljer på taggarna. Mängdrabatt och minsta antal gäller
 A31 *Rättad* av `drizzle/0048`. §15.6. Kommentarer finns i dag som ett enda textfält på order, företag
     och provbeställning. Det skrivs över och sparar varken vem eller när.
 
+A32 *Rättad.* §11.1, §11.6. Webbkontot har ett eget org-nummer
+    (`customers.tax_id`). Admin kan ändra det, och fakturakassan använder
+    det när företaget saknar ett. Kolumnen läses och skrivs inte längre.
+
 
 # Bilaga B. Beslut som behöver bekräftas
 

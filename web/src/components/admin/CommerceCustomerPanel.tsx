@@ -84,7 +84,6 @@ function AccountForm({ clientId, customer }: { clientId: number; customer?: Cust
         <Field label="Förnamn" name="firstName" defaultValue={customer?.firstName} />
         <Field label="Efternamn" name="lastName" defaultValue={customer?.lastName} />
         <Field label="Telefon" name="phone" type="tel" defaultValue={customer?.phone} />
-        <Field label="Org.nr / VAT" name="taxId" defaultValue={customer?.taxId} />
         <Select
           label="Kontostatus"
           name="status"

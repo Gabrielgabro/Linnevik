@@ -19,7 +19,6 @@ import {
   normalizeAddress,
   normalizeCompanyName,
   resolveCompanyProfile,
-  STRIPE_TAX_ID_TYPE,
   type PostalAddress,
 } from '@/lib/companyProfile';
 import { getStripe } from '@/lib/stripe';
@@ -388,13 +387,12 @@ export async function upsertCustomerFromCheckout(input: {
   const result = await getDb().execute(sql`
     insert into customers (
       client_id, email, stripe_customer_id, customer_no, first_name, last_name, company, phone,
-      default_shipping_address, default_billing_address, tax_id, tax_id_type
+      default_shipping_address, default_billing_address
     ) values (
       ${client.id}, ${email}, ${input.stripeCustomerId ?? null}, ${client.customerNo},
       ${firstName}, ${lastName}, ${client.name}, ${input.phone ?? null},
       ${JSON.stringify(shippingAddress)}::jsonb,
-      ${JSON.stringify(billingAddress)}::jsonb,
-      ${input.taxId?.value ?? null}, ${input.taxId?.type ?? null}
+      ${JSON.stringify(billingAddress)}::jsonb
     )
     on conflict (lower(email)) do update set
       client_id = excluded.client_id,
@@ -410,10 +408,6 @@ export async function upsertCustomerFromCheckout(input: {
       phone = coalesce(excluded.phone, customers.phone),
       default_shipping_address = coalesce(excluded.default_shipping_address, customers.default_shipping_address),
       default_billing_address = coalesce(excluded.default_billing_address, customers.default_billing_address),
-      -- Ett VAT-nummer kunden angav i kassan skriver över ett tomt fält, men
-      -- raderar aldrig ett vi redan har från registreringen.
-      tax_id = coalesce(excluded.tax_id, customers.tax_id),
-      tax_id_type = coalesce(excluded.tax_id_type, customers.tax_id_type),
       updated_at = now()
     returning id
   `);
@@ -475,14 +469,13 @@ export async function registerCustomer(input: {
   });
   const result = await getDb().execute(sql`
     insert into customers (
-      client_id, email, customer_no, first_name, last_name, phone, company, tax_id, tax_id_type,
+      client_id, email, customer_no, first_name, last_name, phone, company,
       default_billing_address, default_shipping_address
     )
     values (
       ${client.id}, ${email}, ${client.customerNo}, ${input.firstName ?? null},
       ${input.lastName ?? null}, ${input.phone?.trim() || null},
-      ${client.name}, ${input.taxId ?? null},
-      ${input.taxId ? STRIPE_TAX_ID_TYPE : null},
+      ${client.name},
       ${JSON.stringify(input.address ?? null)}::jsonb,
       ${JSON.stringify(input.address ?? null)}::jsonb
     )
@@ -839,7 +832,7 @@ export async function loadCompanyProfile(customerId: number): Promise<StoredComp
   const profile: StoredCompanyProfile = {
     email: row.customer.email,
     companyName: normalizeCompanyName(client?.name ?? row.customer.company ?? ''),
-    organizationNumber: client?.orgNumber ?? row.customer.taxId ?? '',
+    organizationNumber: client?.orgNumber ?? '',
     address,
     invoiceReady: false,
   };
@@ -908,8 +901,6 @@ export async function saveCompanyProfile(
     .update(customers)
     .set({
       company: input.companyName,
-      taxId: input.organizationNumber,
-      taxIdType: STRIPE_TAX_ID_TYPE,
       defaultBillingAddress: input.address,
       updatedAt: new Date(),
     })

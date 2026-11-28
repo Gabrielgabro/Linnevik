@@ -131,7 +131,8 @@ export async function listPortalAccounts(): Promise<PortalAccount[]> {
       lastName: customers.lastName,
       company: customers.company,
       phone: customers.phone,
-      taxId: customers.taxId,
+      // Visas som org-nummer; det är företagets (§11.1).
+      taxId: clients.orgNumber,
       status: customers.status,
       createdAt: sql<string>`${customers.createdAt}::text`,
       clientId: customers.clientId,

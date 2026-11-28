@@ -68,7 +68,8 @@ export function parseCustomerInput(body: Body, required = false): CustomerInput 
   if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new CommerceInputError('E-postadressen ser fel ut.');
   const input: CustomerInput = {};
   if (email !== undefined && email !== null) input.email = email;
-  for (const key of ['customerNo', 'firstName', 'lastName', 'company', 'phone', 'taxId', 'notes'] as const) {
+  // Org-numret hör till företaget, inte till webbkontot (§11.1, §11.6).
+  for (const key of ['customerNo', 'firstName', 'lastName', 'company', 'phone', 'notes'] as const) {
     const value = text(body, key, key === 'notes' ? 10_000 : 320);
     if (value !== undefined) Object.assign(input, { [key]: value });
   }

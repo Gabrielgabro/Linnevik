@@ -212,9 +212,8 @@ export async function handleRegister(_: RegisterState, formData: FormData): Prom
     }
 
     try {
-        // Kunden skapas direkt i Postgres — det finns inget Shopify-konto att
-        // skapa längre. Org-numret sparas i tax_id i stället för en Shopify-
-        // metafield, så att kunddata äger ett enda system.
+        // Kunden skapas direkt i Postgres. Org-numret sparas på företaget,
+        // aldrig på webbkontot (§11.1, §11.6).
         const result = await registerCustomer({
             email,
             firstName,

@@ -83,7 +83,7 @@ async function getCurrentCustomerFromMagicLinkSession(): Promise<CurrentCustomer
             email: row.email,
             firstName: row.first_name,
             lastName: row.last_name,
-            vatNumber: row.org_number || row.tax_id || undefined,
+            vatNumber: row.org_number || undefined,
             company: row.client_name || row.company,
             billingAddress: clientAddress ?? normalizeAddress(row.default_billing_address),
             customerNo: row.customer_no,

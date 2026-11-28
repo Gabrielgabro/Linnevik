@@ -132,10 +132,11 @@ describe('fakturan ställs ut på organisationen, personen är referens', () => 
   const companyProfile = readFileSync(resolve('src/lib/companyProfile.ts'), 'utf8');
 
   it('hämtar mottagarnamn och adress ur företagsposten, inte ur webbkontot', () => {
-    // client är föräldern, customer är lövet. Webbkontots egna kolumner är
-    // reserv för poster som ännu inte har någon företagspost.
+    // client är föräldern, customer är lövet. Org-numret finns bara på
+    // företaget (§11.1, §11.6); webbkontot har inget eget att falla tillbaka på.
     expect(invoiceRoute).toContain('companyName: client?.name ?? customer.company');
-    expect(invoiceRoute).toContain('organizationNumber: client?.orgNumber ?? customer.taxId');
+    expect(invoiceRoute).toContain("organizationNumber: client?.orgNumber ?? ''");
+    expect(invoiceRoute).not.toContain('customer.taxId');
   });
 
   it('vägrar ställa ut fakturan på en mejladress', () => {

@@ -175,7 +175,8 @@ async function loadInvoiceAccount(): Promise<InvoiceAccountData | null> {
     clientId: customer.clientId,
     customerNo: client?.customerNo ?? null,
     companyName: client?.name ?? customer.company ?? '',
-    organizationNumber: client?.orgNumber ?? customer.taxId ?? '',
+    // Org-numret finns bara på företaget (§11.1, §11.6).
+    organizationNumber: client?.orgNumber ?? '',
     address: clientAddress ?? normalizeAddress(customer.defaultBillingAddress),
     contactName: [customer.firstName, customer.lastName].filter(Boolean).join(' ').trim(),
     invoiceEmail: client?.invoiceEmail?.trim() || null,
