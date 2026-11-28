@@ -128,7 +128,7 @@ export function parseClientInput(body: Body): ClientInput {
   const rawPostalCode = text(body, 'postalCode', 16);
   const postalCode = rawPostalCode === null ? null : normalizePostalCode(rawPostalCode, country);
   if (postalCode !== null && !isValidPostalCode(postalCode, country)) {
-    throw new InputError('Postnumret ser fel ut. Svenska postnummer skrivs som 123 45.');
+    throw new InputError(country === INVOICE_COUNTRY ? 'Postnumret ser fel ut. Svenska postnummer skrivs som 123 45.' : `Postnumret ser fel ut för landet ${country}.`);
   }
 
   return {

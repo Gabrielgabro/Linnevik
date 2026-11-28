@@ -168,6 +168,12 @@ export default function ClientForm(props: Props) {
           defaultValue={client?.postalCode ?? ''}
         />
         <Field label="Ort" name="city" defaultValue={client?.city ?? ''} />
+        <Field
+          label="Land (landskod)"
+          name="country"
+          defaultValue={client?.country ?? 'SE'}
+          hint="SE för Sverige. Fakturor skickas bara till svenska adresser."
+        />
       </fieldset>
 
       <ErrorNote>{error}</ErrorNote>

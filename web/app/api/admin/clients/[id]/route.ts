@@ -19,17 +19,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const id = routeId((await params).id);
   if (id === null) return NextResponse.json({ error: 'Okänd kund.' }, { status: 404 });
 
+  const db = getDb();
+  const [before] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
+  if (!before) return NextResponse.json({ error: 'Okänd kund.' }, { status: 404 });
+
   let input;
   try {
-    input = parseClientInput(await readBody(request));
+    const body = await readBody(request);
+    // Ett formulär utan land behåller företagets land. Förr blev det SE, och
+    // ett utländskt postnummer gjorde att företaget inte gick att spara alls
+    // (plan.md, C1).
+    input = parseClientInput({ ...body, country: body.country ?? before.country });
   } catch (error) {
     const message = error instanceof InputError ? error.message : 'Kunde inte läsa förfrågan.';
     return NextResponse.json({ error: message }, { status: 400 });
   }
-
-  const db = getDb();
-  const [before] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
-  if (!before) return NextResponse.json({ error: 'Okänd kund.' }, { status: 404 });
 
   const changes = diff(before, input);
   if (changes.length === 0) {

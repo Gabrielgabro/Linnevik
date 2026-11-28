@@ -8,6 +8,10 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 
+vi.mock('@/lib/adminRoute', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/adminRoute')>()),
+  requireAdmin: vi.fn(async () => ({ user: 'Gabriel' })),
+}));
 vi.mock('@/lib/mailer', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/mailer')>()),
   mailConfigured: () => true,
@@ -20,6 +24,8 @@ import { AccountEmailTakenError, createCustomer } from '@/lib/commerceOperations
 import { ClientHasUnpaidInvoicesError, deleteClientsWithAccounts } from '@/lib/clientsDb';
 import { createManualInvoice } from '@/lib/manualInvoice';
 import { createProduct, createVariant } from '@/lib/productsDb';
+import { NextRequest } from 'next/server';
+import { PATCH as patchClient } from '../../app/api/admin/clients/[id]/route';
 
 let variantId: number;
 
@@ -88,5 +94,28 @@ describe('radera företag', () => {
   it('går när företaget inte har några obetalda fakturor', async () => {
     const client = await company('Skuldfria AB');
     expect((await deleteClientsWithAccounts([client.id])).clients).toBe(1);
+  });
+});
+
+describe('företag i ett annat land', () => {
+  it('behåller landet när formuläret sparas utan land', async () => {
+    const stamp = `${Date.now()}`;
+    const [client] = await getDb()
+      .insert(clients)
+      .values({ customerNo: `N${stamp}`, name: 'Norska AS', addressLine1: 'Karl Johans gate 1', postalCode: '0150', city: 'Oslo', country: 'NO' })
+      .returning();
+    const response = await patchClient(
+      new NextRequest(`http://localhost/api/admin/clients/${client.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ customerNo: client.customerNo, name: client.name, status: 'Pågående dialog', addressLine1: 'Karl Johans gate 1', postalCode: '0150', city: 'Oslo' }),
+      }),
+      { params: Promise.resolve({ id: String(client.id) }) }
+    );
+    expect((await response.json()).error).toBeUndefined();
+    expect(response.status).toBe(200);
+    const [after] = await getDb().select().from(clients).where(eq(clients.id, client.id));
+    expect(after.country).toBe('NO');
+    expect(after.status).toBe('Pågående dialog');
   });
 });
