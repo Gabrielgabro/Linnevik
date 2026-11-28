@@ -167,8 +167,10 @@ export type BankPaymentResult =
       ok: true;
       orderId: number;
       assessment: BankPaymentAssessment;
-      /** Ordern blev betald just nu (och orderbekräftelsen gick ut). */
+      /** Ordern blev betald just nu. */
       newlyPaid: boolean;
+      /** Orderbekräftelsen gick i väg till kunden. */
+      emailed: boolean;
       stockReady: boolean;
     }
   | { ok: false; status: number; error: string };
@@ -269,7 +271,7 @@ export async function registerBankPayment(input: {
     actor: input.actor,
     paidOn: paidOn.date,
   });
-  if (paid.newlyPaid) await sendOrderConfirmation(order.stripeSessionId);
+  const emailed = paid.newlyPaid ? await sendOrderConfirmation(order.stripeSessionId) : false;
 
   if (assessment.kind === 'over') {
     await raiseAlert({
@@ -287,6 +289,6 @@ export async function registerBankPayment(input: {
     });
   }
 
-  return { ok: true, orderId: order.id, assessment, newlyPaid: paid.newlyPaid, stockReady: paid.stockReady };
+  return { ok: true, orderId: order.id, assessment, newlyPaid: paid.newlyPaid, emailed, stockReady: paid.stockReady };
 }
 

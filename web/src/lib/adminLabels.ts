@@ -52,7 +52,7 @@ export const SAMPLE_STATUS_LABEL: Record<string, string> = {
 };
 
 export const ORDER_EVENT_LABEL: Record<string, string> = {
-  'payment.paid': 'Betald med kort',
+  'payment.paid': 'Betald',
   'payment.bank_registered': 'Bankbetalning registrerad',
   'payment.disputed': 'Tvist öppnad',
   'payment.dispute_closed': 'Tvist avgjord',

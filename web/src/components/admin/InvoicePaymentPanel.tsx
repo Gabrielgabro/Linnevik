@@ -6,8 +6,9 @@ import { Button, ErrorNote, Field, TextArea, formValues } from '@/components/adm
 import Notice from '@/components/admin/ui/Notice';
 import { formatMinor, toMinor } from '@/lib/money';
 import type { OrderDetail } from '@/lib/ordersDb';
+import { adminRequest } from '@/lib/adminRequest';
 
-/** Det sidan hämtat ur Stripe om fakturan. Null när Stripe inte svarade. */
+/** Orderns gällande faktura (vår egen, A17). Null när ordern inte har någon. */
 export type InvoiceSummary = {
   number: string | null;
   status: string | null;
@@ -60,14 +61,12 @@ export default function InvoicePaymentPanel({ order, invoice, ocr, bankgiro, ban
     setBusy(template);
     setError(null);
     setDone(null);
-    const response = await fetch(`/api/admin/orders/${order.id}/emails`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template }),
+    const result = await adminRequest(`/api/admin/orders/${order.id}/emails`, {
+      body: { template },
+      fallbackError: 'Utskicket misslyckades.',
     });
-    const data = await response.json().catch(() => ({}));
     setBusy(null);
-    if (!response.ok) return setError(data.error ?? 'Utskicket misslyckades.');
+    if (!result.ok) return setError(result.error);
     setDone(template === 'invoice' ? 'Fakturan skickades igen.' : 'Påminnelsen skickades.');
     router.refresh();
   }
@@ -82,26 +81,26 @@ export default function InvoicePaymentPanel({ order, invoice, ocr, bankgiro, ban
     // till kunden. Det går inte att ångra härifrån, så det bekräftas först.
     const ok = window.confirm(
       `Registrera ${formatMinor(amountMinor, order.currency)} som inbetalt ${values.paidOn}?\n\n` +
-        'Fakturan markeras som betald i Stripe, ordern blir betald och kunden får orderbekräftelsen.'
+        'Fakturan blir betald, ordern blir betald och kunden får orderbekräftelsen. En pausad order förblir pausad.'
     );
     if (!ok) return;
     setBusy('pay');
     setError(null);
     setDone(null);
-    const response = await fetch(`/api/admin/orders/${order.id}/bank-payment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amountMinor, paidOn: values.paidOn, note: values.note }),
-    });
-    const data = await response.json().catch(() => ({}));
+    const result = await adminRequest<{ assessment?: { kind?: string }; stockReady?: boolean; emailed?: boolean }>(
+      `/api/admin/orders/${order.id}/bank-payment`,
+      { body: { amountMinor, paidOn: values.paidOn, note: values.note }, fallbackError: 'Betalningen kunde inte registreras.' }
+    );
     setBusy(null);
-    if (!response.ok) return setError(data.error ?? 'Betalningen kunde inte registreras.');
+    if (!result.ok) return setError(result.error);
+    const data = result.data;
+    const mail = data.emailed ? 'Orderbekräftelsen är skickad.' : 'Orderbekräftelsen skickades inte. Skicka den igen under Kundutskick.';
     setDone(
       data.assessment?.kind === 'over'
-        ? 'Betalningen är registrerad. Kunden betalade för mycket — mellanskillnaden ska tillbaka (larm skapat).'
+        ? `Betalningen är registrerad. Kunden betalade för mycket — mellanskillnaden ska tillbaka (larm skapat). ${mail}`
         : data.stockReady === false
-          ? 'Betalningen är registrerad, men ordern saknar lagerreservation — se larmet.'
-          : 'Betalningen är registrerad. Ordern är betald och orderbekräftelsen skickad.'
+          ? `Betalningen är registrerad, men ordern saknar lagerreservation — se larmet. ${mail}`
+          : `Betalningen är registrerad och ordern är betald. ${mail}`
     );
     router.refresh();
   }
@@ -158,8 +157,8 @@ export default function InvoicePaymentPanel({ order, invoice, ocr, bankgiro, ban
       </dl>
 
       {!invoice && (
-        <Notice tone="warn" title="Kunde inte läsa fakturan i Stripe">
-          Uppgifterna ovan kan vara ofullständiga. Ladda om sidan om en stund.
+        <Notice tone="warn" title="Ordern har ingen gällande faktura">
+          Fakturan kan vara makulerad. En betalning kan inte registreras mot ordern.
         </Notice>
       )}
 
@@ -175,8 +174,8 @@ export default function InvoicePaymentPanel({ order, invoice, ocr, bankgiro, ban
       )}
 
       {isPaid && !bankEvent && (
-        <Notice tone="ok" title="Betald i Stripe">
-          Fakturan betalades på Stripes fakturasida (kort) eller markerades betald direkt i Stripe.
+        <Notice tone="ok" title="Betald">
+          Fakturan är betald. Betalningen registrerades före bankgirot, i det gamla fakturasystemet.
         </Notice>
       )}
 
@@ -184,7 +183,7 @@ export default function InvoicePaymentPanel({ order, invoice, ocr, bankgiro, ban
         <Notice tone="warn" title="Fakturan är inte öppen">
           {order.status === 'cancelled'
             ? 'Ordern är avbeställd och fakturan makulerad.'
-            : `Fakturan har status ${invoice.status} i Stripe och kan inte betalas.`}{' '}
+            : `Fakturan är ${({ open: 'obetald', paid: 'betald', void: 'makulerad' } as Record<string, string>)[invoice.status ?? ''] ?? 'stängd'} och kan inte betalas.`}{' '}
           Har kunden ändå betalat ska pengarna tillbaka från bankkontot — eller lägg en ny order.
         </Notice>
       )}
