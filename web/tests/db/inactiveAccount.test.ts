@@ -118,6 +118,25 @@ describe('ett inaktivt webbkonto', () => {
     expect((await response.json()).code).toBe('ACCOUNT_INACTIVE');
   });
 
+  it('kan inte gå till kortkassan inloggad, fast inget e-post skickas (H4)', async () => {
+    // Knappen skickar bara korg och rabattkod. Kontot syns bara i kakan.
+    process.env.OWNED_COMMERCE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY ??= 'sk_test_unused';
+    const { id } = await account('kaka');
+    cookieJar.set(CUSTOMER_SESSION_COOKIE, (await createCustomerSessionValue(id)).value);
+    await deactivate(id);
+
+    const response = await checkout(
+      new NextRequest('http://localhost/api/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ cartId: crypto.randomUUID() }),
+      })
+    );
+    cookieJar.clear();
+    expect(response.status).toBe(403);
+    expect((await response.json()).code).toBe('ACCOUNT_INACTIVE');
+  });
+
   it('kopplas inte till en kortbetalning som ändå kommer, och admin larmas', async () => {
     const { id, email } = await account('betalning');
     await deactivate(id);

@@ -54,7 +54,7 @@ import { releaseExpiredReservations, reserveOrderStockStrict } from '@/lib/inven
 import { CartRuleError } from '@/lib/cartRules';
 import { parseCheckoutInput } from '@/lib/checkoutInput';
 import { checkRateLimit, clientIp } from '@/lib/rateLimit';
-import { getCurrentCustomerFromCookies } from '@/lib/customerAccount';
+import { getCurrentCustomerFromCookies, sessionAccountIsInactive } from '@/lib/customerAccount';
 
 export const runtime = 'nodejs';
 
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
     // Only an authenticated account may select an existing Stripe Customer or
     // CRM customer number. A request body is not proof of either identity.
     const checkoutEmail = account?.email.trim().toLowerCase() || email;
-    if (checkoutEmail && (await accountIsInactive(checkoutEmail))) {
+    if ((!account && (await sessionAccountIsInactive())) || (checkoutEmail && (await accountIsInactive(checkoutEmail)))) {
       return fail('ACCOUNT_INACTIVE', 'This account cannot check out. Contact us.', 403);
     }
     const customerNo = account?.customerNo ?? null;

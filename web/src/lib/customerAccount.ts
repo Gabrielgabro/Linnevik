@@ -101,6 +101,21 @@ export async function getCurrentCustomerFromCookies(): Promise<CurrentCustomer |
 }
 
 /**
+ * Sant när kakan tillhör ett webbkonto som inte är aktivt (§11.9). Sessionen
+ * räknar ett sådant konto som utloggat, och kassan såg det därför som en gäst
+ * som fick betala med kort (plan.md, H4).
+ */
+export async function sessionAccountIsInactive(): Promise<boolean> {
+    const cookieStore = await cookies();
+    const customerId = await readCustomerSessionValue(cookieStore.get(CUSTOMER_SESSION_COOKIE)?.value);
+    if (!customerId) return false;
+    const result = await getDb().execute(sql`
+        select 1 from customers where id = ${customerId} and status <> 'active' limit 1
+    `);
+    return result.rows.length > 0;
+}
+
+/**
  * Kundens vy av en order är inte samma sak som våra tre interna kolumner.
  * `status`, `payment_status` och `fulfillment_status` beskriver olika saker och
  * kan peka åt varsitt håll — en makulerad order kan fortfarande stå som
