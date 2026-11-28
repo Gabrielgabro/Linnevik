@@ -569,7 +569,9 @@
         }
       },
       "submit": "Send message",
-      "successAlert": "Thank you for your message. We’ll get back to you shortly."
+      "successAlert": "Thank you for your message. We’ll get back to you shortly.",
+      "sending": "Sending…",
+      "sendFailed": "The message could not be sent. Please try again."
     },
     "map": {
       "placeholder": "[Map – Google Maps integration]"
@@ -662,7 +664,12 @@
       "label": "Loading..."
     },
     "alert": {
-      "success": "Thank you for your request. We will send the samples to you shortly."
+      "success": "Thank you for your request. We will send the samples to you shortly.",
+      "loadFailed": "The products could not be loaded. Reload the page.",
+      "noneSelected": "You have not chosen any samples.",
+      "chooseSamples": "Choose samples",
+      "submitFailed": "The request could not be sent. Please try again.",
+      "processing": "Sending…"
     },
     "header": {
       "backButton": "Back",
@@ -679,7 +686,7 @@
           "placeholder": "First and last name"
         },
         "phone": {
-          "label": "Phone *",
+          "label": "Phone",
           "placeholder": "+46 70 123 45 67"
         },
         "email": {
@@ -691,7 +698,7 @@
           "placeholder": "Company name"
         },
         "organizationNumber": {
-          "label": "Organisation number *",
+          "label": "Organisation number",
           "placeholder": "XXXXXX-XXXX"
         },
         "address": {
@@ -707,7 +714,7 @@
           "placeholder": "City"
         },
         "Country": {
-          "label": "Country *",
+          "label": "Country",
           "placeholder": "NL/DK..."
         },
         "notes": {

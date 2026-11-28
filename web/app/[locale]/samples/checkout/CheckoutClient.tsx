@@ -1,6 +1,7 @@
 'use client';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { useState, useEffect } from 'react';
+import { LocaleLink } from '@/components/LocaleLink';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 
@@ -18,6 +19,8 @@ export default function CheckoutClient() {
     const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [loadFailed, setLoadFailed] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         contactName: '',
         organizationName: '',
@@ -50,7 +53,10 @@ export default function CheckoutClient() {
 
         // Fetch selected products
         fetch(`/api/products?locale=${locale}`)
-            .then(res => res.json())
+            .then(async res => {
+                if (!res.ok) throw new Error(`products ${res.status}`);
+                return res.json();
+            })
             .then((allProducts: Product[]) => {
                 const selected = allProducts
                     .filter(p => ids.includes(p.id))
@@ -63,6 +69,7 @@ export default function CheckoutClient() {
             })
             .catch(err => {
                 console.error('Failed to load products:', err);
+                setLoadFailed(true);
                 setLoading(false);
             });
     }, [router, locale]);
@@ -76,7 +83,10 @@ export default function CheckoutClient() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        // En beställning utan prover sparades förr ändå (plan.md, H3).
+        if (submitting || selectedProducts.length === 0) return;
         setSubmitting(true);
+        setSubmitError(null);
 
         try {
             const res = await fetch('/api/sample-request', {
@@ -93,7 +103,11 @@ export default function CheckoutClient() {
                 }),
             });
 
-            if (!res.ok) throw new Error('Failed to submit request');
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setSubmitError(typeof data.error === 'string' && data.error ? data.error : t.samplesCheckout.alert.submitFailed);
+                return;
+            }
 
             // Clear selection
             localStorage.removeItem('linnevik:sample-selection');
@@ -102,7 +116,7 @@ export default function CheckoutClient() {
             router.push(`/${locale}/thank-you`);
         } catch (error) {
             console.error('Error submitting request:', error);
-            alert('Failed to submit request. Please try again later.');
+            setSubmitError(t.samplesCheckout.alert.submitFailed);
         } finally {
             setSubmitting(false);
         }
@@ -176,7 +190,6 @@ export default function CheckoutClient() {
                                             type="tel"
                                             id="phone"
                                             name="phone"
-                                            required
                                             value={formData.phone}
                                             onChange={handleChange}
                                             className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
@@ -233,7 +246,6 @@ export default function CheckoutClient() {
                                             type="text"
                                             id="organizationNumber"
                                             name="organizationNumber"
-                                            required
                                             value={formData.organizationNumber}
                                             onChange={handleChange}
                                             className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
@@ -307,7 +319,6 @@ export default function CheckoutClient() {
                                         type="text"
                                         id="country"
                                         name="country"
-                                        required
                                         value={formData.country}
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 rounded-xl border-2 border-[#E7EDF1] dark:border-[#374151] bg-transparent text-primary focus:outline-none focus:border-[#0B3D2E] dark:focus:border-[#379E7D] transition-colors"
@@ -331,16 +342,26 @@ export default function CheckoutClient() {
                                 </div>
                             </div>
 
+                            {(loadFailed || selectedProducts.length === 0) && (
+                                <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+                                    {loadFailed ? t.samplesCheckout.alert.loadFailed : t.samplesCheckout.alert.noneSelected}{' '}
+                                    <LocaleLink href="/samples" className="underline">{t.samplesCheckout.alert.chooseSamples}</LocaleLink>
+                                </p>
+                            )}
+                            {submitError && (
+                                <p role="alert" className="text-sm text-red-700 dark:text-red-400">{submitError}</p>
+                            )}
+
                             {/* Submit */}
                             <button
                                 type="submit"
-                                disabled={submitting}
+                                disabled={submitting || selectedProducts.length === 0}
                                 className="w-full bg-[#0B3D2E] hover:bg-[#145C45] text-white px-8 py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl dark:bg-[#145C45] dark:hover:bg-[#1E755C] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {submitting ? (
                                     <>
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Processing...
+                                        {t.samplesCheckout.alert.processing}
                                     </>
                                 ) : (
                                     t.samplesCheckout.form.submitButton

@@ -15,10 +15,13 @@ export default function ContactClient() {
     });
 
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [sendError, setSendError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (status === 'loading') return;
         setStatus('loading');
+        setSendError(null);
 
         try {
             const res = await fetch('/api/contact', {
@@ -27,7 +30,14 @@ export default function ContactClient() {
                 body: JSON.stringify(formData),
             });
 
-            if (!res.ok) throw new Error('Failed to send message');
+            if (!res.ok) {
+                // Serverns svar, t.ex. "För många förfrågningar", säger mer än
+                // en allmän rad (plan.md, H8).
+                const data = await res.json().catch(() => ({}));
+                setStatus('error');
+                setSendError(typeof data.error === 'string' && data.error ? data.error : t.contact.form.sendFailed);
+                return;
+            }
 
             setStatus('success');
             setFormData({
@@ -41,7 +51,7 @@ export default function ContactClient() {
         } catch (error) {
             console.error('Error sending message:', error);
             setStatus('error');
-            alert('Failed to send message. Please try again later.');
+            setSendError(t.contact.form.sendFailed);
         }
     };
 
@@ -220,6 +230,9 @@ export default function ContactClient() {
                                         />
                                     </div>
 
+                                    {sendError && (
+                                        <p role="alert" className="text-sm text-red-700 dark:text-red-400">{sendError}</p>
+                                    )}
                                     {/* Submit Button */}
                                     <button
                                         type="submit"
@@ -229,7 +242,7 @@ export default function ContactClient() {
                                         {status === 'loading' ? (
                                             <>
                                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Sending...
+                                                {t.contact.form.sending}
                                             </>
                                         ) : (
                                             t.contact.form.submit

@@ -569,7 +569,9 @@
         }
       },
       "submit": "Skicka meddelande",
-      "successAlert": "Tack för ditt meddelande! Vi återkommer inom kort."
+      "successAlert": "Tack för ditt meddelande! Vi återkommer inom kort.",
+      "sending": "Skickar…",
+      "sendFailed": "Meddelandet kunde inte skickas. Försök igen."
     },
     "map": {
       "placeholder": "[Karta - Google Maps integration]"
@@ -662,7 +664,12 @@
       "label": "Laddar..."
     },
     "alert": {
-      "success": "Tack för din beställning! Vi skickar proverna till dig inom kort."
+      "success": "Tack för din beställning! Vi skickar proverna till dig inom kort.",
+      "loadFailed": "Produkterna kunde inte hämtas. Ladda om sidan.",
+      "noneSelected": "Du har inte valt några prover.",
+      "chooseSamples": "Välj prover",
+      "submitFailed": "Beställningen kunde inte skickas. Försök igen.",
+      "processing": "Skickar…"
     },
     "header": {
       "backButton": "Tillbaka",
@@ -679,7 +686,7 @@
           "placeholder": "För- och efternamn"
         },
         "phone": {
-          "label": "Telefon *",
+          "label": "Telefon",
           "placeholder": "+46 70 123 45 67"
         },
         "email": {
@@ -691,7 +698,7 @@
           "placeholder": "Företagets namn"
         },
         "organizationNumber": {
-          "label": "Organisationsnummer *",
+          "label": "Organisationsnummer",
           "placeholder": "XXXXXX-XXXX"
         },
         "address": {
@@ -707,7 +714,7 @@
           "placeholder": "Stad"
         },
         "Country": {
-          "label": "land *",
+          "label": "Land",
           "placeholder": "Sverige"
         },
         "notes": {

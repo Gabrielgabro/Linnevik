@@ -24,9 +24,12 @@ function SamplesPageContent() {
     useEffect(() => {
         // Fetch products from API route
         fetch(`/api/products?locale=${locale}`)
-            .then(res => res.json())
+            .then(async res => {
+                if (!res.ok) throw new Error(`products ${res.status}`);
+                return res.json();
+            })
             .then(data => {
-                setProducts(data);
+                setProducts(Array.isArray(data) ? data : []);
                 setLoading(false);
             })
             .catch(err => {

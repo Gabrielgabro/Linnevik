@@ -25,13 +25,25 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { products } = body;
 
-        // Validate required fields innan escaping — tomma strängar ska fällas.
-        if (!body.contactName || !body.organizationName || !body.organizationNumber || !body.email || !body.phone || !body.address || !body.postalCode || !body.city || !body.country) {
+        const english = body.locale === 'en';
+        // §14.1: namn, e-post, företag och adress. Telefon, org.nr och land
+        // är frivilliga; landet blir Sverige när det saknas.
+        if (!body.contactName || !body.organizationName || !body.email || !body.address || !body.postalCode || !body.city) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: english ? 'Fill in name, e-mail, company and address.' : 'Fyll i namn, e-post, företag och adress.' },
                 { status: 400 }
             );
         }
+        // En beställning utan prover sparades förr ändå (plan.md, H3).
+        if (!Array.isArray(products) || products.length === 0) {
+            return NextResponse.json(
+                { error: english ? 'Choose at least one sample.' : 'Välj minst ett prov.' },
+                { status: 400 }
+            );
+        }
+        body.phone ??= '';
+        body.organizationNumber ??= '';
+        body.country ||= 'SE';
 
         // Fälten går rakt in i mejlets HTML och escapas därför här.
         const contactName = escapeHtml(body.contactName);
