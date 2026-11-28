@@ -127,6 +127,9 @@ export function parseProductInput(body: Body, { partial = false } = {}): Product
   // "ta bort den" — den kan inte vara null och ska aldrig gissas här.
   const handle = text(body, 'handle', 80);
   if (handle) input.handle = handle;
+  // Den engelska adressen (/en/products/…). Samma regel: tom betyder behåll.
+  const handleEn = text(body, 'handleEn', 80);
+  if (handleEn) input.handleEn = handleEn;
 
   // Leverantören är NOT NULL i databasen. Ett tomrensat fält betyder därför
   // "vi vet inte" och blir 'unknown', inte null.
@@ -240,6 +243,8 @@ export function parseCollectionInput(body: Body, { partial = false } = {}): Coll
 
   const handle = text(body, 'handle', 80);
   if (handle) input.handle = handle;
+  const handleEn = text(body, 'handleEn', 80);
+  if (handleEn) input.handleEn = handleEn;
 
   const parentId = intOrNull(body, 'parentId');
   if (parentId !== undefined) input.parentId = parentId;

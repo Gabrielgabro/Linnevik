@@ -101,7 +101,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
     // Om kategorin inte hittas alls: kolla först om handlen bytts i /admin —
     // en omdöpt kategori ska leda vidare, inte dö. Se redirectsDb.
     if (!result) {
-        const moved = await resolveHandleRedirect('collection', handle);
+        const moved = await resolveHandleRedirect('collection', handle, locale);
         if (moved) permanentRedirect(`/${locale}${moved}`);
         notFound();
     }

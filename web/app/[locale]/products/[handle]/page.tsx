@@ -109,7 +109,7 @@ export default async function ProductPage({ params }: Props) {
     // sidvisning hade kostat en databasrundtur för varje besökare för att lösa
     // ett problem som rör de få adresser som faktiskt flyttat.
     if (!product) {
-        const moved = await resolveHandleRedirect('product', handle);
+        const moved = await resolveHandleRedirect('product', handle, locale);
         if (moved) permanentRedirect(`/${locale}${moved}`);
         notFound();
     }

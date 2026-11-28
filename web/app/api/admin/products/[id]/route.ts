@@ -44,7 +44,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     product = await updateProduct(id, input);
   } catch (error) {
     if (isUniqueViolation(error, 'products_handle_key')) {
-      return NextResponse.json({ error: 'Den handlen används redan.' }, { status: 409 });
+      return NextResponse.json({ error: 'Den svenska adressen används redan.' }, { status: 409 });
+    }
+    if (isUniqueViolation(error, 'products_handle_en_key')) {
+      return NextResponse.json({ error: 'Den engelska adressen används redan.' }, { status: 409 });
     }
     throw error;
   }
@@ -54,6 +57,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // omdöpning en tyst 404 för alla som redan har länken.
   if (product && product.handle !== before.handle) {
     await recordHandleChange('product', before.handle, product.handle, auth.user);
+  }
+  if (product?.handleEn && before.handleEn && product.handleEn !== before.handleEn) {
+    await recordHandleChange('product', before.handleEn, product.handleEn, auth.user, 'en');
   }
 
   // Kategorikopplingarna kommer i samma anrop som fälten, men skrivs för sig:

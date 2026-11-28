@@ -328,6 +328,7 @@ export type ProductInput = Partial<
     | 'title'
     | 'titleEn'
     | 'handle'
+    | 'handleEn'
     | 'descriptionHtml'
     | 'descriptionHtmlEn'
     | 'tags'
@@ -345,12 +346,16 @@ export type ProductInput = Partial<
 
 export async function createProduct(input: ProductInput & { title: string }): Promise<ProductRow> {
   const handle = input.handle ? slugify(input.handle) : await availableHandle(input.title);
+  // Utan engelsk adress ger produkten 404 på /en (§1.11). Den svenska
+  // adressen duger tills någon anger en engelsk.
+  const handleEn = input.handleEn ? slugify(input.handleEn) : handle;
   const status = input.status ?? 'active';
   const [row] = await getDb()
     .insert(products)
     .values({
       ...input,
       handle,
+      handleEn,
       title: input.title,
       status,
       publishedAt: status === 'active' ? (input.publishedAt ?? new Date()) : null,
@@ -364,7 +369,10 @@ export async function updateProduct(id: number, patch: ProductInput): Promise<Pr
   // Handlen hamnar i en URL. Formuläret tar emot fri text, så den tvättas här
   // och inte bara när produkten skapas — annars blir "Täcke Sebastian" en
   // adress med blanksteg och å i sig.
-  const handlePatch = patch.handle ? { handle: slugify(patch.handle) } : {};
+  const handlePatch = {
+    ...(patch.handle ? { handle: slugify(patch.handle) } : {}),
+    ...(patch.handleEn ? { handleEn: slugify(patch.handleEn) } : {}),
+  };
   const statusPatch = patch.status
     ? {
         status: patch.status,
@@ -636,6 +644,7 @@ export async function reorderImages(productId: number, orderedIds: number[]): Pr
 export type CollectionListRow = {
   id: number;
   handle: string;
+  handleEn: string | null;
   titleSv: string;
   titleEn: string;
   descriptionHtml: string | null;
@@ -668,6 +677,7 @@ export async function listCollectionsForAdmin(): Promise<CollectionListRow[]> {
     .select({
       id: collections.id,
       handle: collections.handle,
+      handleEn: collections.handleEn,
       titleSv: collections.titleSv,
       titleEn: collections.titleEn,
       descriptionHtml: collections.descriptionHtml,
@@ -699,6 +709,7 @@ export type CollectionInput = {
   seoDescription?: string | null;
   seoDescriptionEn?: string | null;
   handle?: string;
+  handleEn?: string;
   parentId?: number | null;
   position?: number;
   active?: boolean;
@@ -708,9 +719,10 @@ export async function createCollection(
   input: CollectionInput & { titleSv: string; titleEn: string }
 ): Promise<{ id: number }> {
   const handle = input.handle ? slugify(input.handle) : slugify(input.titleSv);
+  const handleEn = input.handleEn ? slugify(input.handleEn) : handle;
   const [row] = await getDb()
     .insert(collections)
-    .values({ ...input, handle, titleSv: input.titleSv, titleEn: input.titleEn })
+    .values({ ...input, handle, handleEn, titleSv: input.titleSv, titleEn: input.titleEn })
     .returning({ id: collections.id });
   return row;
 }
@@ -745,17 +757,23 @@ export async function assertNoCycle(id: number, parentId: number | null): Promis
   }
 }
 
-/** Returnerar handlen som faktiskt skrevs — anroparen behöver den för omdirigeringen. */
-export async function updateCollection(id: number, patch: CollectionInput): Promise<string | null> {
+/** Returnerar adresserna som faktiskt skrevs — anroparen behöver dem för omdirigeringen. */
+export async function updateCollection(
+  id: number,
+  patch: CollectionInput
+): Promise<{ handle: string; handleEn: string | null } | null> {
   if (patch.parentId !== undefined) await assertNoCycle(id, patch.parentId);
   // Samma som för produkter: handlen är en adress, inte en fritext.
-  const handlePatch = patch.handle ? { handle: slugify(patch.handle) } : {};
+  const handlePatch = {
+    ...(patch.handle ? { handle: slugify(patch.handle) } : {}),
+    ...(patch.handleEn ? { handleEn: slugify(patch.handleEn) } : {}),
+  };
   const [row] = await getDb()
     .update(collections)
     .set({ ...patch, ...handlePatch, updatedAt: new Date() })
     .where(eq(collections.id, id))
-    .returning({ handle: collections.handle });
-  return row?.handle ?? null;
+    .returning({ handle: collections.handle, handleEn: collections.handleEn });
+  return row ?? null;
 }
 
 /**
@@ -815,6 +833,7 @@ export async function duplicateProduct(id: number): Promise<ProductRow> {
     .insert(products)
     .values({
       handle,
+      handleEn: handle,
       title: `${source.title} (kopia)`,
       titleEn: source.titleEn ? `${source.titleEn} (copy)` : null,
       descriptionHtml: source.descriptionHtml,

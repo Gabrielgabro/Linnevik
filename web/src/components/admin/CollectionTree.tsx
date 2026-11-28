@@ -72,6 +72,7 @@ function CollectionRow({ node, options }: { node: Node; options: CollectionListR
         seoDescription: values.seoDescription,
         seoDescriptionEn: values.seoDescriptionEn,
         handle: values.handle,
+        handleEn: values.handleEn,
         parentId: values.parentId ? Number(values.parentId) : null,
         position: values.position,
         active: values.active === 'on',
@@ -144,7 +145,8 @@ function CollectionRow({ node, options }: { node: Node; options: CollectionListR
           <div className="grid grid-cols-2 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
             <Field label="Titel (sv)" name="titleSv" required defaultValue={node.titleSv} />
             <Field label="Titel (en)" name="titleEn" required defaultValue={node.titleEn} />
-            <Field label="Handle" name="handle" defaultValue={node.handle} />
+            <Field label="Adress (sv)" name="handle" defaultValue={node.handle} />
+            <Field label="Adress (en)" name="handleEn" defaultValue={node.handleEn ?? ''} />
             <Field
               label="Position"
               name="position"

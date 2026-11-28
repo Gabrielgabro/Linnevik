@@ -23,8 +23,16 @@ import { getDb } from '@/lib/db';
 
 export type RedirectKind = 'product' | 'collection';
 
-function pathFor(kind: RedirectKind, handle: string): string {
-  return kind === 'product' ? `/products/${handle}` : `/collections/${handle}`;
+/**
+ * Den svenska adressen gäller på båda språken så länge en engelsk saknas, och
+ * sparas därför utan språk. Ett byte av den engelska adressen sparas med
+ * `/en` först, så att det inte krockar med ett svenskt byte av samma namn.
+ */
+export type RedirectLocale = 'en' | null;
+
+function pathFor(kind: RedirectKind, handle: string, locale: RedirectLocale = null): string {
+  const path = kind === 'product' ? `/products/${handle}` : `/collections/${handle}`;
+  return locale ? `/${locale}${path}` : path;
 }
 
 function configured(): boolean {
@@ -42,13 +50,14 @@ export async function recordHandleChange(
   kind: RedirectKind,
   fromHandle: string,
   toHandle: string,
-  actor?: string
+  actor?: string,
+  locale: RedirectLocale = null
 ): Promise<void> {
   if (!configured()) return;
   if (!fromHandle || !toHandle || fromHandle === toHandle) return;
 
-  const from = pathFor(kind, fromHandle);
-  const to = pathFor(kind, toHandle);
+  const from = pathFor(kind, fromHandle, locale);
+  const to = pathFor(kind, toHandle, locale);
 
   try {
     await getDb().execute(sql`
@@ -100,8 +109,14 @@ export async function resolveRedirect(path: string): Promise<string | null> {
 /** Målet för en produkt- eller kategorihandle som inte längre finns. */
 export async function resolveHandleRedirect(
   kind: RedirectKind,
-  handle: string
+  handle: string,
+  locale?: string
 ): Promise<string | null> {
+  // Målet ges utan språk; sidan lägger på sitt eget.
+  if (locale === 'en') {
+    const moved = await resolveRedirect(pathFor(kind, handle, 'en'));
+    if (moved) return moved.replace(/^\/en(?=\/)/, '');
+  }
   return resolveRedirect(pathFor(kind, handle));
 }
 

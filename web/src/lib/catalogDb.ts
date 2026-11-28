@@ -545,7 +545,13 @@ export async function getCatalogProduct(
 
   const localizedVariants = variants.map(v => ({
     ...v,
-    option_values: locale === 'en' ? (v.option_values_en ?? []) : (v.option_values ?? [])
+    // En variant som skapats i admin har inga engelska alternativ, och en som
+    // fått nya svenska alternativ har inaktuella. Då visas de svenska hellre
+    // än inga alls eller fel antal.
+    option_values:
+      locale === 'en' && (v.option_values_en ?? []).length === (v.option_values ?? []).length
+        ? (v.option_values_en ?? [])
+        : (v.option_values ?? [])
   }));
 
   return {

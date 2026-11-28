@@ -32,7 +32,10 @@ export async function POST(request: NextRequest) {
     row = await createCollection({ ...input, titleSv: input.titleSv!, titleEn: input.titleEn! });
   } catch (error) {
     if (isUniqueViolation(error, 'collections_handle_key')) {
-      return NextResponse.json({ error: 'Den handlen används redan.' }, { status: 409 });
+      return NextResponse.json({ error: 'Den svenska adressen används redan.' }, { status: 409 });
+    }
+    if (isUniqueViolation(error, 'collections_handle_en_key')) {
+      return NextResponse.json({ error: 'Den engelska adressen används redan.' }, { status: 409 });
     }
     const message = error instanceof Error ? error.message : 'Kunde inte skapa kategorin.';
     return NextResponse.json({ error: message }, { status: 400 });

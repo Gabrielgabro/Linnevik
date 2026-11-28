@@ -32,13 +32,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   let handle: string | null = null;
+  let handleEn: string | null = null;
   try {
     // updateCollection kontrollerar cykler. En rundgång i trädet hade inte
     // gett något fel — den hade tyst huggit av varje brödsmula under sig.
-    handle = await updateCollection(id, input);
+    ({ handle, handleEn } = (await updateCollection(id, input)) ?? { handle: null, handleEn: null });
   } catch (error) {
     if (isUniqueViolation(error, 'collections_handle_key')) {
-      return NextResponse.json({ error: 'Den handlen används redan.' }, { status: 409 });
+      return NextResponse.json({ error: 'Den svenska adressen används redan.' }, { status: 409 });
+    }
+    if (isUniqueViolation(error, 'collections_handle_en_key')) {
+      return NextResponse.json({ error: 'Den engelska adressen används redan.' }, { status: 409 });
     }
     const message = error instanceof Error ? error.message : 'Kunde inte spara kategorin.';
     return NextResponse.json({ error: message }, { status: 400 });
@@ -49,6 +53,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // och undantaget för den ligger fortfarande handskrivet i next.config.ts.
   if (handle && handle !== before.handle) {
     await recordHandleChange('collection', before.handle, handle, auth.user);
+  }
+  if (handleEn && before.handleEn && handleEn !== before.handleEn) {
+    await recordHandleChange('collection', before.handleEn, handleEn, auth.user, 'en');
   }
 
   await record(auth.user, 'collection.updated', String(id), {

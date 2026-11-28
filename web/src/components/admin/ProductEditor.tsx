@@ -86,7 +86,8 @@ function ContentPanel({ detail, suppliers }: { detail: ProductDetail; suppliers:
       <div className="grid grid-cols-2 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
         <Field label="Titel (sv)" name="title" required defaultValue={product.title} />
         <Field label="Titel (en)" name="titleEn" defaultValue={product.titleEn} />
-        <Field label="Handle" name="handle" defaultValue={product.handle} />
+        <Field label="Adress (sv)" name="handle" defaultValue={product.handle} />
+        <Field label="Adress (en)" name="handleEn" defaultValue={product.handleEn ?? ''} />
         <Field
           label="Taggar"
           name="tags"
