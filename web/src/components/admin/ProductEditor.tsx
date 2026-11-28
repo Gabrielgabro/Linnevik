@@ -526,9 +526,9 @@ function VariantRow({
     variant.optionValues.length ? variant.optionValues : [{ name: '', value: '' }]
   );
 
-  // Priset är inklusive moms; landad kostnad är det inte. Jämför man dem rakt
-  // av ser marginalen 25 % bättre ut än den är.
-  const exVat = variant.priceMinor / 100 / 1.25;
+  // Listpriset är exklusive moms (§4.1), precis som landad kostnad. De
+  // jämförs därför rakt av.
+  const exVat = variant.priceMinor / 100;
   const belowCost = landedCostSek !== null && exVat < landedCostSek;
 
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -669,7 +669,7 @@ function VariantRow({
           <div className="grid grid-cols-3 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
             <Field label="SKU" name="sku" required defaultValue={variant.sku} />
             <Field
-              label={`Pris (${variant.currency.toUpperCase()}, inkl. moms)`}
+              label={`Listpris (${variant.currency.toUpperCase()}, exkl. moms)`}
               name="price"
               type="number"
               step="0.01"
@@ -864,7 +864,7 @@ function NewVariant({ productId }: { productId: number }) {
     <form onSubmit={save} className="flex flex-col gap-4 pt-2">
       <div className="grid grid-cols-3 gap-x-6 gap-y-5 max-[560px]:grid-cols-1">
         <Field label="SKU" name="sku" required placeholder="TAC-SEB-150200-AND" />
-        <Field label="Pris (SEK, inkl. moms)" name="price" type="number" step="0.01" required />
+        <Field label="Listpris (SEK, exkl. moms)" name="price" type="number" step="0.01" required />
         <Field label="Lager" name="inventoryQuantity" type="number" defaultValue="0" />
         <Field label="Minsta antal" name="minimumOrderQuantity" type="number" min="1" defaultValue="1" />
         <Field label="Beställningssteg" name="orderIncrement" type="number" min="1" defaultValue="1" />
