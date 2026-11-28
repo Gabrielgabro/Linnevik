@@ -52,7 +52,7 @@ export default function PortalAccountTable({ accounts }: { accounts: PortalAccou
     if (
       !confirm(
         `Ta bort webbkontot ${account.email}? Inloggningen upphör direkt. ` +
-          `${account.clientName} står kvar bland tvätterikunderna, och ordrarna står kvar.`
+          `Företaget ${account.clientName} och ordrarna står kvar.`
       )
     ) {
       return;

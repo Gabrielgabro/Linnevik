@@ -8,6 +8,7 @@ import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/compon
 import { Panel, Tag } from '@/components/admin/ui';
 import type { CustomerRow, OrderRow } from '@/lib/db/schema';
 import { formatMinor } from '@/lib/money';
+import { orderStatusLabel } from '@/lib/adminLabels';
 
 const ACCOUNT_STATUSES = ['active', 'inactive'] as const;
 
@@ -88,6 +89,7 @@ function AccountForm({ clientId, customer }: { clientId: number; customer?: Cust
           label="Kontostatus"
           name="status"
           options={ACCOUNT_STATUSES}
+          labels={{ active: 'Aktivt', inactive: 'Inaktivt' }}
           defaultValue={customer?.status ?? 'active'}
           required
         />
@@ -177,7 +179,7 @@ export default function CommerceCustomerPanel({
                   className="flex items-center justify-between gap-4 py-2.5 text-[13.5px] hover:text-brand-text"
                 >
                   <span>
-                    Order #{order.id} · {order.status}
+                    Order #{order.id} · {orderStatusLabel(order.status)}
                     {order.testMode && ' · TEST'}
                   </span>
                   <span className="font-mono tabular-nums">

@@ -24,7 +24,7 @@ export default async function NewClientPage() {
         }
         title="Lägg till företag"
         accent={accentFor('/admin/clients')}
-        description="Organisationsnummer, fakturamejl och adress behövs för att kunna fakturera. Kontaktpersoner läggs till på företaget när det är sparat."
+        description="Organisationsnummer och adress behövs för att kunna fakturera. Fakturamejl är valfritt. Kontaktpersoner läggs till på företaget när det är sparat."
       />
 
       <ClientForm mode="create" suggestedCustomerNo={suggestedCustomerNo} />

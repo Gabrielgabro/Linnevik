@@ -12,6 +12,7 @@ import { Button, ErrorNote, Field, Select, TextArea, formValues } from '@/compon
 import StatusPill, { StatusDot } from '@/components/admin/ui/StatusPill';
 import { CHANNELS, CONTACT_STATUSES, contactName } from '@/lib/clients';
 import type { ClientContactRow } from '@/lib/db/schema';
+import { adminRequest } from '@/lib/adminRequest';
 
 // Etiketten bor numera i ui/StatusPill. Re-exporten står kvar så att
 // befintliga importer från den här filen fortsätter fungera.
@@ -93,10 +94,10 @@ function ContactRow({ contact }: { contact: ClientContactRow }) {
   const remove = async () => {
     if (!confirm(`Ta bort ${contactName(contact)}?`)) return;
     setBusy(true);
-    const response = await fetch(`/api/admin/contacts/${contact.id}`, { method: 'DELETE' });
+    const result = await adminRequest(`/api/admin/contacts/${contact.id}`, { method: 'DELETE', fallbackError: 'Kunde inte ta bort.' });
     setBusy(false);
-    if (!response.ok) {
-      setError('Kunde inte ta bort.');
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
     router.refresh();
