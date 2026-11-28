@@ -7,7 +7,8 @@ import Notice from '@/components/admin/ui/Notice';
 import { formatMinor, toMinor } from '@/lib/money';
 import { allowedOrderActions, ORDER_ACTION_LABEL, type OrderAction } from '@/lib/orderActionRules';
 import type { OrderDetail } from '@/lib/ordersDb';
-import { FULFILLMENT_STATUS_LABEL, paymentStatusLabel } from '@/lib/adminLabels';
+import { FULFILLMENT_STATUS_LABEL, orderStatusLabel, paymentStatusLabel } from '@/lib/adminLabels';
+import { adminRequest } from '@/lib/adminRequest';
 
 const REFUND_REASON_LABEL: Record<string, string> = {
   requested_by_customer: 'Kunden bad om det',
@@ -31,6 +32,10 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
   // innehåll och byts först när en återbetalning gått igenom: dubbelklickar
   // man ändå får Stripe samma idempotensnyckel och skickar inte om pengarna.
   const [refunding, setRefunding] = useState(false);
+  // Leverans och retur flyttar lager och skickar mejl. Ett andra klick medan
+  // det första pågår gjorde förr allt två gånger (plan.md, F2).
+  const [posting, setPosting] = useState<'fulfillment' | 'return' | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [refundKey, setRefundKey] = useState(() => crypto.randomUUID());
   // Ordern sparades förr helt tyst: knappen såg likadan ut före och efter, och
   // en oförändrad status gav inget synligt kvitto alls.
@@ -66,15 +71,13 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
     setSending(template);
     setError(null);
     setResent(false);
-    const response = await fetch(`/api/admin/orders/${order.id}/emails`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template }),
+    const result = await adminRequest(`/api/admin/orders/${order.id}/emails`, {
+      body: { template },
+      fallbackError: 'Utskicket misslyckades.',
     });
-    const data = await response.json().catch(() => ({}));
     setSending(null);
-    if (!response.ok) {
-      setError(data.error ?? 'Utskicket misslyckades.');
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
     setResent(true);
@@ -87,18 +90,40 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
     // långt innan svaret kommit. Formuläret hämtas därför ut redan här.
     const form = event.currentTarget;
     setError(null);
-    const response = await fetch(path, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    setNotice(null);
+    const result = await adminRequest<{ emailed?: boolean; creditNoteNumber?: number | null }>(path, {
+      body: payload,
+      fallbackError: 'Åtgärden misslyckades.',
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setError(data.error ?? 'Åtgärden misslyckades.');
+    if (!result.ok) {
+      setError(result.error);
       return false;
     }
+    // Ett mejl som inte gick i väg ska admin få veta, inte tro att kunden fått det.
+    if (result.data.emailed === false) setNotice('Sparat, men mejlet till kunden skickades inte. Skicka det igen under Kundutskick.');
+    if (result.data.creditNoteNumber) setNotice(`Kreditfaktura ${result.data.creditNoteNumber} är skapad och ligger under Fakturor.`);
     form.reset();
     router.refresh();
     return true;
   }
+
+  async function postOnce(kind: 'fulfillment' | 'return', event: React.FormEvent<HTMLFormElement>, path: string, payload: object) {
+    if (posting) {
+      event.preventDefault();
+      return;
+    }
+    setPosting(kind);
+    await post(event, path, payload);
+    setPosting(null);
+  }
+
+  // Varför ordern inte kan levereras, i den ordning det spelar roll.
+  const notFulfillableReason =
+    order.status === 'on_hold' ? 'Ordern är pausad. Återuppta den först.'
+    : order.status === 'disputed' ? 'Ordern är under tvist hos Stripe.'
+    : order.status === 'stock_exception' ? 'Lagret är inte reserverat. Reservera lagret först.'
+    : ['cancelled', 'failed', 'expired'].includes(order.status) ? `Ordern är ${orderStatusLabel(order.status).toLowerCase()}.`
+    : `Bara betalda ordrar kan levereras. Nuvarande betalstatus: ${paymentStatusLabel(order.paymentStatus)}.`;
   return (
     <div className="grid grid-cols-2 gap-8 max-[760px]:grid-cols-1">
       <div className="col-span-full grid gap-3">
@@ -122,17 +147,19 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
                   if (action === 'cancel' && !window.confirm(
                     paid && remaining > 0
                       ? `Avboka ordern och återbetala ${formatMinor(remaining, order.currency)}? ${paidByBank ? 'Betala tillbaka från bankkontot först. En kreditfaktura skapas.' : 'Beloppet återbetalas till kortet.'}`
-                      : 'Avboka ordern? Fakturan makuleras och lagret släpps.'
+                      : order.paymentMethod === 'invoice'
+                        ? 'Avboka ordern? Fakturan makuleras och lagret släpps.'
+                        : 'Avboka ordern? Betalsidan stängs och lagret släpps.'
                   )) return;
                   setActing(action);
                   setError(null);
-                  const response = await fetch(`/api/admin/orders/${order.id}`, {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action, note: actionNote }),
+                  const result = await adminRequest(`/api/admin/orders/${order.id}`, {
+                    method: 'PATCH',
+                    body: { action, note: actionNote },
+                    fallbackError: 'Åtgärden misslyckades.',
                   });
-                  const data = await response.json().catch(() => ({}));
                   setActing(null);
-                  if (!response.ok) return setError(data.error ?? 'Åtgärden misslyckades.');
+                  if (!result.ok) return setError(result.error);
                   setActionNote('');
                   setSaved(`${ORDER_ACTION_LABEL[action]} ${new Date().toLocaleTimeString('sv-SE')}`);
                   router.refresh();
@@ -148,7 +175,13 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
             {saved}.
           </Notice>
         )}
+        {notice && (
+          <Notice tone="info" title="Observera">
+            {notice}
+          </Notice>
+        )}
       </div>
+      {['paid', 'partially_refunded'].includes(order.paymentStatus) ? (
       <form className="grid gap-4" onSubmit={async event => {
         const values = formValues(event.currentTarget);
         if (refunding) return event.preventDefault();
@@ -167,7 +200,9 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
             En kreditfaktura skapas och mejlas till kunden.
           </Notice>
         )}
-        <Field label="Belopp (kr)" name="amount" type="number" step="0.01" required />
+        {/* Nyckeln hör till beloppet. Ett nytt belopp efter ett misslyckat
+            försök är en ny återbetalning och får en ny nyckel (plan.md, F11). */}
+        <Field label="Belopp (kr)" name="amount" type="number" step="0.01" required onChange={() => setRefundKey(crypto.randomUUID())} />
         {!paidByBank && (
           <Select label="Orsak" name="reason" required options={['requested_by_customer', 'duplicate', 'fraudulent']} labels={REFUND_REASON_LABEL} />
         )}
@@ -176,12 +211,20 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
           {refunding ? 'Återbetalar…' : paidByBank ? 'Registrera återbetalning' : 'Återbetala via Stripe'}
         </Button>
       </form>
+      ) : (
+        <div className="grid gap-4">
+          <h2 className="font-heading text-xl">Återbetalning</h2>
+          <Notice tone="info" title="Inget att återbetala">
+            Bara betalda ordrar kan återbetalas.
+          </Notice>
+        </div>
+      )}
 
       <div className="grid gap-4">
         <h2 className="font-heading text-xl">Leverans</h2>
         {!canFulfill ? (
           <Notice tone="warn" title="Ordern kan inte levereras">
-            Bara betalda ordrar med reserverat lager kan levereras. Nuvarande betalstatus: {paymentStatusLabel(order.paymentStatus)}.
+            {notFulfillableReason}
           </Notice>
         ) : fullyFulfilled ? (
           // Allt är utlevererat: servern hade nekat en till försändelse ändå
@@ -218,7 +261,7 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
               event.preventDefault();
               return setError('Ange ett antal på minst en rad.');
             }
-            return post(event, `/api/admin/orders/${order.id}/fulfillments`, {
+            return postOnce('fulfillment', event, `/api/admin/orders/${order.id}/fulfillments`, {
               status: values.status, carrier: values.carrier, trackingNumber: values.trackingNumber,
               trackingUrl: values.trackingUrl, note: values.note, items,
             });
@@ -252,7 +295,9 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
             <Field label="Spårningsnummer" name="trackingNumber" />
             <Field label="Spårningslänk" name="trackingUrl" type="url" />
             <TextArea label="Intern notering" name="note" />
-            <Button type="submit">Registrera leverans</Button>
+            <Button type="submit" disabled={posting !== null}>
+              {posting === 'fulfillment' ? 'Registrerar…' : 'Registrera leverans'}
+            </Button>
           </form>
         )}
       </div>
@@ -292,7 +337,7 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
               event.preventDefault();
               return setError('Ange ett antal på minst en rad.');
             }
-            return post(event, `/api/admin/orders/${order.id}/returns`, {
+            return postOnce('return', event, `/api/admin/orders/${order.id}/returns`, {
               items, restock: values.restock === RESTOCK, note: values.note,
             });
           }}>
@@ -323,7 +368,9 @@ export default function OrderActions({ order }: { order: OrderDetail }) {
               options={[RESTOCK, DISCARD]}
             />
             <TextArea label="Intern notering" name="note" />
-            <Button type="submit">Registrera retur</Button>
+            <Button type="submit" disabled={posting !== null}>
+              {posting === 'return' ? 'Registrerar…' : 'Registrera retur'}
+            </Button>
           </form>
         )}
       </div>

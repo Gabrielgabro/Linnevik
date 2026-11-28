@@ -14,6 +14,7 @@
 
 import { getStripe, stripeConfigured } from '@/lib/stripe';
 import { refundVatMinor } from '@/lib/vat';
+import { formatMinor } from '@/lib/money';
 import { claimRefundAmount, recordRefund, syncRefundedTotal, type OrderWithItems } from '@/lib/ordersDb';
 import { issueCreditNote } from '@/lib/invoicesDb';
 import { sendInvoiceEmail } from '@/lib/orderEmails';
@@ -55,7 +56,7 @@ export async function refundOrder(input: {
 
   const remaining = order.totalMinor - order.refundedMinor;
   if (!Number.isInteger(amountMinor) || amountMinor < 1 || amountMinor > remaining) {
-    throw new RefundError(`Beloppet ska vara mellan 1 och ${remaining} öre.`, 400);
+    throw new RefundError(`Beloppet ska vara mellan 0,01 kr och ${formatMinor(remaining, order.currency)}.`, 400);
   }
   // Återbetalningen görs mot betalningen, alltså brutto. Momsdelen sparas, så
   // att det står hur mycket utgående moms som vändes tillbaka (§16.3).
