@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
 import { updateShippingRule } from '@/lib/commerceOperations';
-import { parseShippingInput } from '@/lib/commerceInput';
+import { CommerceInputError, parseShippingInput } from '@/lib/commerceInput';
 import { record } from '@/lib/adminActivity';
 
 type Params = { params: Promise<{ id: string }> };
@@ -16,6 +16,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     await record(auth.user, 'shipping.updated', String(id), { name: shippingRule.name });
     return NextResponse.json({ shippingRule });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update shipping rule.' }, { status: 400 });
+    if (error instanceof CommerceInputError) return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error('[admin] updateShippingRule failed:', error);
+    return NextResponse.json({ error: 'Kunde inte spara fraktregeln.' }, { status: 500 });
   }
 }

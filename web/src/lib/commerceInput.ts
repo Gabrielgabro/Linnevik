@@ -5,13 +5,26 @@ type Body = Record<string, unknown>;
 
 export class CommerceInputError extends Error {}
 
+/** Fältens namn i admin. Felen visas för admin och ska vara på svenska (§15.4). */
+const LABELS: Record<string, string> = {
+  email: 'E-post', customerNo: 'Kundnummer', firstName: 'Förnamn', lastName: 'Efternamn',
+  company: 'Företag', phone: 'Telefon', taxId: 'Org.nr', notes: 'Anteckningar', status: 'Status',
+  acceptsMarketing: 'Utskick', code: 'Kod', title: 'Namn', kind: 'Typ', value: 'Värde',
+  minimumSubtotalMinor: 'Minsta order', maximumSubtotalMinor: 'Största order', usageLimit: 'Antal användningar',
+  usageLimitPerCustomer: 'Användningar per kund', currency: 'Valuta', startsAt: 'Startdatum', endsAt: 'Slutdatum',
+  active: 'Aktiv', name: 'Namn', countryCodes: 'Länder', postalCodePrefixes: 'Postnummer',
+  priceMinor: 'Pris', freeAboveMinor: 'Fri över', estimatedMinDays: 'Minsta leveranstid',
+  estimatedMaxDays: 'Längsta leveranstid', priority: 'Prioritet',
+};
+const label = (key: string) => LABELS[key] ?? key;
+
 function text(body: Body, key: string, max = 500): string | null | undefined {
   if (body[key] === undefined) return undefined;
   if (body[key] === null || body[key] === '') return null;
-  if (typeof body[key] !== 'string') throw new CommerceInputError(`${key} must be text.`);
+  if (typeof body[key] !== 'string') throw new CommerceInputError(`${label(key)} ska vara text.`);
   const value = body[key].trim();
   if (!value) return null;
-  if (value.length > max) throw new CommerceInputError(`${key} is too long.`);
+  if (value.length > max) throw new CommerceInputError(`${label(key)} är för långt.`);
   return value;
 }
 
@@ -19,13 +32,13 @@ function integer(body: Body, key: string, nullable = false): number | null | und
   if (body[key] === undefined) return undefined;
   if (nullable && (body[key] === null || body[key] === '')) return null;
   const value = Number(body[key]);
-  if (!Number.isInteger(value) || value < 0) throw new CommerceInputError(`${key} must be a non-negative integer.`);
+  if (!Number.isInteger(value) || value < 0) throw new CommerceInputError(`${label(key)} ska vara ett heltal, 0 eller större.`);
   return value;
 }
 
 function bool(body: Body, key: string): boolean | undefined {
   if (body[key] === undefined) return undefined;
-  if (typeof body[key] !== 'boolean') throw new CommerceInputError(`${key} must be boolean.`);
+  if (typeof body[key] !== 'boolean') throw new CommerceInputError(`${label(key)} ska vara ja eller nej.`);
   return body[key];
 }
 
@@ -36,10 +49,10 @@ function date(body: Body, key: string): Date | null | undefined {
   // ett omöjligt datum sparades tyst som ett annat än det som skickades in.
   // Rena ÅÅÅÅ-MM-DD kontrolleras därför mot kalendern först.
   if (/^\d{4}-\d{2}-\d{2}$/.test(value) && !isCalendarDate(value)) {
-    throw new CommerceInputError(`${key} must be a date.`);
+    throw new CommerceInputError(`${label(key)} är inget giltigt datum.`);
   }
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) throw new CommerceInputError(`${key} must be a date.`);
+  if (Number.isNaN(parsed.getTime())) throw new CommerceInputError(`${label(key)} är inget giltigt datum.`);
   return parsed;
 }
 
@@ -51,8 +64,8 @@ function stringList(body: Body, key: string): string[] | undefined {
 
 export function parseCustomerInput(body: Body, required = false): CustomerInput {
   const email = text(body, 'email', 320);
-  if (required && !email) throw new CommerceInputError('email is required.');
-  if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new CommerceInputError('email is invalid.');
+  if (required && !email) throw new CommerceInputError('E-post saknas.');
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new CommerceInputError('E-postadressen ser fel ut.');
   const input: CustomerInput = {};
   if (email !== undefined && email !== null) input.email = email;
   for (const key of ['customerNo', 'firstName', 'lastName', 'company', 'phone', 'taxId', 'notes'] as const) {
@@ -71,10 +84,10 @@ export function parseDiscountInput(body: Body, required = false): DiscountInput 
   const title = text(body, 'title', 200);
   const kind = text(body, 'kind', 30);
   if (required && (!code || !title || !kind)) {
-    throw new CommerceInputError('code, title and kind are required.');
+    throw new CommerceInputError('Kod, namn och typ måste fyllas i.');
   }
   if (kind && !['percentage', 'fixed_amount', 'free_shipping'].includes(kind)) {
-    throw new CommerceInputError('kind is invalid.');
+    throw new CommerceInputError('Okänd typ av rabatt.');
   }
   const input: DiscountInput = {};
   if (code) input.code = code;
@@ -92,12 +105,15 @@ export function parseDiscountInput(body: Body, required = false): DiscountInput 
   if (endsAt !== undefined) input.endsAt = endsAt;
   const active = bool(body, 'active');
   if (active !== undefined) input.active = active;
+  if ((input.kind ?? kind) === 'percentage' && input.value !== undefined && input.value > 100) {
+    throw new CommerceInputError('En procentrabatt kan vara högst 100 %.');
+  }
   return input;
 }
 
 export function parseShippingInput(body: Body, required = false): ShippingInput {
   const name = text(body, 'name', 200);
-  if (required && !name) throw new CommerceInputError('name is required.');
+  if (required && !name) throw new CommerceInputError('Namn saknas.');
   const input: ShippingInput = {};
   if (name) input.name = name;
   const countryCodes = stringList(body, 'countryCodes');

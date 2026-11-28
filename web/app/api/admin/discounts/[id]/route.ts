@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
+import { readBody, requireAdmin, routeId, isUniqueViolation } from '@/lib/adminRoute';
 import { updateDiscountCode } from '@/lib/commerceOperations';
-import { parseDiscountInput } from '@/lib/commerceInput';
+import { CommerceInputError, parseDiscountInput } from '@/lib/commerceInput';
 import { record } from '@/lib/adminActivity';
 
 type Params = { params: Promise<{ id: string }> };
@@ -16,6 +16,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     await record(auth.user, 'discount.updated', String(id), { code: discount.code });
     return NextResponse.json({ discount });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update discount.' }, { status: 400 });
+    if (error instanceof CommerceInputError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (isUniqueViolation(error, 'discount_codes_code_key')) {
+      return NextResponse.json({ error: 'Det finns redan en rabattkod med den koden.' }, { status: 409 });
+    }
+    console.error('[admin] updateDiscountCode failed:', error);
+    return NextResponse.json({ error: 'Kunde inte spara rabattkoden.' }, { status: 500 });
   }
 }

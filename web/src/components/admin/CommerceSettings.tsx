@@ -7,6 +7,7 @@ import { ErrorNote, Field, Select, formValues } from '@/components/admin/Fields'
 import { Button, Panel, Tag } from '@/components/admin/ui';
 import type { DiscountCodeRow, ShippingRuleRow } from '@/lib/db/schema';
 import { formatMinor, toMinor } from '@/lib/money';
+import { adminRequest } from '@/lib/adminRequest';
 
 export default function CommerceSettings({ discounts, shippingRules }: {
   discounts: DiscountCodeRow[];
@@ -14,27 +15,31 @@ export default function CommerceSettings({ discounts, shippingRules }: {
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>, endpoint: string, transform: (values: Record<string, string>) => object) {
     event.preventDefault();
+    if (busy) return;
+    // React nollar currentTarget när händelsen är avklarad, långt innan svaret
+    // kommer. Förr föll reset() på det efter att raden sparats: sidan
+    // uppdaterades inte, och nästa klick gjorde en dubblett (plan.md, K3).
+    const form = event.currentTarget;
+    setBusy(true);
     setError(null);
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(transform(formValues(event.currentTarget))),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) return setError(data.error ?? 'Kunde inte spara.');
-    event.currentTarget.reset();
+    const result = await adminRequest(endpoint, { body: transform(formValues(form)), fallbackError: 'Kunde inte spara.' });
+    setBusy(false);
+    if (!result.ok) return setError(result.error);
+    form.reset();
     router.refresh();
   }
 
   async function toggle(endpoint: string, active: boolean) {
+    if (busy) return;
+    setBusy(true);
     setError(null);
-    const response = await fetch(endpoint, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active }),
-    });
-    if (!response.ok) setError('Kunde inte ändra status.');
+    const result = await adminRequest(endpoint, { method: 'PATCH', body: { active }, fallbackError: 'Kunde inte ändra status.' });
+    setBusy(false);
+    if (!result.ok) setError(result.error);
     else router.refresh();
   }
 
@@ -52,7 +57,7 @@ export default function CommerceSettings({ discounts, shippingRules }: {
               <Tag color={row.active ? 'var(--adm-ok)' : 'var(--viz-ink-3)'}>
                 {row.active ? 'Aktiv' : 'Inaktiv'}
               </Tag>
-              <Button className="ml-auto" variant="secondary" size="sm" onClick={() => toggle(`/api/admin/discounts/${row.id}`, !row.active)}>
+              <Button className="ml-auto" variant="secondary" size="sm" disabled={busy} onClick={() => toggle(`/api/admin/discounts/${row.id}`, !row.active)}>
                 {row.active ? 'Inaktivera' : 'Aktivera'}
               </Button>
             </li>
@@ -66,9 +71,9 @@ export default function CommerceSettings({ discounts, shippingRules }: {
           <Field label="Kod" name="code" required />
           <Field label="Namn" name="title" required />
           <Select label="Typ" name="kind" required options={['percentage', 'fixed_amount', 'free_shipping']} labels={{ percentage: 'Procent', fixed_amount: 'Fast belopp', free_shipping: 'Fri frakt' }} />
-          <Field label="Värde (% eller kr)" name="value" type="number" step="0.01" defaultValue="0" />
+          <Field label="Värde (hela procent, eller kr)" name="value" type="number" step="0.01" defaultValue="0" />
           <Field label="Minsta order (kr)" name="minimumSubtotal" type="number" step="0.01" defaultValue="0" />
-          <Button type="submit" className="self-end">
+          <Button type="submit" className="self-end" disabled={busy}>
             <Plus size={16} strokeWidth={2} aria-hidden />
             Skapa rabattkod
           </Button>
@@ -86,7 +91,7 @@ export default function CommerceSettings({ discounts, shippingRules }: {
               <Tag color={row.active ? 'var(--adm-ok)' : 'var(--viz-ink-3)'}>
                 {row.active ? 'Aktiv' : 'Inaktiv'}
               </Tag>
-              <Button className="ml-auto" variant="secondary" size="sm" onClick={() => toggle(`/api/admin/shipping/${row.id}`, !row.active)}>
+              <Button className="ml-auto" variant="secondary" size="sm" disabled={busy} onClick={() => toggle(`/api/admin/shipping/${row.id}`, !row.active)}>
                 {row.active ? 'Inaktivera' : 'Aktivera'}
               </Button>
             </li>
@@ -102,7 +107,7 @@ export default function CommerceSettings({ discounts, shippingRules }: {
           <Field label="Pris (kr)" name="price" type="number" step="0.01" defaultValue="0" />
           <Field label="Fri över (kr)" name="freeAbove" type="number" step="0.01" />
           <Field label="Prioritet (lägre först)" name="priority" type="number" defaultValue="0" />
-          <Button type="submit" className="self-end">
+          <Button type="submit" className="self-end" disabled={busy}>
             <Plus size={16} strokeWidth={2} aria-hidden />
             Skapa fraktregel
           </Button>
