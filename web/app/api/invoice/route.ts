@@ -23,6 +23,7 @@ import { vatBps } from '@/lib/vat';
 import { createPendingOrder, abandonPendingOrder, getOrderByCartVersion, PaymentMethodConflictError, setPendingOrderCustomerDetails } from '@/lib/ordersDb';
 import { CartError, getOwnedCart, markOwnedCartCheckoutStarted, validateOwnedCartForCheckout } from '@/lib/cartDb';
 import { ownedCommerceEnabled } from '@/lib/commerceConfig';
+import { reopenCartFromCheckout } from '@/lib/checkoutAttempts';
 import { getSiteUrl } from '@/lib/site';
 import { getServerLanguage } from '@/lib/language';
 import { raiseAlert } from '@/lib/opsAlerts';
@@ -316,7 +317,12 @@ export async function POST(request: NextRequest) {
           reused: true,
         });
       }
-      return fail('CHECKOUT_IN_PROGRESS', 'Checkout has already started.', 409);
+      // Kunden avbröt kortkassan och väljer faktura i stället (§5.5). Samma
+      // väg som när korgen ändras: kortförsöket avslutas och korgen öppnas.
+      // Förr stod korgen låst tills Stripes session gick ut.
+      if (!(await reopenCartFromCheckout(cartId, currentCart.version))) {
+        return fail('CHECKOUT_IN_PROGRESS', 'Checkout has already started.', 409);
+      }
     }
 
     const locale = await getServerLanguage();

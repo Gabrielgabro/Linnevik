@@ -29,10 +29,11 @@ vi.mock('@/lib/mailer', async importOriginal => ({
 }));
 
 import { getDb } from '@/lib/db';
-import { clients, customers, orders } from '@/lib/db/schema';
+import { carts, clients, customers, orders } from '@/lib/db/schema';
 import { registerCustomer } from '@/lib/commerceOperations';
 import { createOwnedCart, setOwnedCartItem } from '@/lib/cartDb';
 import { currentInvoiceForOrder } from '@/lib/invoicesDb';
+import { createPendingOrder, getOrderById } from '@/lib/ordersDb';
 import { createProduct, createVariant } from '@/lib/productsDb';
 import { POST } from '../../app/api/invoice/route';
 
@@ -117,5 +118,33 @@ describe('fakturakassan', () => {
     expect(second.invoiceNumber).toBe(first.invoiceNumber);
     expect(second.reused).toBe(true);
     expect(sent).toHaveLength(1);
+  });
+
+  it('går att välja efter en avbruten kortkassa, och kortförsöket avslutas', async () => {
+    // Kunden gick till kortkassan, avbröt hos Stripe och kom tillbaka (§5.5).
+    // Förr var korgen låst för fakturan tills Stripes session gick ut.
+    const cart = await createOwnedCart();
+    await setOwnedCartItem(cart.id, variantId, 2);
+    const [current] = await getDb().select({ version: carts.version }).from(carts).where(eq(carts.id, cart.id));
+    const cardAttempt = await createPendingOrder(
+      [{ variantId, sku: 'KAS', title: 'Kassa', quantity: 2, unitAmountMinor: 15_000, currency: 'sek', stripeProductId: null }],
+      'sv',
+      { id: cart.id, version: current.version },
+      { vat: { mode: 'explicit', bps: 2500, rateId: null } }
+    );
+    await getDb().update(carts).set({ status: 'checkout_started', checkoutStartedAt: new Date() }).where(eq(carts.id, cart.id));
+
+    const response = await checkout({ cartId: cart.id });
+    expect(response.status).toBe(200);
+    expect((await response.json()).invoiceNumber).toBeGreaterThan(0);
+    expect((await getOrderById(cardAttempt))!.status).not.toBe('pending');
+  });
+
+  it('går att välja när kassan föll innan någon order skapades', async () => {
+    const cart = await createOwnedCart();
+    await setOwnedCartItem(cart.id, variantId, 1);
+    await getDb().update(carts).set({ status: 'checkout_started', checkoutStartedAt: new Date() }).where(eq(carts.id, cart.id));
+    const response = await checkout({ cartId: cart.id });
+    expect(response.status).toBe(200);
   });
 });
