@@ -89,7 +89,12 @@ export async function applyOrderAction(input: {
     case 'resume': {
       // Tillbaka dit ordern var. Saknas spåret följer statusen betalningen.
       const fallback = PAID.includes(order.paymentStatus) ? 'paid' : 'pending';
-      const to = (await statusBeforePause(order.id)) ?? fallback;
+      let to = (await statusBeforePause(order.id)) ?? fallback;
+      // Pausad som obetald och betald under pausen: tillbaka som betald, och
+      // bara om lagret är reserverat. Annars väntar den på lager.
+      if (to === 'pending' && PAID.includes(order.paymentStatus)) {
+        to = (await reserveOrderStockStrict(order.id, input.actor, null)) ? 'paid' : 'stock_exception';
+      }
       return setStatus(order.id, order.status, to, 'order.resumed', input.actor, { note });
     }
 

@@ -235,3 +235,44 @@ describe('hel återbetalning före leverans (A11)', () => {
     expect(await status(result.orderId)).toBe('paid');
   });
 });
+
+describe('en pausad order som betalas', () => {
+  it('förblir pausad, och blir betald när admin återupptar den (§8.9)', async () => {
+    const result = await createManualInvoice(
+      {
+        clientId,
+        recipient: {
+          email: 'ekonomi@statushotellet.test',
+          companyName: 'Statushotellet AB',
+          organizationNumber: '556234-5677',
+          address: { line1: 'Gatan 1', line2: '', postalCode: '111 11', city: 'Stockholm' },
+        },
+        reference: '',
+        purchaseOrder: '',
+        lines: [{ variantId, quantity: 1, unitAmountMinor: null }],
+        shipping: { mode: 'none' },
+        daysUntilDue: 30,
+        memo: '',
+        note: '',
+      },
+      'Gabriel'
+    );
+    await applyOrderAction({ orderId: result.orderId, action: 'pause', actor: 'Gabriel', note: 'Kunden ringde' });
+
+    const paid = await registerBankPayment({
+      orderId: result.orderId,
+      amountMinor: result.totalMinor,
+      paidOn: new Date().toISOString().slice(0, 10),
+      note: null,
+      actor: 'Gabriel',
+    });
+    expect(paid.ok).toBe(true);
+    const during = (await getOrderById(result.orderId))!;
+    expect(during.paymentStatus).toBe('paid');
+    expect(during.status).toBe('on_hold');
+
+    await applyOrderAction({ orderId: result.orderId, action: 'resume', actor: 'Gabriel' });
+    expect((await getOrderById(result.orderId))!.status).toBe('paid');
+  });
+});
+

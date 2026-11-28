@@ -411,7 +411,12 @@ export async function markOrderPaid(input: {
   const result = await getDb().execute(sql`
     with updated_order as (
       update orders set
-        status = ${stockReady ? 'paid' : 'stock_exception'},
+        -- En pausad order förblir pausad när betalningen kommer (§8.9).
+        -- Admin återupptar den, och då följer statusen betalningen.
+        status = case
+          when orders.status in ('on_hold', 'disputed') then orders.status
+          else ${stockReady ? 'paid' : 'stock_exception'}
+        end,
         payment_status = case when refunded_minor > 0 then payment_status else 'paid' end,
         -- Betalningsdagen, i svensk tid. Exporten räknar ordern hit (§16.2).
         paid_on = coalesce(
