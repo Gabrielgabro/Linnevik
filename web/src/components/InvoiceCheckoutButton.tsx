@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
-import { messageForCode } from '@/components/CheckoutButton';
+import { CART_CHANGED_CODES, messageForCode } from '@/components/CheckoutButton';
+import { useCart } from '@/contexts/CartContext';
 
 type Props = {
   cartId?: string;
@@ -51,6 +52,7 @@ export default function InvoiceCheckoutButton(props: Props) {
   const { locale } = useLocale();
   const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const { refreshCart } = useCart();
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState({
     companyName: props.initialProfile?.companyName ?? '',
@@ -92,6 +94,7 @@ export default function InvoiceCheckoutButton(props: Props) {
         console.error('[Invoice]', data.code, data.error);
         setError(messageForCode(data, props.errorMessages, props.errorLabel));
         setIsPending(false);
+        if (CART_CHANGED_CODES.has(data.code)) await refreshCart().catch(() => {});
         return;
       }
       window.location.href = data.redirectUrl;

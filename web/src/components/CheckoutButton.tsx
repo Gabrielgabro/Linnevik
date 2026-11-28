@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { useLocale } from '@/contexts/LocaleContext';
+import { useCart } from '@/contexts/CartContext';
 
 /**
  * Turn an API failure into something the buyer can read *in their language*.
@@ -15,6 +16,16 @@ import { useLocale } from '@/contexts/LocaleContext';
  * Swedish buyers and Swedish ones to English buyers depending on which layer
  * had raised the error.
  */
+/**
+ * Svar som betyder att korgen på servern inte längre är den som visas:
+ * lagret, priserna eller korgen själv har ändrats. Då läses korgen om, så att
+ * kunden ser det som felet talar om (plan.md, H7).
+ */
+export const CART_CHANGED_CODES = new Set([
+    'STOCK_CHANGED', 'CART_INVALID', 'CART_REPRICED', 'INSUFFICIENT_STOCK', 'NOT_FOR_SALE',
+    'BELOW_MINIMUM', 'INVALID_INCREMENT', 'INVALID_QUANTITY', 'CART_NOT_FOUND', 'CHECKOUT_IN_PROGRESS',
+]);
+
 export function messageForCode(
     data: { code?: unknown; error?: unknown },
     messages: Record<string, string>,
@@ -53,6 +64,7 @@ export default function CheckoutButton({
     // av sig självt. Utan det öppnades Stripe-kassan på svenska för en köpare
     // som läste sidan på engelska.
     const { locale } = useLocale();
+    const { refreshCart } = useCart();
     const hasContent = Boolean(cartId) && !disabled;
 
     async function startCheckout() {
@@ -76,6 +88,7 @@ export default function CheckoutButton({
             console.error('[Checkout]', data.code, data.error);
             setError(messageForCode(data, errorMessages, errorLabel));
             setIsPending(false);
+            if (CART_CHANGED_CODES.has(data.code)) await refreshCart().catch(() => {});
         } catch (error) {
             console.error('[Checkout]', error);
             setError(errorLabel);
