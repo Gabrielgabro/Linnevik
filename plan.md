@@ -312,7 +312,7 @@ webbkonton, **H** hemsidan. Lager A (kontrakten) är gjord för alla fyra.
 | K6 | Ändra variant | Faller lagerändringen sparas priset ändå, men loggas inte. | §4.15 | 2 | Rättad (`6ef8d6f`) |
 | K7 | Ny produkt | En ny tom produkt blir aktiv direkt. | §1.11 | 2 | Rättad (`343f700`) |
 | K8 | Rabattkoder och frakt | Felmeddelanden på engelska. Ett procentvärde med decimaler avvisas, och över 100 % godtas. | §15.4, §4.8 | 3 | Rättad (`06a4488`) |
-| K9 | Produkter | "Kopplad till Stripe" visas som krav för publicering, fast kassan skapar Stripe-produkten själv. | §6 | 3 | Öppen |
+| K9 | Produkter | "Kopplad till Stripe" visas som krav för publicering, fast kassan skapar Stripe-produkten själv. | §6 | 3 | Rättad |
 | K10 | Radera produkt | Kundernas varukorgsrader försvinner i tysthet. | §1.10 | 3 | Öppen |
 | K11 | Mängdrabatt, Rabattkoder | Texterna säger att kassan debiterar efter mängdrabatten och att koder bara gäller kortkassan. | §4.7, §4.11 | 3 | Öppen |
 | K12 | Ny variant | Startlagret ger ingen rad i lagerhistoriken. | §2 | 3 | Öppen |

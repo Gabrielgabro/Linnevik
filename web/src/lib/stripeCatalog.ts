@@ -36,14 +36,8 @@ export type LinkResult = {
  *
  * Idempotent: körs den två gånger uppdateras samma produkt. `retrieve` följt av
  * `update` i stället för bara `create` — Stripe svarar med ett fel på ett id
- * som redan finns, och det felet säger inget begripligt för den som klickat på
- * en knapp.
+ * som redan finns.
  */
-export async function linkProductToStripe(productId: number): Promise<LinkResult> {
-  return linkWhere(sql`p.id = ${productId}`);
-}
-
-/** Som `linkProductToStripe`, men för den som bara har handtaget — kassan. */
 export async function linkProductToStripeByHandle(handle: string): Promise<LinkResult> {
   return linkWhere(sql`p.handle = ${handle}`);
 }
@@ -121,7 +115,11 @@ async function linkWhere(condition: ReturnType<typeof sql>): Promise<LinkResult>
  * arkiveras eller raderas i Stripes kontrollpanel ska fångas här, inte i
  * Stripes svar på sessionen. Det kostar ett parallellt anrop per vara.
  */
-export async function ensureStripeProducts(handles: string[]): Promise<Map<string, string>> {
+export async function ensureStripeProducts(
+  handles: string[],
+  /** Produktens namn hos oss, per handtag. Ett annat namn i Stripe uppdateras. */
+  titles: Map<string, string> = new Map()
+): Promise<Map<string, string>> {
   const stripe = getStripe();
   const ids = new Map<string, string>();
   await Promise.all(
@@ -129,7 +127,10 @@ export async function ensureStripeProducts(handles: string[]): Promise<Map<strin
       const id = stripeProductIdFor(handle);
       try {
         const product = await stripe.products.retrieve(id);
-        if (!product.active) await linkProductToStripeByHandle(handle);
+        // En omdöpt produkt hette förr det gamla namnet i kassan och på
+        // kvittot tills någon tryckte "Uppdatera i Stripe" (plan.md, K9).
+        const title = titles.get(handle);
+        if (!product.active || (title && product.name !== title)) await linkProductToStripeByHandle(handle);
       } catch (error) {
         if (!isMissing(error)) throw error;
         await linkProductToStripeByHandle(handle);
@@ -138,33 +139,4 @@ export async function ensureStripeProducts(handles: string[]): Promise<Map<strin
     })
   );
   return ids;
-}
-
-export type LinkAllResult = {
-  total: number;
-  created: number;
-  updated: number;
-  failed: Array<{ handle: string; error: string }>;
-};
-
-/** Kopplar hela den aktiva katalogen. Omkörningsbar. */
-export async function linkAllProductsToStripe(): Promise<LinkAllResult> {
-  const result = await getDb().execute(sql`
-    select id, handle from products where active order by handle
-  `);
-  const rows = result.rows as Array<{ id: number | string; handle: string }>;
-  const summary: LinkAllResult = { total: rows.length, created: 0, updated: 0, failed: [] };
-  for (const row of rows) {
-    try {
-      const linked = await linkProductToStripe(Number(row.id));
-      if (linked.created) summary.created += 1;
-      else summary.updated += 1;
-    } catch (error) {
-      summary.failed.push({
-        handle: row.handle,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-  return summary;
 }

@@ -237,7 +237,8 @@ export async function POST(request: NextRequest) {
     // Varje vara ska finnas i Stripe, i det läge nyckeln tillhör, innan
     // sessionen skapas. Saknas en skapas den här och nu.
     const stripeProductIds = await ensureStripeProducts(
-      ownedCart.lines.map(line => line.productHandle)
+      ownedCart.lines.map(line => line.productHandle),
+      new Map(ownedCart.lines.map(line => [line.productHandle, line.productTitle]))
     );
     const priced = ownedCart.lines.map(line => ({
       variantId: line.variantId,

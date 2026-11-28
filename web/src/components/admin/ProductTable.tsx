@@ -27,7 +27,6 @@ type Filter =
   | 'alla'
   | 'i-lager'
   | 'slut'
-  | 'utan-stripe'
   | 'utan-kategori'
   | 'utan-leverantor'
   | 'inaktiva';
@@ -37,7 +36,6 @@ const MATCHES: Record<Filter, (product: ProductListRow) => boolean> = {
   alla: () => true,
   'i-lager': product => product.stock > 0,
   slut: product => product.stock <= 0,
-  'utan-stripe': product => !product.stripeProductId,
   'utan-kategori': product => !product.primaryCollection,
   'utan-leverantor': product => product.supplier === 'unknown',
   inaktiva: product => !product.active,
@@ -47,7 +45,6 @@ const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: 'alla', label: 'Alla' },
   { key: 'i-lager', label: 'I lager' },
   { key: 'slut', label: 'Slut' },
-  { key: 'utan-stripe', label: 'Saknar Stripe' },
   { key: 'utan-kategori', label: 'Utan kategori' },
   { key: 'utan-leverantor', label: 'Okänd leverantör' },
   { key: 'inaktiva', label: 'Inaktiva' },
@@ -59,43 +56,6 @@ function priceRange(product: ProductListRow): string {
   const low = formatMinor(product.priceMinMinor, currency);
   if (product.priceMaxMinor === product.priceMinMinor) return low;
   return `${low}–${formatMinor(product.priceMaxMinor ?? product.priceMinMinor, currency)}`;
-}
-
-/** Kopplar hela katalogen till Stripe i det läge miljöns nyckel tillhör. */
-function LinkAllToStripe({ onDone }: { onDone: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const run = async () => {
-    setBusy(true);
-    setMessage(null);
-    setError(null);
-    const response = await fetch('/api/admin/products/stripe', { method: 'POST' });
-    const data = await response.json().catch(() => ({}));
-    setBusy(false);
-    if (!response.ok && response.status !== 207) {
-      setError(data.error ?? 'Kunde inte koppla katalogen till Stripe.');
-      return;
-    }
-    setMessage(`${data.created} skapade, ${data.updated} uppdaterade i Stripe.`);
-    if (data.failed?.length) {
-      setError(
-        data.failed.map((f: { handle: string; error: string }) => `${f.handle}: ${f.error}`).join(' · ')
-      );
-    }
-    onDone();
-  };
-
-  return (
-    <div className="flex flex-col gap-1">
-      <Button type="button" variant="secondary" disabled={busy} onClick={run} className="shrink-0">
-        {busy ? 'Kopplar…' : 'Koppla alla till Stripe'}
-      </Button>
-      {message && <span className="text-[12px] text-ink-3">{message}</span>}
-      <ErrorNote>{error}</ErrorNote>
-    </div>
-  );
 }
 
 /** Nyskapade produkter går direkt till detaljsidan — där finns allt annat. */
@@ -200,7 +160,6 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
           onChange={setQuery}
           placeholder="Titel, handle, tagg eller leverantör"
         />
-        <LinkAllToStripe onDone={() => router.refresh()} />
         <NewProductForm onDone={() => router.refresh()} />
       </Toolbar>
 
@@ -265,11 +224,6 @@ export default function ProductTable({ products }: { products: ProductListRow[] 
                         {product.title}
                       </span>
                       {!product.active && <Tag>Inaktiv</Tag>}
-                      {/* Kassan skapar en saknad Stripe-produkt själv vid
-                          köpet, men taggen visar vad som ännu inte kopplats. */}
-                      {!product.stripeProductId && (
-                        <Tag color="var(--adm-danger)">Saknar Stripe</Tag>
-                      )}
                       {!product.primaryCollection && (
                         <Tag color="var(--adm-warn)">Utan kategori</Tag>
                       )}

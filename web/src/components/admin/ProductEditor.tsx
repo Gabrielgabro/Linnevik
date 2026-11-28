@@ -20,7 +20,6 @@ import {
   formValues,
 } from '@/components/admin/Fields';
 import PageHeader from '@/components/admin/ui/PageHeader';
-import { Tag } from '@/components/admin/ui/StatusPill';
 import { formatMinor, toMinor } from '@/lib/money';
 import type { CollectionListRow, ProductDetail, VariantWithUsage } from '@/lib/productsDb';
 
@@ -1084,7 +1083,6 @@ function PublishChecklist({ detail }: { detail: ProductDetail }) {
     },
     { done: detail.primaryCollectionId !== null, label: 'Primär kategori (brödsmulan)' },
     { done: Boolean(detail.product.titleEn), label: 'Engelsk titel' },
-    { done: Boolean(detail.product.stripeProductId), label: 'Kopplad till Stripe' },
   ];
   const missing = checks.filter(check => !check.done);
 
@@ -1106,54 +1104,6 @@ function PublishChecklist({ detail }: { detail: ProductDetail }) {
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-/** Kopplar produkten till Stripe utan att någon behöver köra skriptet. */
-function StripeLink({ detail }: { detail: ProductDetail }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const linked = detail.product.stripeProductId;
-
-  const link = async () => {
-    setBusy(true);
-    setError(null);
-    const response = await fetch(`/api/admin/products/${detail.product.id}/stripe`, {
-      method: 'POST',
-    });
-    const data = await response.json().catch(() => ({}));
-    setBusy(false);
-    if (!response.ok) {
-      setError(data.error ?? 'Kunde inte koppla produkten till Stripe.');
-      return;
-    }
-    router.refresh();
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          variant={linked ? 'quiet' : 'secondary'}
-          disabled={busy}
-          onClick={link}
-        >
-          {busy ? 'Kopplar…' : linked ? 'Uppdatera i Stripe' : 'Koppla till Stripe'}
-        </Button>
-        <span className="font-mono text-[11.5px]" style={{ color: 'var(--viz-ink-3)' }}>
-          {linked ?? 'Ingen Stripe-produkt'}
-        </span>
-      </div>
-      {/* Inga priser skapas i Stripe — beloppen räknas per kund hos oss och
-          skickas som price_data i kassan. Se stripeCatalog.ts. */}
-      <p className="max-w-[62ch] text-[12.5px]" style={{ color: 'var(--viz-ink-3)' }}>
-        Kopplingen gör att försäljningen syns per produkt i Stripes rapporter. Priserna påverkas
-        inte — de räknas här och skickas med i kassan.
-      </p>
-      <ErrorNote>{error}</ErrorNote>
     </div>
   );
 }
@@ -1340,13 +1290,6 @@ export default function ProductEditor({
             <DuplicateButton productId={product.id} />
           </>
         }
-        description={
-          product.stripeProductId ? (
-            <Tag color="var(--adm-ok)">Stripe: {product.stripeProductId}</Tag>
-          ) : (
-            <Tag color="var(--adm-danger)">Inte i Stripe</Tag>
-          )
-        }
       />
 
       <Panel
@@ -1377,12 +1320,9 @@ export default function ProductEditor({
 
       <Panel
         title="Publicering"
-        note="Vad som återstår innan produkten är komplett på sajten, och kopplingen till Stripe."
+        note="Vad som återstår innan produkten är komplett på sajten. Stripe behöver ingen koppling: kassan skapar och uppdaterar Stripe-produkten vid varje köp."
       >
-        <div className="flex flex-col gap-5">
-          <PublishChecklist detail={detail} />
-          <StripeLink detail={detail} />
-        </div>
+        <PublishChecklist detail={detail} />
       </Panel>
 
       <Panel

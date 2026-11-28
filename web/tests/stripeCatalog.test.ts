@@ -48,6 +48,27 @@ describe('ensureStripeProducts', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it('renames a product whose name changed here', async () => {
+    stripe.products.retrieve.mockResolvedValue({ id: 'linnevik_morgonrock_gap', active: true, name: 'Gammalt namn' });
+    const { ensureStripeProducts } = await import('@/lib/stripeCatalog');
+
+    await ensureStripeProducts(['morgonrock-gap'], new Map([['morgonrock-gap', 'Morgonrock']]));
+
+    expect(stripe.products.update).toHaveBeenCalledWith(
+      'linnevik_morgonrock_gap',
+      expect.objectContaining({ name: 'Morgonrock' })
+    );
+  });
+
+  it('leaves the name alone when it already matches', async () => {
+    stripe.products.retrieve.mockResolvedValue({ id: 'linnevik_morgonrock_gap', active: true, name: 'Morgonrock' });
+    const { ensureStripeProducts } = await import('@/lib/stripeCatalog');
+
+    await ensureStripeProducts(['morgonrock-gap'], new Map([['morgonrock-gap', 'Morgonrock']]));
+
+    expect(stripe.products.update).not.toHaveBeenCalled();
+  });
+
   it('reactivates a product archived in Stripe', async () => {
     stripe.products.retrieve.mockResolvedValue({ id: 'linnevik_morgonrock_gap', active: false });
     const { ensureStripeProducts } = await import('@/lib/stripeCatalog');
