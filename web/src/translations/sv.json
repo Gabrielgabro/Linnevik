@@ -87,7 +87,9 @@
     "pricingTableUnits": "st",
     "pricingTableUnitPrice": "Pris/st",
     "pricingTableSavings": "Rabatt",
-    "sampleOnlyNote": "Den här produkten säljs inte styckvis. Beställ ett kostnadsfritt prov för att bedöma kvaliteten, eller kontakta oss för en offert på volym."
+    "sampleOnlyNote": "Den här produkten säljs inte styckvis. Beställ ett kostnadsfritt prov för att bedöma kvaliteten, eller kontakta oss för en offert på volym.",
+    "addToCartFailed": "Varan kunde inte läggas i varukorgen. Ladda om sidan och försök igen.",
+    "storeClosed": "Butiken tar inte emot beställningar just nu."
   },
   "mto": {
     "priceEstimate": {
@@ -814,7 +816,8 @@
         "DISCOUNT_MINIMUM": "Din order når inte upp till rabattkodens minimibelopp.",
         "DISCOUNT_LIMIT_REACHED": "Rabattkoden är slutanvänd.",
         "DISCOUNT_CUSTOMER_LIMIT_REACHED": "Du har redan använt den rabattkoden.",
-        "DISCOUNT_SIGN_IN_REQUIRED": "Logga in med ditt företagskonto för att använda rabattkoden."
+        "DISCOUNT_SIGN_IN_REQUIRED": "Logga in med ditt företagskonto för att använda rabattkoden.",
+        "CART_INVALID": "Korgen har ändrats. Kontrollera antal och lager och försök igen."
       }
     }
   },

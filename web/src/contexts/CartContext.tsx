@@ -156,6 +156,21 @@ function adaptOwnedCart(owned: OwnedCart): Cart {
     };
 }
 
+/** Ett fel från korgens API, med status och kod så att sidan kan säga vad som hände. */
+export class CartRequestError extends Error {
+    constructor(message: string, readonly status: number, readonly code: string | null) {
+        super(message);
+    }
+}
+
+function cartRequestError(data: { error?: unknown; code?: unknown }, status: number): CartRequestError {
+    return new CartRequestError(
+        typeof data.error === 'string' && data.error ? data.error : 'Kunde inte lägga till varan.',
+        status,
+        typeof data.code === 'string' ? data.code : null
+    );
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
     const [cart, setCart] = useState<Cart>(null);
     // Starts true so the cart page renders its loading state instead of
@@ -257,32 +272,41 @@ export function CartProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
             setError(null);
             try {
-                let id: string | null = latestCart.current?.id || localStorage.getItem(storageKey);
-                if (!id) {
-                    const createResponse = await fetch('/api/store/cart', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+                if (!variantId.startsWith('linnevik:')) throw new Error('Invalid owned cart variant');
+                // Två försök: en korg som gått ut eller checkats ut glöms av
+                // refreshCart, och då läggs varan i en ny korg i stället för
+                // att klicket går förlorat.
+                for (let attempt = 0; ; attempt += 1) {
+                    let id: string | null = latestCart.current?.id || localStorage.getItem(storageKey);
+                    if (!id) {
+                        const createResponse = await fetch('/api/store/cart', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+                        });
+                        const createData = await createResponse.json().catch(() => ({}));
+                        if (!createResponse.ok) throw cartRequestError(createData, createResponse.status);
+                        id = createData.cart?.id ?? null;
+                        if (id) localStorage.setItem(storageKey, id);
+                    }
+                    if (!id) throw new Error('Kunde inte lägga till varan.');
+                    const response = await fetch(`/api/store/cart/${id}/items`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            variantId: Number(variantId.slice('linnevik:'.length)), quantity,
+                        }),
                     });
-                    const createData = await createResponse.json();
-                    id = createData.cart?.id ?? null;
-                    if (id) localStorage.setItem(storageKey, id);
+                    const data = await response.json().catch(() => ({}));
+                    if (response.status === 404 || response.status === 409) {
+                        // Korgen kan ha gått ut, checkats ut eller ändrats i en
+                        // annan flik. Vad som gäller vet bara servern, så vi läser
+                        // om den — `refreshCart` glömmer korgen om den är borta.
+                        await refreshCart();
+                        if (attempt === 0 && !latestCart.current?.id && !localStorage.getItem(storageKey)) continue;
+                    }
+                    if (!response.ok) throw cartRequestError(data, response.status);
+                    applyCart(adaptOwnedCart(data.cart));
+                    return;
                 }
-                if (!id || !variantId.startsWith('linnevik:')) throw new Error('Invalid owned cart variant');
-                const response = await fetch(`/api/store/cart/${id}/items`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        variantId: Number(variantId.slice('linnevik:'.length)), quantity,
-                    }),
-                });
-                const data = await response.json().catch(() => ({}));
-                if (response.status === 404 || response.status === 409) {
-                    // Korgen kan ha gått ut, checkats ut eller ändrats i en
-                    // annan flik. Vad som gäller vet bara servern, så vi läser
-                    // om den — `refreshCart` glömmer korgen om den är borta.
-                    await refreshCart();
-                }
-                if (!response.ok) throw new Error(data.error || 'Kunde inte lägga till varan.');
-                applyCart(adaptOwnedCart(data.cart));
             } catch (caught) {
                 console.error('Failed to add item:', caught);
                 setError(caught instanceof Error ? caught.message : 'Kunde inte lägga till varan.');

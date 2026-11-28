@@ -87,7 +87,9 @@
     "pricingTableUnits": "units",
     "pricingTableUnitPrice": "Price/unit",
     "pricingTableSavings": "Discount",
-    "sampleOnlyNote": "This product isn't sold as a single unit. Order a free sample to evaluate quality, or contact us for a volume quote."
+    "sampleOnlyNote": "This product isn't sold as a single unit. Order a free sample to evaluate quality, or contact us for a volume quote.",
+    "addToCartFailed": "The item could not be added to the cart. Reload the page and try again.",
+    "storeClosed": "The shop is not taking orders right now."
   },
   "mto": {
     "priceEstimate": {
@@ -814,7 +816,8 @@
         "DISCOUNT_MINIMUM": "Your order does not reach the minimum for that discount code.",
         "DISCOUNT_LIMIT_REACHED": "That discount code has been fully used.",
         "DISCOUNT_CUSTOMER_LIMIT_REACHED": "You have already used that discount code.",
-        "DISCOUNT_SIGN_IN_REQUIRED": "Sign in with your company account to use that discount code."
+        "DISCOUNT_SIGN_IN_REQUIRED": "Sign in with your company account to use that discount code.",
+        "CART_INVALID": "Your cart has changed. Check quantities and stock and try again."
       }
     }
   },

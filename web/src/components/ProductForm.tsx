@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useCart } from '@/contexts/CartContext';
+import { CartRequestError, useCart } from '@/contexts/CartContext';
 import { useTranslation } from '@/contexts/LocaleContext';
 import { LocaleLink } from '@/components/LocaleLink';
 import PricingTiersTable from '@/components/PricingTiersTable';
@@ -73,6 +73,7 @@ export default function ProductForm({
     const [qtyInput, setQtyInput] = useState<string>(String(minQty));
     const qty = Number(qtyInput) || 0;
     const [addingToCart, setAddingToCart] = useState(false);
+    const [addError, setAddError] = useState<string | null>(null);
 
     const active = useMemo(() => {
         return variants.find(v =>
@@ -108,10 +109,21 @@ export default function ProductForm({
         if (!active?.id) return;
 
         setAddingToCart(true);
+        setAddError(null);
         try {
             await addItem(active.id, totalUnits);
         } catch (error) {
-            console.error('Failed to add to cart:', error);
+            // Förr sades ingenting: knappen slog bara tillbaka (plan.md, H2).
+            // Korgens regelfel namnger varan och vad som är fel, men bara på
+            // svenska; på engelska visas en allmän rad.
+            const status = error instanceof CartRequestError ? error.status : 0;
+            setAddError(
+                status === 503
+                    ? t.product.storeClosed
+                    : locale === 'sv' && error instanceof CartRequestError && status !== 500
+                        ? error.message
+                        : t.product.addToCartFailed
+            );
         } finally {
             setAddingToCart(false);
         }
@@ -243,6 +255,9 @@ export default function ProductForm({
                             ? t.product.addingToCart
                             : t.product.addToCart}
                 </button>
+            )}
+            {addError && (
+                <p role="alert" className="-mt-4 text-sm text-red-700 dark:text-red-400">{addError}</p>
             )}
 
             {/* Total Price Summary for MTO */}
