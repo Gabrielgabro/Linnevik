@@ -178,11 +178,36 @@ export async function listPortalAccounts(): Promise<PortalAccount[]> {
  * däremot följer med kontot (CASCADE), och det är just det som är "nollställ
  * inloggningen".
  */
+/** Företaget har obetalda fakturor och får inte raderas (§11.11, B6). */
+export class ClientHasUnpaidInvoicesError extends Error {
+  constructor(names: string[]) {
+    super(
+      `${names.join(', ')} har obetalda fakturor och kan inte tas bort. ` +
+        'Registrera betalningen eller avboka ordern först.'
+    );
+  }
+}
+
 export async function deleteClientsWithAccounts(
   ids: number[]
 ): Promise<{ clients: number; accounts: number }> {
   if (!clientsConfigured() || ids.length === 0) return { clients: 0, accounts: 0 };
   const db = getDb();
+  // Ordrarna står kvar när företaget tas bort, men en obetald faktura tappade
+  // då sitt företag och försvann ur företagets obetalda fakturor.
+  const unpaid = await db.execute(sql`
+    select distinct c.name
+    from orders o
+    join clients c on c.id = o.client_id
+    where o.client_id in (${sql.join(ids.map(id => sql`${id}`), sql`, `)})
+      and o.payment_method = 'invoice'
+      and o.payment_status = 'pending'
+      and o.status not in ('cancelled', 'expired', 'failed')
+    order by c.name
+  `);
+  if (unpaid.rows.length) {
+    throw new ClientHasUnpaidInvoicesError((unpaid.rows as Array<{ name: string }>).map(row => row.name));
+  }
   const [removedAccounts, removedClients] = await db.batch([
     db.delete(customers).where(inArray(customers.clientId, ids)).returning({ id: customers.id }),
     db.delete(clients).where(inArray(clients.id, ids)).returning({ id: clients.id }),

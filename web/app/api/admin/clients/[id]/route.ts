@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
 import { isUniqueViolation, readBody, requireAdmin, routeId } from '@/lib/adminRoute';
 import { diff, InputError, parseClientInput } from '@/lib/clientsInput';
-import { deleteClientsWithAccounts } from '@/lib/clientsDb';
+import { ClientHasUnpaidInvoicesError, deleteClientsWithAccounts } from '@/lib/clientsDb';
 import { getDb } from '@/lib/db';
 import { clients, customers } from '@/lib/db/schema';
 
@@ -97,7 +97,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const [existing] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
   if (!existing) return NextResponse.json({ error: 'Okänd kund.' }, { status: 404 });
 
-  const removed = await deleteClientsWithAccounts([id]);
+  let removed;
+  try {
+    removed = await deleteClientsWithAccounts([id]);
+  } catch (error) {
+    if (error instanceof ClientHasUnpaidInvoicesError) return NextResponse.json({ error: error.message }, { status: 409 });
+    throw error;
+  }
 
   await record(auth.user, 'client.deleted', String(id), {
     kundnr: existing.customerNo,

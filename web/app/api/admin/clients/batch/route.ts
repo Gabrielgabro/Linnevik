@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
 import { readBody, requireAdmin } from '@/lib/adminRoute';
 import { CLIENT_STATUSES, PRIORITIES, SEGMENTS } from '@/lib/clients';
-import { deleteClientsWithAccounts } from '@/lib/clientsDb';
+import { ClientHasUnpaidInvoicesError, deleteClientsWithAccounts } from '@/lib/clientsDb';
 import { getDb } from '@/lib/db';
 import { clients } from '@/lib/db/schema';
 
@@ -65,7 +65,13 @@ export async function POST(request: NextRequest) {
   if (action === 'delete') {
     // Webbkontona följer med — se deleteClientsWithAccounts. Ordrarna står kvar
     // och behåller köparens uppgifter som de såg ut vid köpet.
-    const removed = await deleteClientsWithAccounts(targets);
+    let removed;
+    try {
+      removed = await deleteClientsWithAccounts(targets);
+    } catch (error) {
+      if (error instanceof ClientHasUnpaidInvoicesError) return NextResponse.json({ error: error.message }, { status: 409 });
+      throw error;
+    }
     await record(auth.user, 'clients.batch', null, {
       åtgärd: 'tog bort',
       antal: String(removed.clients),
