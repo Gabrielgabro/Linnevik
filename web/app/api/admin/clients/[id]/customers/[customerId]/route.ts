@@ -4,7 +4,7 @@ import { record } from '@/lib/adminActivity';
 import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
 import { deletePortalAccount } from '@/lib/clientsDb';
 import { CommerceInputError, parseCustomerInput } from '@/lib/commerceInput';
-import { updateCustomer } from '@/lib/commerceOperations';
+import { AccountEmailTakenError, updateCustomer } from '@/lib/commerceOperations';
 import { getDb } from '@/lib/db';
 import { customers } from '@/lib/db/schema';
 
@@ -38,11 +38,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     });
     return NextResponse.json({ customer });
   } catch (error) {
-    const status = error instanceof CommerceInputError ? 400 : 409;
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Kunde inte spara webbkontot.' },
-      { status }
-    );
+    if (error instanceof CommerceInputError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof AccountEmailTakenError) return NextResponse.json({ error: error.message }, { status: 409 });
+    console.error('[admin] web account save failed:', error);
+    return NextResponse.json({ error: 'Kunde inte spara webbkontot.' }, { status: 500 });
   }
 }
 

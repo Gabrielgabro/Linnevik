@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { record } from '@/lib/adminActivity';
 import { readBody, requireAdmin, routeId } from '@/lib/adminRoute';
 import { CommerceInputError, parseCustomerInput } from '@/lib/commerceInput';
-import { createCustomer } from '@/lib/commerceOperations';
+import { AccountEmailTakenError, createCustomer } from '@/lib/commerceOperations';
 import { getDb } from '@/lib/db';
 import { clients } from '@/lib/db/schema';
 
@@ -29,10 +29,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
     return NextResponse.json({ customer }, { status: 201 });
   } catch (error) {
-    const status = error instanceof CommerceInputError ? 400 : 409;
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Kunde inte skapa webbkontot.' },
-      { status }
-    );
+    if (error instanceof CommerceInputError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof AccountEmailTakenError) return NextResponse.json({ error: error.message }, { status: 409 });
+    console.error('[admin] web account save failed:', error);
+    return NextResponse.json({ error: 'Kunde inte skapa webbkontot.' }, { status: 500 });
   }
 }

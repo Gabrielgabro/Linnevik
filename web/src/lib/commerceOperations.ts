@@ -503,10 +503,29 @@ export async function listCustomers(limit = 200): Promise<CustomerRow[]> {
   return getDb().select().from(customers).orderBy(desc(customers.updatedAt)).limit(limit);
 }
 
+/** E-postadressen hör redan till ett annat webbkonto. Varje adress har ett konto. */
+export class AccountEmailTakenError extends Error {
+  constructor() {
+    super('Det finns redan ett webbkonto med den e-postadressen.');
+  }
+}
+
+async function assertAccountEmailFree(email: string, exceptId?: number): Promise<void> {
+  const [taken] = await getDb()
+    .select({ id: customers.id })
+    .from(customers)
+    .where(sql`lower(${customers.email}) = ${email.trim().toLowerCase()}`)
+    .limit(1);
+  if (taken && taken.id !== exceptId) throw new AccountEmailTakenError();
+}
+
 export async function createCustomer(
   clientId: number,
   input: CustomerInput & { email: string }
 ): Promise<CustomerRow> {
+  // Före kontaktpersonen: förr lades en kontakt till och sedan föll kontot på
+  // den unika adressen, med ett rått SQL-fel (plan.md, C2).
+  await assertAccountEmailFree(input.email);
   const client = await ensureClientForCommerceCustomer({
     preferredClientId: clientId,
     email: input.email,
@@ -532,6 +551,7 @@ export async function updateCustomer(id: number, input: CustomerInput): Promise<
   const db = getDb();
   const [before] = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
   if (!before) return null;
+  if (input.email) await assertAccountEmailFree(input.email, id);
   const [row] = await getDb()
     .update(customers)
     .set({ ...input, email: input.email?.trim().toLowerCase(), updatedAt: new Date() })
@@ -563,16 +583,9 @@ export async function updateCustomer(id: number, input: CustomerInput): Promise<
         updatedAt: new Date(),
       })
       .where(eq(clientContacts.id, contact.id));
-  } else {
-    await db.insert(clientContacts).values({
-      clientId: row.clientId,
-      firstName: row.firstName?.trim() || row.email.split('@')[0],
-      lastName: row.lastName,
-      email: row.email,
-      phone: row.phone,
-      status: row.status === 'active' ? 'Vunnen' : 'Ej kontaktad',
-    });
   }
+  // Saknas kontaktpersonen har admin tagit bort den. Den återskapas inte när
+  // kontot sparas (plan.md, C8); den läggs till när kontot skapas.
   return row;
 }
 
